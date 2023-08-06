@@ -2,6 +2,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 
+#include <Kernel/Arch/DeferredCallPool.h>
 #include <Kernel/API/POSIX/errno.h>
 #include <Kernel/Arch/ProcessorSpecificDataID.h>
 #include <Kernel/Memory/VirtualAddress.h>
@@ -17,6 +18,7 @@ class PageDirectory;
 
 class Thread;
 class Processor;
+struct TrapFrame;
 enum class InterruptsState;
 
 // FIXME: Remove this once we support SMP in riscv64
@@ -54,12 +56,12 @@ public:
 
     void idle_begin() const
     {
-        TODO_RISCV64();
+        // FIXME: Implement this when SMP for riscv64 is supported.
     }
 
     void idle_end() const
     {
-        TODO_RISCV64();
+        // FIXME: Implement this when SMP for riscv64 is supported.
     }
 
     void wait_for_interrupt() const
@@ -69,12 +71,12 @@ public:
 
     ALWAYS_INLINE static FPUState const& clean_fpu_state()
     {
-        TODO_RISCV64();
+        return s_clean_fpu_state;
     }
 
     ALWAYS_INLINE static void set_current_thread([[maybe_unused]] Thread& current_thread)
     {
-        TODO_RISCV64();
+        current().m_current_thread = &current_thread;
     }
 
     ALWAYS_INLINE static Thread* idle_thread()
@@ -114,41 +116,36 @@ public:
         return Processor::current_id() == 0;
     }
 
-    void invoke_scheduler_async() { TODO_RISCV64(); }
+    void check_invoke_scheduler();
+    void invoke_scheduler_async() { m_invoke_scheduler_async = true; }
 
     ALWAYS_INLINE static bool current_in_scheduler()
     {
-        TODO_RISCV64();
+        return current().m_in_scheduler;
     }
 
     ALWAYS_INLINE static void set_current_in_scheduler([[maybe_unused]] bool value)
     {
-        TODO_RISCV64();
+        current().m_in_scheduler = value;
     }
 
     ALWAYS_INLINE static void enter_critical()
     {
-        // dbgln("FIXME: implement Processor::enter_critical() for riscv64");
+        auto& current_processor = current();
+        current_processor.m_in_critical = current_processor.m_in_critical + 1;
     }
 
-    static void leave_critical()
-    {
-        // dbgln("FIXME: implement Processor::leave_critical() for riscv64");
-    }
-
-    static u32 clear_critical()
-    {
-        TODO_RISCV64();
-    }
+    static void leave_critical();
+    static u32 clear_critical();
 
     ALWAYS_INLINE static void restore_critical([[maybe_unused]] u32 prev_critical)
     {
-        TODO_RISCV64();
+        current().m_in_critical = prev_critical;
     }
 
     ALWAYS_INLINE static u32 in_critical()
     {
-        TODO_RISCV64();
+        return current().m_in_critical;
     }
 
     ALWAYS_INLINE static void verify_no_spinlocks_held()
@@ -210,7 +207,7 @@ public:
 
     ALWAYS_INLINE static FlatPtr current_in_irq()
     {
-        TODO_RISCV64();
+        return current().m_in_irq;
     }
 
     ALWAYS_INLINE static u64 read_cpu_counter()
@@ -220,12 +217,15 @@ public:
 
     ALWAYS_INLINE static bool are_interrupts_enabled()
     {
-        return false;
+        uintptr_t sstatus;
+        asm volatile("csrr %0, sstatus"
+                     : "=r"(sstatus));
+        return (sstatus & 0b10) != 0;
     }
 
     ALWAYS_INLINE static void enable_interrupts()
     {
-        TODO_RISCV64();
+        asm volatile("csrsi sstatus, 1 << 1 /* sie */");
     }
 
     ALWAYS_INLINE static void disable_interrupts()
@@ -235,12 +235,13 @@ public:
 
     ALWAYS_INLINE static void pause()
     {
-        TODO_RISCV64();
+        asm volatile("pause");
     }
 
     ALWAYS_INLINE static void wait_check()
     {
-        TODO_RISCV64();
+        asm volatile("pause");
+        // FIXME: Process SMP messages once we support SMP on riscv64; cf. x86_64
     }
 
     static void deferred_call_queue(Function<void()>)
@@ -253,54 +254,41 @@ public:
         TODO_RISCV64();
     }
 
-    static u32 smp_wake_n_idle_processors(u32)
-    {
-        TODO_RISCV64();
-    }
+    static u32 smp_wake_n_idle_processors(u32 wake_count);
 
-    [[noreturn]] static void halt()
-    {
-        for (;;)
-            asm volatile("wfi");
-    }
+    [[noreturn]] static void halt();
 
-    [[noreturn]] void initialize_context_switching(Thread&)
-    {
-        TODO_RISCV64();
-    }
+    [[noreturn]] void initialize_context_switching(Thread& initial_thread);
+    NEVER_INLINE void switch_context(Thread*& from_thread, Thread*& to_thread);
+    [[noreturn]] static void assume_context(Thread& thread, InterruptsState new_interrupts_state);
+    FlatPtr init_context(Thread& thread, bool leave_crit);
+    static ErrorOr<Vector<FlatPtr, 32>> capture_stack_trace(Thread& thread, size_t max_frames = 0);
 
-    NEVER_INLINE void switch_context(Thread*&, Thread*&)
-    {
-        TODO_RISCV64();
-    }
+    void enter_trap(TrapFrame& trap, bool raise_irq);
+    void exit_trap(TrapFrame& trap);
 
-    [[noreturn]] static void assume_context(Thread&, InterruptsState)
-    {
-        TODO_RISCV64();
-    }
+    static StringView platform_string();
 
-    FlatPtr init_context(Thread&, bool)
-    {
-        TODO_RISCV64();
-    }
+    static void set_thread_specific_data(VirtualAddress thread_specific_data);
 
-    static ErrorOr<Vector<FlatPtr, 32>> capture_stack_trace([[maybe_unused]] Thread& thread, [[maybe_unused]] size_t max_frames = 0)
-    {
-        TODO_RISCV64();
-    }
-
-    static StringView platform_string()
-    {
-        TODO_RISCV64();
-    }
-
-    static void set_thread_specific_data(VirtualAddress)
-    {
-        TODO_RISCV64();
-    }
+    static void flush_entire_tlb_local();
 
 private:
+    Processor(Processor const&) = delete;
+
+    void do_leave_critical();
+
+    DeferredCallPool m_deferred_call_pool {};
+
     Thread* m_current_thread;
     Thread* m_idle_thread;
+    u32 m_in_critical { 0 };
+
+    static FPUState s_clean_fpu_state;
+
+    FlatPtr m_in_irq { 0 };
+    bool m_in_scheduler { false };
+    bool m_invoke_scheduler_async { false };
+    bool m_scheduler_initialized { false };
 };
 }

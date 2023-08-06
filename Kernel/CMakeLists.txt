@@ -2,7 +2,7 @@ if (ENABLE_EXTRA_KERNEL_DEBUG_SYMBOLS)
     add_compile_options(-Og)
     add_compile_options(-ggdb3)
 else()
-    add_compile_options(-O2 -ggdb3)
+    add_compile_options(-Og -ggdb3)
 endif()
 
 if ("${SERENITY_ARCH}" STREQUAL "aarch64")
@@ -504,9 +504,10 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/boot.S
         # Arch/riscv64/BootPPMParser.cpp
         # Arch/riscv64/CPUID.cpp
-        # Arch/riscv64/CurrentTime.cpp
+        Arch/riscv64/CurrentTime.cpp
         Arch/riscv64/Dummy.cpp
-            Arch/riscv64/InterruptManagement.cpp
+        Arch/riscv64/InterruptController.cpp
+        Arch/riscv64/InterruptManagement.cpp
         Arch/riscv64/Interrupts.cpp
         Arch/riscv64/kprintf.cpp
         # Arch/riscv64/MainIdRegister.cpp
@@ -519,16 +520,19 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/SafeMem.cpp
         Arch/riscv64/SBI.cpp
         Arch/riscv64/SmapDisabler.cpp
+        Arch/riscv64/Timer.cpp
         # Arch/riscv64/TrapFrame.cpp
-        # Arch/riscv64/vector_table.S
+        Arch/riscv64/trap_handler.S
     )
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        add_compile_options(-march=rv64gc_zicsr_zifencei)
+        add_compile_options(-march=rv64gc_zicsr_zifencei_zihintpause)
     else()
         add_compile_options(-march=rv64gc)
     endif()
     add_compile_options(-fno-stack-protector -fno-sanitize=all)
+
+    set_source_files_properties(Arch/riscv64/pre_init.cpp Arch/riscv64/MMU.cpp PROPERTIES COMPILE_FLAGS "-O2")
 
     # Otherwise compiling with -O0 crashes as it tries to access absolute addresses
     # add_compile_options(-fPIC -mno-plt -mcmodel=medany -mno-relax)
@@ -797,7 +801,7 @@ add_custom_command(
         COMMAND "${CMAKE_COMMAND}" -E env NM=${CMAKE_NM} sh ${CMAKE_CURRENT_SOURCE_DIR}/mkmap.sh
         COMMAND "${CMAKE_COMMAND}" -E env OBJCOPY=${CMAKE_OBJCOPY} sh ${CMAKE_CURRENT_SOURCE_DIR}/embedmap.sh
         COMMAND ${CMAKE_OBJCOPY} --only-keep-debug Kernel Kernel.debug
-        COMMAND ${CMAKE_OBJCOPY} --strip-debug Kernel
+        COMMAND ${CMAKE_OBJCOPY} Kernel
         COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=Kernel.debug Kernel
         BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/kernel.map
 )

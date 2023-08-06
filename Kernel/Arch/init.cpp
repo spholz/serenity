@@ -229,6 +229,13 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     multiboot_modules = nullptr;
     multiboot_modules_count = 0;
 
+    multiboot_framebuffer_addr = PhysicalAddress { 0x8200'0000 };
+    multiboot_framebuffer_pitch = 1;
+    multiboot_framebuffer_width = 640;
+    multiboot_framebuffer_height = 480;
+    multiboot_framebuffer_bpp = 32;
+    multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
+
     kernel_mapping_base = KERNEL_MAPPING_BASE;
     // FIXME: Read the /chosen/bootargs property.
     kernel_cmdline = "early_boot_console=off"sv;
@@ -285,7 +292,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     DeviceManagement::the().attach_console_device(*ConsoleDevice::must_create());
     DeviceManagement::the().attach_device_control_device(*DeviceControlDevice::must_create());
 
-    MM.unmap_prekernel();
+    // MM.unmap_prekernel();
 
 #if ARCH(X86_64)
     // Ensure that the safemem sections are not empty. This could happen if the linker accidentally discards the sections.

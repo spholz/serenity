@@ -63,6 +63,20 @@ ErrorOr<void, long> console_putchar(int ch)
 
 }
 
+namespace Timer {
+
+ErrorOr<void, SbiError> set_timer(u64 stime_value)
+{
+    const auto result = SBI::sbi_ecall1(EId::Timer, to_underlying(FId::SetTimer), stime_value);
+    if (result.is_error()) {
+        return result.error();
+    }
+
+    return {};
+}
+
+}
+
 namespace DBCN {
 
 ErrorOr<void, SbiError> debug_console_write_byte(u8 byte)

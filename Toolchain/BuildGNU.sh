@@ -244,6 +244,7 @@ pushd "$DIR/Build/$ARCH"
                                                  --target="$TARGET" \
                                                  --with-sysroot="$SYSROOT" \
                                                  --enable-shared \
+                                                 --enable-colored-disassembly \
                                                  --disable-nls \
                                                  ${CI:+"--quiet"} || exit 1
         if [ "$SYSTEM_NAME" = "Darwin" ]; then

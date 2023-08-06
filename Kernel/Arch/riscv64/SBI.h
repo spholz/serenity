@@ -27,8 +27,9 @@ enum class SbiError {
 };
 
 enum class EId {
-    Base = 0x10,              // Base Extension (EID #0x10)
-    DebugConsole = 0x4442434E // Debug Console Extension (EID #0x4442434E "DBCN")
+    Base = 0x10,               // Base Extension (EID #0x10)
+    DebugConsole = 0x4442434E, // Debug Console Extension (EID #0x4442434E "DBCN")
+    Timer = 0x54494D45,        // Timer Extension (EID #0x54494D45 "TIME")
 };
 
 ErrorOr<long, SbiError> sbi_ecall0(EId extension_id, u32 function_id);
@@ -106,6 +107,21 @@ enum class LegacyEId {
 
 // Write data present in ch to debug console.
 ErrorOr<void, long> console_putchar(int ch);
+
+}
+
+// Chapter 6. Timer Extension (EID #0x54494D45 "TIME")
+// Since SBI v0.2
+namespace Timer {
+
+enum class FId {
+    SetTimer = 0,
+};
+
+// Set Timer (FID #0)
+// Programs the clock for next event after stime_value time. stime_value is in absolute time. This
+// function must clear the pending timer interrupt bit as well.
+ErrorOr<void, SbiError> set_timer(u64 stime_value);
 
 }
 

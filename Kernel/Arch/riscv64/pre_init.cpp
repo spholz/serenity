@@ -52,7 +52,7 @@ extern "C" [[noreturn]] void pre_init()
 
     // Set the Supervisor Trap Vector Base Address Register (stvec) to the trap handler function
     asm volatile(
-        "la t0, trap_handler\n"
+        "la t0, asm_trap_handler\n"
         "csrw stvec, t0\n" ::
             : "t0");
 

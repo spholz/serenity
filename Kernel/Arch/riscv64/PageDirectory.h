@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/IntrusiveRedBlackTree.h>
 #include <AK/RefPtr.h>
 
 #include <Kernel/Forward.h>
@@ -41,6 +42,13 @@ enum class PageTableEntryFlags {
 };
 AK_ENUM_BITWISE_OPERATORS(PageTableEntryFlags);
 
+enum class SatpMode {
+    Bare = 0,
+    Sv39 = 8,
+    Sv48 = 9,
+    Sv67 = 10,
+};
+
 class PageDirectoryEntry {
 public:
     PhysicalPtr page_table_base() const { return (m_raw >> PTE_PPN_OFFSET) << PADDR_PPN_OFFSET; }
@@ -74,9 +82,10 @@ public:
     }
 
     // bool is_global() const { TODO_RISCV64(); }
-    void set_global(bool b)
+    void set_global(bool)
     {
-        set_bit(PageTableEntryFlags::Global, b);
+        // FIXME: global bit doesn't inherit on RISC-V
+        // set_bit(PageTableEntryFlags::Global, b);
     }
 
 private:
@@ -93,6 +102,7 @@ private:
 
 class PageTableEntry {
 public:
+    // FIXME: there are other bits before the PPN!
     PhysicalPtr physical_page_base() const { return PhysicalAddress::physical_page_base(m_raw); }
     void set_physical_page_base([[maybe_unused]] PhysicalPtr value)
     {
@@ -104,6 +114,13 @@ public:
     void set_present(bool b)
     {
         set_bit(PageTableEntryFlags::Valid, b);
+        set_bit(PageTableEntryFlags::Readable, b);
+        set_bit(PageTableEntryFlags::Accessed, b);
+        set_bit(PageTableEntryFlags::Dirty, b);
+
+        // FIXME: dont set all permissions
+        set_bit(PageTableEntryFlags::Writeable, b);
+        set_bit(PageTableEntryFlags::Executable, b);
     }
 
     // bool is_user_allowed() const { TODO_RISCV64(); }
@@ -116,11 +133,12 @@ public:
     {
         return (m_raw & to_underlying(PageTableEntryFlags::Writeable)) != 0;
     }
-    void set_writable(bool b)
+    void set_writable(bool)
     {
         // Only W bit set is reserved (Table 4.5)
-        set_bit(PageTableEntryFlags::Readable, b);
-        set_bit(PageTableEntryFlags::Writeable, b);
+        // set_bit(PageTableEntryFlags::Readable, b);
+
+        // set_bit(PageTableEntryFlags::Writeable, b);
     }
 
     // bool is_cache_disabled() const { TODO_RISCV64(); }
@@ -130,9 +148,9 @@ public:
     }
 
     // bool is_global() const { TODO_RISCV64(); }
-    void set_global(bool b)
+    void set_global(bool)
     {
-        set_bit(PageTableEntryFlags::Global, b);
+        // set_bit(PageTableEntryFlags::Global, b);
     }
 
     // bool is_execute_disabled() const { TODO_RISCV64(); }
@@ -162,6 +180,17 @@ private:
     u64 m_raw;
 };
 
+class PageDirectoryPointerTable {
+public:
+    PageDirectoryEntry* directory(size_t index)
+    {
+        VERIFY(index <= (NumericLimits<size_t>::max() << 30));
+        return (PageDirectoryEntry*)(PhysicalAddress::physical_page_base(raw[index]));
+    }
+
+    u64 raw[512];
+};
+
 class PageDirectory final : public AtomicRefCounted<PageDirectory> {
     friend class MemoryManager;
 
@@ -172,16 +201,22 @@ public:
 
     void allocate_kernel_directory();
 
-    FlatPtr root_table_paddr() const
+    FlatPtr satp() const
     {
-        return m_directory_table->paddr().get();
+        return (FlatPtr)SatpMode::Sv39 << 60 | (FlatPtr)m_directory_table->paddr().get() >> PADDR_PPN_OFFSET;
     }
 
-    Process* process() { TODO_RISCV64(); }
+    Process* process() { return m_process; }
 
     RecursiveSpinlock<LockRank::None>& get_lock() { return m_lock; }
 
+    // This has to be public to let the global singleton access the member pointer
+    IntrusiveRedBlackTreeNode<FlatPtr, PageDirectory, RawPtr<PageDirectory>> m_tree_node;
+
 private:
+    static void register_page_directory(PageDirectory* directory);
+    static void deregister_page_directory(PageDirectory* directory);
+
     Process* m_process { nullptr };
     RefPtr<PhysicalPage> m_directory_table;
     RefPtr<PhysicalPage> m_directory_pages[512];
@@ -190,12 +225,5 @@ private:
 
 void activate_kernel_page_directory([[maybe_unused]] PageDirectory const& pgd);
 void activate_page_directory([[maybe_unused]] PageDirectory const& pgd, [[maybe_unused]] Thread* current_thread);
-
-enum class SatpMode {
-    Bare = 0,
-    Sv39 = 8,
-    Sv48 = 9,
-    Sv67 = 10,
-};
 
 }

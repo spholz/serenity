@@ -18,6 +18,9 @@ public:
 
 private:
     InterruptManagement() = default;
+    void find_controllers();
+
+    Vector<NonnullLockRefPtr<IRQController>> m_interrupt_controllers;
 };
 
 }

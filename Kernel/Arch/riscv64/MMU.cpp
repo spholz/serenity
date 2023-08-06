@@ -6,8 +6,9 @@
 
 #include <AK/Types.h>
 
-#include <Kernel/Arch/riscv64/CPU.h>
 #include <Kernel/Arch/riscv64/PageDirectory.h>
+#include <Kernel/Arch/riscv64/ASM_wrapper.h>
+#include <Kernel/Arch/riscv64/CPU.h>
 #include <Kernel/Sections.h>
 
 // These come from the linker script
@@ -235,10 +236,8 @@ static void build_mappings(PageBumpAllocator& allocator, u64* root_table)
 static void activate_mmu(u64 const* root_table)
 {
     FlatPtr const satp_val = (FlatPtr)SatpMode::Sv39 << 60 | (FlatPtr)root_table >> PADDR_PPN_OFFSET;
-    asm volatile(
-        "csrw satp, %0\n"
-        "sfence.vma\n" ::"r"(satp_val)
-        : "memory");
+    RiscV64::Asm::set_satp(satp_val);
+    Processor::flush_entire_tlb_local();
 }
 
 static void setup_kernel_page_directory(u64* root_table)

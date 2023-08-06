@@ -14,7 +14,9 @@ start:
   bltu t0, t1, .Lclear_bss.loop
 .Lclear_bss.done:
 
+  // Let stack start before .text for now.
   lla sp, start
+
   mv fp, zero
   mv ra, zero
 

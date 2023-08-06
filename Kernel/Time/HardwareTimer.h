@@ -20,6 +20,8 @@ enum class HardwareTimerType {
     LocalAPICTimer = 0x4,          /* Local APIC */
 #if ARCH(AARCH64)
     RPiTimer = 0x5
+#elif ARCH(RISCV64)
+    RiscVTimer = 0x6,
 #endif
 };
 

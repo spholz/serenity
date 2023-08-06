@@ -8,7 +8,7 @@
 #include <AK/Singleton.h>
 #include <Kernel/Arch/CPU.h>
 #include <Kernel/Arch/PageDirectory.h>
-#include <Kernel/Arch/aarch64/ASM_wrapper.h>
+#include <Kernel/Arch/riscv64/ASM_wrapper.h>
 #include <Kernel/Interrupts/InterruptDisabler.h>
 #include <Kernel/Memory/MemoryManager.h>
 #include <Kernel/Prekernel/Prekernel.h>

@@ -10,25 +10,19 @@ namespace Kernel {
 
 class IRQController : public AtomicRefCounted<IRQController> {
 public:
-    void enable(GenericInterruptHandler const &)
-    {
-        TODO_RISCV64();
-    }
+    virtual ~IRQController() = default;
 
-    void disable(GenericInterruptHandler const &)
-    {
-        TODO_RISCV64();
-    }
+    virtual void enable(GenericInterruptHandler const&) = 0;
+    virtual void disable(GenericInterruptHandler const&) = 0;
 
-    void eoi(GenericInterruptHandler const &)
-    {
-        TODO_RISCV64();
-    }
+    virtual void eoi(GenericInterruptHandler const&) const = 0;
 
-    StringView model() const
-    {
-        TODO_RISCV64();
-    }
+    virtual u64 pending_interrupts() const = 0;
+
+    virtual StringView model() const = 0;
+
+protected:
+    IRQController() = default;
 };
 
 }

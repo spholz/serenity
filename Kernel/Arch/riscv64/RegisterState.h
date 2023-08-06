@@ -2,6 +2,7 @@
 
 #include <sys/arch/riscv64/regs.h>
 
+#include <Kernel/Arch/riscv64/Registers.h>
 #include <Kernel/Security/ExecutionMode.h>
 
 #include <AK/Platform.h>
@@ -11,6 +12,8 @@ namespace Kernel {
 
 struct RegisterState {
     u64 x[31];    // Saved general purpose registers
+    RiscV64::Sstatus sstatus;
+    u64 sepc;
 
     FlatPtr userspace_sp() const
     {
@@ -31,7 +34,12 @@ struct RegisterState {
 
     ExecutionMode previous_mode() const
     {
-        TODO_RISCV64();
+        switch (sstatus.SPP) {
+        case RiscV64::Sstatus::PrivilegeMode::User:
+            return ExecutionMode::User;
+        case RiscV64::Sstatus::PrivilegeMode::Supervisor:
+            return ExecutionMode::Kernel;
+        }
     }
 
     void set_return_reg([[maybe_unused]] FlatPtr value) { TODO_RISCV64(); }
@@ -41,7 +49,7 @@ struct RegisterState {
     }
 };
 
-#define REGISTER_STATE_SIZE (31 * 8)
+#define REGISTER_STATE_SIZE (33 * 8)
 static_assert(AssertSize<RegisterState, REGISTER_STATE_SIZE>());
 
 inline void copy_kernel_registers_into_ptrace_registers([[maybe_unused]] PtraceRegisters& ptrace_regs, [[maybe_unused]] RegisterState const& kernel_regs)
