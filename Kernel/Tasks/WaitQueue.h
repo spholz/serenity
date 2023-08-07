@@ -27,6 +27,7 @@ public:
     template<class... Args>
     void wait_forever(Args&&... args)
     {
+        dbgln("wait_forever");
         (void)Thread::current()->block<Thread::WaitQueueBlocker>({}, *this, forward<Args>(args)...);
     }
 

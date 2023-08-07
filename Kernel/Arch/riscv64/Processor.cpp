@@ -66,7 +66,13 @@ void Processor::do_leave_critical()
 
 u32 Processor::clear_critical()
 {
-    TODO_RISCV64();
+    InterruptDisabler disabler;
+    auto prev_critical = in_critical();
+    auto& proc = current();
+    proc.m_in_critical = 0;
+    if (proc.m_in_irq == 0)
+        proc.check_invoke_scheduler();
+    return prev_critical;
 }
 
 void Processor::initialize_context_switching(Thread& initial_thread)

@@ -523,6 +523,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/Timer.cpp
         # Arch/riscv64/TrapFrame.cpp
         Arch/riscv64/trap_handler.S
+        Arch/riscv64/PCI.cpp
     )
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -801,12 +802,14 @@ add_custom_command(
         COMMAND "${CMAKE_COMMAND}" -E env NM=${CMAKE_NM} sh ${CMAKE_CURRENT_SOURCE_DIR}/mkmap.sh
         COMMAND "${CMAKE_COMMAND}" -E env OBJCOPY=${CMAKE_OBJCOPY} sh ${CMAKE_CURRENT_SOURCE_DIR}/embedmap.sh
         COMMAND ${CMAKE_OBJCOPY} --only-keep-debug Kernel Kernel.debug
-        COMMAND ${CMAKE_OBJCOPY} Kernel
+        COMMAND ${CMAKE_OBJCOPY} --strip-debug Kernel
         COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=Kernel.debug Kernel
+        COMMAND ${CMAKE_OBJCOPY} -O binary Kernel Kernel.bin
         BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/kernel.map
 )
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel" DESTINATION boot)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel.bin" DESTINATION boot)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel.debug" DESTINATION boot)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/kernel.map" DESTINATION res)
 

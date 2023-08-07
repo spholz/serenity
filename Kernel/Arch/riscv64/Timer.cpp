@@ -9,7 +9,7 @@ namespace Kernel::RiscV {
 Timer::Timer()
     : HardwareTimer(5)
 {
-    m_frequency = 1000000;
+    m_frequency = 10000000;
 
     // set_interrupt_interval_usec(m_frequency / OPTIMAL_TICKS_PER_SECOND_RATE);
     set_interrupt_interval_usec(m_frequency);

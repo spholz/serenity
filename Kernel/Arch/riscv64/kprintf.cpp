@@ -32,7 +32,7 @@ void kernelputstr(char const* characters, size_t length)
         // if (SBI::DBCN::debug_console_write_byte(characters[i]).is_error()) {
         (void)SBI::Legacy::console_putchar(characters[i]);
         // };
-        // console_out(characters[i]);
+        console_out(characters[i]);
     }
 }
 
@@ -45,7 +45,7 @@ void kernelcriticalputstr(char const* characters, size_t length)
         // if (SBI::DBCN::debug_console_write_byte(characters[i]).is_error()) {
         (void)SBI::Legacy::console_putchar(characters[i]);
         // };
-        // critical_console_out(characters[i]);
+        critical_console_out(characters[i]);
     }
 }
 

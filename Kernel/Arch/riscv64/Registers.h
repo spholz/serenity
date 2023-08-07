@@ -131,6 +131,10 @@ static inline StringView scause_to_string(uintptr_t scause)
     }
 }
 
+static inline bool scause_is_page_fault(uintptr_t scause) {
+    return scause == 12 || scause == 13 || scause == 15;
+}
+
 
 }
 

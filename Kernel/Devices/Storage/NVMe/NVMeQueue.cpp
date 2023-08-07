@@ -102,6 +102,7 @@ void NVMeQueue::submit_sqe(NVMeSubmission& sub)
 
     dbgln_if(NVME_DEBUG, "NVMe: Submission with command identifier {}. SQ_TAIL: {}", sub.cmdid, m_sq_tail);
     update_sq_doorbell();
+    dbgln("waht");
 }
 
 u16 NVMeQueue::submit_sync_sqe(NVMeSubmission& sub)
@@ -118,7 +119,9 @@ u16 NVMeQueue::submit_sync_sqe(NVMeSubmission& sub)
             VERIFY_NOT_REACHED();
         m_requests.set(sub.cmdid, { nullptr, true, [this, &cmd_status](u16 status) mutable { cmd_status = status; m_sync_wait_queue.wake_all(); } });
     }
+    dbgln("tag?");
     submit_sqe(sub);
+    dbgln("hello?");
 
     // FIXME: Only sync submissions (usually used for admin commands) use a WaitQueue based IO. Eventually we need to
     //  move this logic into the block layer instead of sprinkling them in the driver code.

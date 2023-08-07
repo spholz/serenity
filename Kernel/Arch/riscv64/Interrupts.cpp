@@ -1,7 +1,9 @@
 #include <AK/Error.h>
 
-#include <Kernel/Arch/Interrupts.h>
 #include <Kernel/Arch/CPU.h>
+#include <Kernel/Arch/Interrupts.h>
+#include <Kernel/Arch/PageFault.h>
+#include <Kernel/Arch/riscv64/ASM_wrapper.h>
 #include <Kernel/Arch/riscv64/InterruptManagement.h>
 #include <Kernel/Arch/riscv64/Registers.h>
 #include <Kernel/Arch/riscv64/TrapFrame.h>
@@ -65,29 +67,20 @@ void unregister_generic_interrupt_handler(u8, GenericInterruptHandler&)
 // a contiguous range.
 ErrorOr<u8> reserve_interrupt_handlers([[maybe_unused]] u8 number_of_irqs)
 {
-    TODO_RISCV64();
+    return number_of_irqs;
 }
 
 void dump_registers(RegisterState const& regs);
 void dump_registers(RegisterState const& regs)
 {
-    uintptr_t scause;
-    asm volatile("csrr %0, scause"
-                 : "=r"(scause));
+    auto scause = RiscV64::Asm::get_scause();
+    auto stval = RiscV64::Asm::get_stval();
+    auto satp = RiscV64::Asm::get_satp();
+
     dbgln("scause: {} ({:#x})", RiscV64::scause_to_string(scause), scause);
-
     dbgln("sepc: {:#x}", regs.sepc);
-
-    uintptr_t stval;
-    asm volatile("csrr %0, stval"
-                 : "=r"(stval));
     dbgln("stval: {:#x}", stval);
-
     dbgln("sstatus: {:#x}", regs.sstatus);
-
-    uintptr_t satp;
-    asm volatile("csrr %0, satp"
-                 : "=r"(satp));
     dbgln("satp: {:#x}", satp);
 
     dbgln(" x1={:p}  x2={:p}  x3={:p}  x4={:p}  x5={:p}", regs.x[0], regs.x[1], regs.x[2], regs.x[3], regs.x[4]);
@@ -111,10 +104,7 @@ extern "C" [[noreturn]] [[gnu::aligned(4)]] void trap_handler_nommu()
 extern "C" void trap_handler(TrapFrame& trap_frame);
 extern "C" void trap_handler(TrapFrame& trap_frame)
 {
-
-    uintptr_t scause;
-    asm volatile("csrr %0, scause"
-                 : "=r"(scause));
+    auto scause = RiscV64::Asm::get_scause();
 
     if ((scause >> 63) == 1) {
         // Interrupt
@@ -155,12 +145,27 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
         Processor::current().enter_trap(trap_frame, false);
         Processor::enable_interrupts();
 
-        dump_registers(*trap_frame.regs);
-        handle_crash(*trap_frame.regs, "Unexpected exception", SIGSEGV, false);
+        if (RiscV64::scause_is_page_fault(scause)) {
+            auto stval = RiscV64::Asm::get_stval();
+            PageFault fault { VirtualAddress(stval) };
+
+            if (scause == 12)
+                fault.set_instruction_fetch(true);
+            else if (scause == 13)
+                fault.set_access(PageFault::Access::Read);
+            else if (scause == 15)
+                fault.set_access(PageFault::Access::Write);
+
+            fault.set_type(PageFault::Type::ProtectionViolation);
+
+            fault.handle(*trap_frame.regs);
+        } else {
+            dump_registers(*trap_frame.regs);
+            handle_crash(*trap_frame.regs, "Unexpected exception", SIGSEGV, false);
+        }
 
         Processor::disable_interrupts();
         Processor::current().exit_trap(trap_frame);
     }
-
 }
 }

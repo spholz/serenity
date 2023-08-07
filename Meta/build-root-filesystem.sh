@@ -115,6 +115,10 @@ if [ -f mnt/boot/Kernel ]; then
     chmod 0400 mnt/boot/Kernel
 fi
 
+if [ -f mnt/boot/Kernel.bin ]; then
+    chmod 0400 mnt/boot/Kernel.bin
+fi
+
 if [ -f mnt/boot/Kernel.debug ]; then
     chmod 0400 mnt/boot/Kernel.debug
 fi

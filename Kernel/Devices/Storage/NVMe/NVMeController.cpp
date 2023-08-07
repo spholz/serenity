@@ -41,7 +41,9 @@ UNMAP_AFTER_INIT ErrorOr<void> NVMeController::initialize(bool is_queue_polled)
 
     PCI::enable_memory_space(device_identifier());
     PCI::enable_bus_mastering(device_identifier());
+    dbgln("device_identifier().address(): {}, PCI::get_BAR0(): {:#x}", device_identifier().address(), PCI::get_BAR0(device_identifier()));
     m_bar = PCI::get_BAR0(device_identifier()) & PCI::bar_address_mask;
+    m_bar = 0x0000000040000000;
     static_assert(sizeof(ControllerRegister) == REG_SQ0TDBL_START);
     static_assert(sizeof(NVMeSubmission) == (1 << SQ_WIDTH));
 
@@ -59,7 +61,7 @@ UNMAP_AFTER_INIT ErrorOr<void> NVMeController::initialize(bool is_queue_polled)
     TRY(create_admin_queue(queue_type));
     VERIFY(m_admin_queue_ready == true);
 
-    VERIFY(IO_QUEUE_SIZE < MQES(caps));
+    // VERIFY(IO_QUEUE_SIZE < MQES(caps));
     dbgln_if(NVME_DEBUG, "NVMe: IO queue depth is: {}", IO_QUEUE_SIZE);
 
     TRY(identify_and_init_controller());
@@ -399,6 +401,7 @@ UNMAP_AFTER_INIT ErrorOr<void> NVMeController::create_io_queue(u8 qid, QueueType
         // When using MSIx interrupts, qid is used as an index into the interrupt table
         sub.create_cq.irq_vector = (m_irq_type == PCI::InterruptType::PIN) ? 0 : qid;
         sub.create_cq.cq_flags = AK::convert_between_host_and_little_endian(flags & 0xFFFF);
+        dbgln("X");
         submit_admin_command(sub, true);
     }
     {

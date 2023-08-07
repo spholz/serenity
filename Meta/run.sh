@@ -348,7 +348,7 @@ if [ "$SERENITY_ARCH" = "aarch64" ]; then
     "
 elif [ "$SERENITY_ARCH" = "riscv64" ]; then
     SERENITY_KERNEL_AND_INITRD="
-    -kernel Kernel/Kernel
+    -kernel Kernel/Kernel.bin
     "
 else
     SERENITY_KERNEL_AND_INITRD="

@@ -11,7 +11,7 @@ VALIDATE_IS_RISCV64()
 namespace Kernel {
 
 struct RegisterState {
-    u64 x[31];    // Saved general purpose registers
+    u64 x[31]; // Saved general purpose registers
     RiscV64::Sstatus sstatus;
     u64 sepc;
 
@@ -25,11 +25,8 @@ struct RegisterState {
         TODO_RISCV64();
     }
 
-    FlatPtr ip() const { TODO_RISCV64(); }
-    void set_ip([[maybe_unused]] FlatPtr value)
-    {
-        TODO_RISCV64();
-    }
+    FlatPtr ip() const { return sepc; }
+    void set_ip(FlatPtr value) { sepc = value; }
     FlatPtr bp() const { TODO_RISCV64(); }
 
     ExecutionMode previous_mode() const

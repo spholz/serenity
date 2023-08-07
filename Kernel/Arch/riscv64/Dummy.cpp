@@ -9,23 +9,10 @@
 // Delay.cpp
 namespace Kernel {
 
-void microseconds_delay(u32)
+void microseconds_delay(u32 microseconds)
 {
-    TODO_AARCH64();
-}
-
-}
-
-// Initializer.cpp
-namespace Kernel::PCI {
-
-bool g_pci_access_io_probe_failed { false };
-bool g_pci_access_is_disabled_from_commandline { true };
-
-void initialize()
-{
-    dbgln("PCI: FIXME: Enable PCI for riscv64 platforms");
-    g_pci_access_io_probe_failed = true;
+    // for (u32 i = 0; i < microseconds; i++)
+    //     asm volatile("");
 }
 
 }

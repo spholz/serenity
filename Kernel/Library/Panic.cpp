@@ -39,7 +39,7 @@ void __panic(char const* file, unsigned int line, char const* function)
         thread->set_crashing();
 
     critical_dmesgln("at {}:{} in {}", file, line, function);
-    dump_backtrace(PrintToScreen::Yes);
+    // dump_backtrace(PrintToScreen::Yes);
     if (!CommandLine::was_initialized())
         Processor::halt();
     switch (kernel_command_line().panic_mode()) {

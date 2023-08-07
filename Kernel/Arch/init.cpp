@@ -32,6 +32,7 @@
 #include <Kernel/Devices/SerialDevice.h>
 #include <Kernel/Devices/Storage/StorageManagement.h>
 #include <Kernel/FileSystem/SysFS/Registry.h>
+#include <Kernel/FileSystem/SysFS/FileSystem.h>
 #include <Kernel/FileSystem/SysFS/Subsystems/Firmware/Directory.h>
 #include <Kernel/FileSystem/VirtualFileSystem.h>
 #include <Kernel/Firmware/ACPI/Initialize.h>
@@ -222,6 +223,14 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
             (u64)100 * MiB,
             MULTIBOOT_MEMORY_AVAILABLE,
         },
+        // For VisionFive 2 framebuffer
+        // {
+        //     sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+        //     (u64)0xfe00'0000,
+
+        //     (u64)10 * MiB,
+        //     MULTIBOOT_MEMORY_AVAILABLE,
+        // },
     };
     multiboot_memory_map = mmap;
     multiboot_memory_map_count = 1;
@@ -229,16 +238,30 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     multiboot_modules = nullptr;
     multiboot_modules_count = 0;
 
+    // RVVM
+    // multiboot_framebuffer_addr = PhysicalAddress { 0x2800'0000 };
+    // multiboot_framebuffer_pitch = 0xa00;
+    // multiboot_framebuffer_width = 640;
+    // multiboot_framebuffer_height = 480;
+
+    // Qemu Placeholder
     multiboot_framebuffer_addr = PhysicalAddress { 0x8200'0000 };
-    multiboot_framebuffer_pitch = 1;
+    multiboot_framebuffer_pitch = 0xa00;
     multiboot_framebuffer_width = 640;
     multiboot_framebuffer_height = 480;
+
+    // VisionFive 2 U-Boot Framebuffer
+    // multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 };
+    // multiboot_framebuffer_pitch = 0x1e00;
+    // multiboot_framebuffer_width = 1920;
+    // multiboot_framebuffer_height = 1080;
+
     multiboot_framebuffer_bpp = 32;
     multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
 
     kernel_mapping_base = KERNEL_MAPPING_BASE;
     // FIXME: Read the /chosen/bootargs property.
-    kernel_cmdline = "early_boot_console=off"sv;
+    kernel_cmdline = "nvme_poll"sv; // "early_boot_console=off"sv;
 #endif
 
     setup_serial_debug();

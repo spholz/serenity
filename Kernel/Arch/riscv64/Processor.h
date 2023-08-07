@@ -5,6 +5,7 @@
 #include <Kernel/Arch/DeferredCallPool.h>
 #include <Kernel/API/POSIX/errno.h>
 #include <Kernel/Arch/ProcessorSpecificDataID.h>
+#include <Kernel/Arch/riscv64/Registers.h>
 #include <Kernel/Memory/VirtualAddress.h>
 
 struct FPUState {
@@ -108,7 +109,7 @@ public:
 
     static u32 count()
     {
-        TODO_RISCV64();
+        return 1;
     }
 
     ALWAYS_INLINE static bool is_bootstrap_processor()
@@ -217,10 +218,7 @@ public:
 
     ALWAYS_INLINE static bool are_interrupts_enabled()
     {
-        uintptr_t sstatus;
-        asm volatile("csrr %0, sstatus"
-                     : "=r"(sstatus));
-        return (sstatus & 0b10) != 0;
+        return RiscV64::Sstatus::read().SIE == 1;
     }
 
     ALWAYS_INLINE static void enable_interrupts()
