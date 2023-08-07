@@ -45,7 +45,6 @@ public:
     {
         // First queue is always the admin queue
         if (sync) {
-            dbgln("Y");
             return m_admin_queue->submit_sync_sqe(sub);
         }
         m_admin_queue->submit_sqe(sub);
