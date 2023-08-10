@@ -30,6 +30,7 @@ sync-local.sh
 .exrc
 .helix/
 .gdb_history
+.nvim.lua
 
 Userland/Libraries/LibWasm/Tests/Fixtures/SpecTests
 Userland/Libraries/LibWasm/Tests/Spec

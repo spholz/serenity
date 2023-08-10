@@ -1,9 +1,9 @@
 #include <AK/Format.h>
 #include <AK/Singleton.h>
 
-#include <Kernel/Arch/riscv64/ASM_wrapper.h>
 #include <Kernel/API/POSIX/errno.h>
 #include <Kernel/Arch/PageDirectory.h>
+#include <Kernel/Arch/riscv64/ASM_wrapper.h>
 #include <Kernel/Interrupts/InterruptDisabler.h>
 #include <Kernel/Library/LockRefPtr.h>
 #include <Kernel/Memory/MemoryManager.h>
@@ -58,12 +58,14 @@ ErrorOr<NonnullLockRefPtr<PageDirectory>> PageDirectory::try_create_for_userspac
 
 LockRefPtr<PageDirectory> PageDirectory::find_current()
 {
-    TODO_RISCV64();
+    return s_satp_map->map.with([&](auto& map) {
+        return map.find(RiscV64::Asm::get_satp());
+    });
 }
 
 void activate_kernel_page_directory(PageDirectory const& page_directory)
 {
-    // dbgln("XXX activate_kernel_page_directory({:p}): page_directory.satp(): {:p}", &page_directory, page_directory.satp());
+    dbgln("XXX activate_kernel_page_directory({:p}): page_directory.satp(): {:p}", &page_directory, page_directory.satp());
 
     FlatPtr const satp_val = page_directory.satp();
     RiscV64::Asm::set_satp(satp_val);
@@ -72,7 +74,7 @@ void activate_kernel_page_directory(PageDirectory const& page_directory)
 
 void activate_page_directory(PageDirectory const& page_directory, Thread* current_thread)
 {
-    // dbgln("XXX activate_page_directory({:p}, {}): page_directory.satp(): {:p}", &page_directory, *current_thread, page_directory.satp());
+    dbgln("XXX activate_page_directory({:p}, {}): page_directory.satp(): {:p}", &page_directory, *current_thread, page_directory.satp());
 
     FlatPtr const satp_val = page_directory.satp();
     current_thread->regs().satp = satp_val;

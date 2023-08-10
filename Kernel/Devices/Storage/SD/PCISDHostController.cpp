@@ -32,6 +32,13 @@ PCISDHostController::PCISDHostController(PCI::DeviceIdentifier const& device_ide
         dmesgln("SD Host Controller has {} slots, but we currently only support using only one", slot_information_register.slots_available());
     }
 
+    VERIFY(slot_information_register.first_bar_number == 0);
+    {
+        SpinlockLocker locker(device_identifier.operation_lock());
+        PCI::write32_locked(device_identifier, PCI::RegisterOffset::BAR0, 0x4000'0000);
+        PCI::write32_locked(device_identifier, PCI::RegisterOffset::COMMAND, 0x6);
+    }
+
     auto physical_address_of_sdhc_registers = PhysicalAddress {
         PCI::get_BAR(device_identifier, static_cast<PCI::HeaderType0BaseRegister>(slot_information_register.first_bar_number))
     };

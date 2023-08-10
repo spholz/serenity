@@ -1,32 +1,31 @@
 #include <AK/Singleton.h>
 
+#include <Kernel/Arch/DebugOutput.h>
 #include <Kernel/Arch/Delay.h>
+#include <Kernel/Arch/riscv64/SBI.h>
 #include <Kernel/Bus/PCI/Initializer.h>
 #include <Kernel/Sections.h>
 #include <Kernel/Tasks/Process.h>
 #include <Kernel/kstdio.h>
 
-// Delay.cpp
 namespace Kernel {
 
 void microseconds_delay(u32 microseconds)
 {
+    (void)microseconds;
     // for (u32 i = 0; i < microseconds; i++)
     //     asm volatile("");
 }
 
-}
-
-// kprintf.cpp
-void set_serial_debug_enabled(bool)
+void debug_output(char ch)
 {
-    TODO_RISCV64();
+    (void)SBI::Legacy::console_putchar(ch);
 }
 
-// extern "C" int ffs(int);
-// extern "C" int ffs(int)
+}
+
+// void set_serial_debug_enabled(bool)
 // {
-//     TODO_RISCV64();
 // }
 
 namespace Kernel::ACPI::StaticParsing {
@@ -38,31 +37,31 @@ ErrorOr<Optional<PhysicalAddress>> find_rsdp_in_platform_specific_memory_locatio
 }
 }
 
-extern "C" short unsigned int __atomic_fetch_sub_2(volatile void *ptr, short unsigned int val, int memorder)
+extern "C" u16 __atomic_fetch_sub_2(void volatile* ptr, u16 val, int memorder)
 {
     (void)memorder;
-    unsigned int previous_value = *(reinterpret_cast<volatile unsigned int *>(ptr));
-    *(reinterpret_cast<volatile unsigned int *>(ptr)) -= val;
+    u16 previous_value = *(reinterpret_cast<u16 volatile*>(ptr));
+    *(reinterpret_cast<u16 volatile*>(ptr)) -= val;
     return previous_value;
 }
 
-extern "C" short unsigned int __atomic_fetch_add_2(volatile void *ptr, short unsigned int val, int memorder)
+extern "C" u16 __atomic_fetch_add_2(void volatile* ptr, u16 val, int memorder)
 {
     (void)memorder;
-    unsigned int previous_value = *(reinterpret_cast<volatile unsigned int *>(ptr));
-    *(reinterpret_cast<volatile unsigned int *>(ptr)) += val;
+    u16 previous_value = *(reinterpret_cast<u16 volatile*>(ptr));
+    *(reinterpret_cast<u16 volatile*>(ptr)) += val;
     return previous_value;
 }
 
-extern "C" unsigned char __atomic_exchange_1(volatile void *ptr, unsigned char val, int memorder)
+extern "C" u8 __atomic_exchange_1(void volatile* ptr, u8 val, int memorder)
 {
     (void)memorder;
-    unsigned char previous_value = *(reinterpret_cast<volatile unsigned char *>(ptr));
-    *(reinterpret_cast<volatile unsigned char *>(ptr)) = val;
+    u8 previous_value = *(reinterpret_cast<u8 volatile*>(ptr));
+    *(reinterpret_cast<u8 volatile*>(ptr)) = val;
     return previous_value;
 }
 
-extern "C" bool __atomic_compare_exchange_1(volatile void *ptr, void *expected, unsigned char desired, bool weak, int success_memorder, int failure_memorder)
+extern "C" bool __atomic_compare_exchange_1(void volatile* ptr, void* expected, u8 desired, bool weak, int success_memorder, int failure_memorder)
 {
     (void)ptr;
     (void)expected;
@@ -72,4 +71,3 @@ extern "C" bool __atomic_compare_exchange_1(volatile void *ptr, void *expected, 
     (void)failure_memorder;
     TODO_RISCV64();
 }
-

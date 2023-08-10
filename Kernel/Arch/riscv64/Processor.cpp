@@ -13,15 +13,17 @@ namespace Kernel {
 Processor* g_current_processor;
 READONLY_AFTER_INIT FPUState Processor::s_clean_fpu_state;
 
-static void store_fpu_state(FPUState* fpu_state)
-{
-    // TODO
-}
-
-static void load_fpu_state(FPUState* fpu_state)
-{
-    // TODO
-}
+// static void store_fpu_state(FPUState* fpu_state)
+// {
+//     (void)fpu_state;
+//     // TODO
+// }
+//
+// static void load_fpu_state(FPUState* fpu_state)
+// {
+//     (void)fpu_state;
+//     // TODO
+// }
 
 u32 Processor::smp_wake_n_idle_processors(u32 wake_count)
 {
@@ -32,9 +34,11 @@ u32 Processor::smp_wake_n_idle_processors(u32 wake_count)
 
 [[noreturn]] void Processor::halt()
 {
-    // disable_interrupts();
+    disable_interrupts();
     for (;;)
-        asm volatile("wfi");
+        asm volatile(
+            "wfi \n"
+            "pause");
 }
 
 void Processor::flush_entire_tlb_local()
@@ -120,10 +124,14 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
     // m_in_critical is restored in enter_thread_context
     from_thread->save_critical(m_in_critical);
 
+    // FIXME: fix CFI directives by moving this asm code into a seperate function
     // clang-format off
     asm volatile(
         "addi sp, sp, -256 \n"
+        ".cfi_adjust_cfa_offset 256 \n"
+
         "sd x1, 0*8(sp) \n"
+        ".cfi_offset ra, -256 \n"
         "sd x2, 1*8(sp) \n"
         "sd x3, 2*8(sp) \n"
         "sd x4, 3*8(sp) \n"
@@ -154,6 +162,7 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         "sd x29, 28*8(sp) \n"
         "sd x30, 29*8(sp) \n"
         "sd x31, 30*8(sp) \n"
+
         "mv t0, sp \n"
         "sd t0, %[from_sp] \n"
         "la t0, 1f \n"
@@ -163,6 +172,7 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         "mv sp, t0 \n"
 
         "addi sp, sp, -32 \n"
+        ".cfi_adjust_cfa_offset 32 \n"
         "ld a0, %[from_thread] \n"
         "ld a1, %[to_thread] \n"
         "ld t2, %[to_ip] \n"
@@ -176,8 +186,10 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
 
         "1: \n"
         "addi sp, sp, 32 \n"
+        ".cfi_adjust_cfa_offset -32 \n"
 
         "ld x1, 0*8(sp) \n"
+        ".cfi_restore ra \n"
         // sp
         "ld x3, 2*8(sp) \n"
         "ld x4, 3*8(sp) \n"
@@ -213,12 +225,14 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         "ld x2, 1*8(sp) \n"
 
         "addi sp, sp, -32 \n"
+        ".cfi_adjust_cfa_offset 32 \n"
         "ld t0, 0*8(sp) \n"
         "ld t1, 1*8(sp) \n"
         "sd t0, %[from_thread] \n"
         "sd t1, %[to_thread] \n"
 
         "addi sp, sp, 288 \n"
+        ".cfi_adjust_cfa_offset -288 \n"
         :
         [from_ip] "=m"(from_thread->regs().sepc),
         [from_sp] "=m"(from_thread->regs().sp),
@@ -237,11 +251,15 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
 
 void Processor::assume_context(Thread& thread, InterruptsState new_interrupts_state)
 {
+    (void)thread;
+    (void)new_interrupts_state;
     TODO_RISCV64();
 }
 
 FlatPtr Processor::init_context(Thread& thread, bool leave_crit)
 {
+    (void)thread;
+    (void)leave_crit;
     return 0;
 }
 
@@ -333,7 +351,8 @@ void Processor::check_invoke_scheduler()
     }
 }
 
-extern "C" void enter_thread_context(Thread* from_thread, Thread* to_thread)
+extern "C" [[gnu::used]] void enter_thread_context(Thread* from_thread, Thread* to_thread);
+extern "C" [[gnu::used]] void enter_thread_context(Thread* from_thread, Thread* to_thread)
 {
     VERIFY(from_thread == to_thread || from_thread->state() != Thread::State::Running);
     VERIFY(to_thread->state() == Thread::State::Running);

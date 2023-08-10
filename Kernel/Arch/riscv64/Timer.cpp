@@ -9,7 +9,7 @@ namespace Kernel::RiscV {
 Timer::Timer()
     : HardwareTimer(5)
 {
-    m_frequency = 10000000;
+    m_frequency = 3000000;
 
     // set_interrupt_interval_usec(m_frequency / OPTIMAL_TICKS_PER_SECOND_RATE);
     set_interrupt_interval_usec(m_frequency);
@@ -65,7 +65,9 @@ void Timer::clear_interrupt()
 
 void Timer::set_compare(u64 compare)
 {
-    MUST(SBI::Timer::set_timer(compare));
+    if (SBI::Timer::set_timer(compare).is_error()) {
+        MUST(SBI::Legacy::set_timer(compare));
+    }
 }
 
 }

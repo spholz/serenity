@@ -107,7 +107,7 @@ ErrorOr<void> SDHostController::initialize()
 
 void SDHostController::try_enable_dma()
 {
-    if (m_registers->capabilities.adma2) {
+    if (false) { // (m_registers->capabilities.adma2) {
         auto maybe_dma_buffer = MM.allocate_dma_buffer_pages(dma_region_size, "SDHC DMA Buffer"sv, Memory::Region::Access::ReadWrite);
         if (maybe_dma_buffer.is_error()) {
             dmesgln("Could not allocate DMA pages for SDHC: {}", maybe_dma_buffer.error());
@@ -746,7 +746,7 @@ ErrorOr<void> SDHostController::transfer_blocks_adma2(u32 block_address, u32 blo
     AK::ArmedScopeGuard abort_guard {
         [] {
             dbgln("Aborting SDHC ADMA read");
-            TODO();
+            // TODO();
         }
     };
 

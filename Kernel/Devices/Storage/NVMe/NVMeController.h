@@ -43,6 +43,7 @@ public:
 
     u16 submit_admin_command(NVMeSubmission& sub, bool sync = false)
     {
+        dbgln("submit_admin_command, sync={}", sync);
         // First queue is always the admin queue
         if (sync) {
             return m_admin_queue->submit_sync_sqe(sub);

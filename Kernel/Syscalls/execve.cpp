@@ -890,6 +890,8 @@ ErrorOr<void> Process::exec(NonnullOwnPtr<KString> path, Vector<NonnullOwnPtr<KS
     auto description = TRY(VirtualFileSystem::the().open(credentials(), path->view(), O_EXEC, 0, current_directory()));
     auto metadata = description->metadata();
 
+    dbgln("metadata.inode: {}", metadata.inode);
+    dbgln("metadata.mode: {}", metadata.mode);
     if (!metadata.is_regular_file())
         return EACCES;
 

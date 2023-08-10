@@ -15,13 +15,16 @@
 .align 2
 .global asm_trap_handler
 asm_trap_handler:
+    .cfi_startproc
     // Save all register states to the current stack
     // and enter the C++ trap handler
 
     // Allocate stack space for Trap Frame
     addi sp, sp, -REGISTER_STATE_SIZE
+    .cfi_adjust_cfa_offset REGISTER_STATE_SIZE
 
     sd x1, 0*XLEN(sp)
+    .cfi_offset ra, -REGISTER_STATE_SIZE
     sd x2, 1*XLEN(sp)
     sd x3, 2*XLEN(sp)
     sd x4, 3*XLEN(sp)
@@ -62,16 +65,19 @@ asm_trap_handler:
     // Set up TrapFrame struct on the stack
     mv t0, sp
     addi sp, sp, -16
+    .cfi_adjust_cfa_offset 16
     sd t0, 1*XLEN(sp)
     sd zero, 0*XLEN(sp)
 
     // Move stack pointer into first argument register
     // and jump to the C++ trap handler
     mv a0, sp
-    jal trap_handler
+
+    call trap_handler
 
     // Remove TrapFrame from the stack
     addi sp, sp, 16
+    .cfi_adjust_cfa_offset -16
 
     // Restore special registers first
     ld t0, SSTATUS_SLOT(sp)
@@ -80,6 +86,7 @@ asm_trap_handler:
     csrw sepc, t0
 
     ld x1, 0*XLEN(sp)
+    .cfi_restore ra
     // sp
     ld x3, 2*XLEN(sp)
     ld x4, 3*XLEN(sp)
@@ -115,5 +122,7 @@ asm_trap_handler:
     ld x2, 1*XLEN(sp)
 
     addi sp, sp, REGISTER_STATE_SIZE
+    .cfi_adjust_cfa_offset -REGISTER_STATE_SIZE
 
     sret
+    .cfi_endproc

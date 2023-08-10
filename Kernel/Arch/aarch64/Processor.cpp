@@ -26,7 +26,7 @@ extern "C" void thread_context_first_enter(void);
 extern "C" void exit_kernel_thread(void);
 extern "C" void do_assume_context(Thread* thread, u32 new_interrupts_state);
 extern "C" void context_first_init(Thread* from_thread, Thread* to_thread) __attribute__((used));
-extern "C" void enter_thread_context(Thread* from_thread, Thread* to_thread) __attribute__((used));
+extern "C" [[maybe_unused]] void enter_thread_context(Thread* from_thread, Thread* to_thread) __attribute__((used));
 extern "C" FlatPtr do_init_context(Thread* thread, u32 new_interrupts_state) __attribute__((used));
 
 Processor* g_current_processor;
@@ -526,7 +526,7 @@ extern "C" void context_first_init([[maybe_unused]] Thread* from_thread, [[maybe
     Scheduler::leave_on_first_switch(InterruptsState::Disabled);
 }
 
-extern "C" void enter_thread_context(Thread* from_thread, Thread* to_thread)
+extern "C" [[maybe_unused]] void enter_thread_context(Thread* from_thread, Thread* to_thread)
 {
     VERIFY(from_thread == to_thread || from_thread->state() != Thread::State::Running);
     VERIFY(to_thread->state() == Thread::State::Running);

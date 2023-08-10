@@ -50,7 +50,7 @@ class DumpPageTable(gdb.Command):
             mode = SatpMode((satp >> 60) & 0xf)
             if mode != SatpMode.Sv39:
                 if mode == SatpMode.Bare:
-                    raise gdb.GdbError(f'satp.MODE is Bare')
+                    raise gdb.GdbError('satp.MODE is Bare')
                 else:
                     raise gdb.GdbError(f'unsupported satp.MODE: {mode}')
 
@@ -69,7 +69,7 @@ class DumpPageTable(gdb.Command):
 
         def walk(tbl_addr: int, level: int = 0, vpn_split: list[int] = [], trace: list[int] = []):
             if level >= 3:
-                raise gdb.GdbError(f'page table recursion limit exceeded!')
+                raise gdb.GdbError('page table recursion limit exceeded!')
 
             if search_for_vaddr is None:
                 print(f'{" " * level * 2}table @ {tbl_addr:#x}:')
@@ -77,8 +77,8 @@ class DumpPageTable(gdb.Command):
             i = 0
             for addr in range(tbl_addr, tbl_addr + ENTRIES_PER_PAGE_PAGE_TABLE * 8, 8):
                 # entry = int.from_bytes(bytes(inferior.read_memory(addr, 8)), 'little')
-                # entry = gdb.execute(f'mon xp/x {addr:#x}', to_string=True).split(': ')[1].strip()
-                entry = gdb.execute(f'mon read_memory {addr:#x} 64 1 phys', to_string=True).strip()
+                entry = gdb.execute(f'mon xp/x {addr:#x}', to_string=True).split(': ')[1].strip()
+                # entry = gdb.execute(f'mon read_memory {addr:#x} 64 1 phys', to_string=True).strip()
                 try:
                     entry = int(entry, 16)
                 except ValueError:
@@ -114,7 +114,9 @@ class DumpPageTable(gdb.Command):
                             print(f'trace: {", ".join(map(hex, trace + [addr]))}')
                             return
                         elif search_for_vaddr is None:
-                            print(f'{" " * level * 2}[{i:#05x}] {addr:#x}: leaf: {vaddr:#x} -> {paddr:#x} ({permissions})')
+                            print(
+                                f'{" " * level * 2}[{i:#05x}] {addr:#x}: leaf: {vaddr:#x} -> {paddr:#x} ({permissions})'
+                            )
 
                 i += 1
 
@@ -219,7 +221,12 @@ class TranslateVAddr(gdb.Command):
         if len(args) < 1 or len(args) > 2:
             raise gdb.GdbError('invalid arguments')
 
-        if args[0] == '-':
+        vaddr = int(args[0], 16)
+        args.pop(0)
+
+        if len(args) == 1:
+            root_tbl_paddr = int(args[0], 16)
+        else:
             frame = gdb.selected_frame()
             satp = int(frame.read_register('satp').cast(uint64_t))
             ppn = satp & 0xfff_ffff_ffff
@@ -227,7 +234,7 @@ class TranslateVAddr(gdb.Command):
             mode = SatpMode((satp >> 60) & 0xf)
             if mode != SatpMode.Sv39:
                 if mode == SatpMode.Bare:
-                    raise gdb.GdbError(f'satp.MODE is Bare')
+                    raise gdb.GdbError('satp.MODE is Bare')
                 else:
                     raise gdb.GdbError(f'unsupported satp.MODE: {mode}')
 
@@ -237,16 +244,8 @@ class TranslateVAddr(gdb.Command):
 
             print(f'{root_tbl_paddr=:#x}')
 
-            args.pop(0)
-        else:
-            root_tbl_paddr = int(args[0], 16)
-
-        if len(args) != 1:
-            raise gdb.GdbError('invalid arguments')
-
         LEVELS = 3
 
-        vaddr = int(args[0], 16)
         vpn = vaddr >> 12
         page_offset = vaddr & 0xfff
         vpn_split = ((vaddr >> 12) & 0x1ff, (vaddr >> 21) & 0x1ff, (vaddr >> 30) & 0x1ff)
@@ -258,8 +257,8 @@ class TranslateVAddr(gdb.Command):
         while True:
             entry_addr = current_table + (vpn_split[level] * 8)
             # entry = int.from_bytes(bytes(inferior.read_memory(entry_addr, 8)), 'little')
-            # entry = gdb.execute(f'mon xp/x {entry_addr:#x}', to_string=True).split(': ')[1].strip()
-            entry = gdb.execute(f'mon read_memory {entry_addr:#x} 64 1 phys', to_string=True).strip()
+            entry = gdb.execute(f'mon xp/x {entry_addr:#x}', to_string=True).split(': ')[1].strip()
+            # entry = gdb.execute(f'mon read_memory {entry_addr:#x} 64 1 phys', to_string=True).strip()
 
             try:
                 entry = int(entry, 16)
@@ -275,7 +274,7 @@ class TranslateVAddr(gdb.Command):
                 raise gdb.GdbError('not mapped')
 
             if PteFlags.Reserved0 in pte_flags or PteFlags.Reserved1 in pte_flags:
-                raise gdb.GdbError(f'reserved PTE field used')
+                raise gdb.GdbError('reserved PTE field used')
 
             permission_bits = pte_flags & (PteFlags.Readable | PteFlags.Writeable | PteFlags.Executable)
             if PteFlags.Writeable in pte_flags and PteFlags.Readable not in pte_flags:

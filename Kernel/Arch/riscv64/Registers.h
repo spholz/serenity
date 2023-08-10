@@ -5,35 +5,36 @@
 #include <AK/Types.h>
 
 namespace Kernel::RiscV64 {
+
 struct [[gnu::packed]] alignas(u64) Sstatus {
-    enum class PrivilegeMode : u8 {
+    enum class PrivilegeMode : unsigned {
         User = 0,
         Supervisor = 1,
         // Machine = 3,
     };
 
-    enum class FloatingPointStatus : u8 {
+    enum class FloatingPointStatus : unsigned {
         Off = 0,
         Initial = 1,
         Clean = 2,
         Dirty = 3,
     };
 
-    enum class VectorStatus : u8 {
+    enum class VectorStatus : unsigned {
         Off = 0,
         Initial = 1,
         Clean = 2,
         Dirty = 3,
     };
 
-    enum class UserModeExtensionsStatus : u8 {
+    enum class UserModeExtensionsStatus : unsigned {
         AllOff = 0,
         NoneDirtyOrClean_SomeOn = 1,
         NoneDirty_SomeOn = 2,
         SomeDirty = 3,
     };
 
-    enum class XLEN : u8 {
+    enum class XLEN : unsigned {
         _32 = 1,
         _64 = 2,
         _128 = 3,
@@ -131,10 +132,10 @@ static inline StringView scause_to_string(uintptr_t scause)
     }
 }
 
-static inline bool scause_is_page_fault(uintptr_t scause) {
+static inline bool scause_is_page_fault(uintptr_t scause)
+{
     return scause == 12 || scause == 13 || scause == 15;
 }
-
 
 }
 

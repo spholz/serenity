@@ -8,7 +8,7 @@
 
 namespace Kernel::SBI {
 
-ErrorOr<long, SbiError> sbi_ecall0(EId extension_id, u32 function_id)
+static ErrorOr<long, SbiError> sbi_ecall0(EId extension_id, u32 function_id)
 {
     register uintptr_t a0 asm("a0");
     register uintptr_t a1 asm("a1");
@@ -26,8 +26,7 @@ ErrorOr<long, SbiError> sbi_ecall0(EId extension_id, u32 function_id)
     return (SbiError)a1;
 }
 
-// TODO: this jumps to an absolute address in the error case if EXTRA_KERNEL_DEBUG_SYMBOLS is on???
-ErrorOr<long, SbiError> sbi_ecall1(EId extension_id, u32 function_id, long arg0)
+static ErrorOr<long, SbiError> sbi_ecall1(EId extension_id, u32 function_id, long arg0)
 {
     register uintptr_t a0 asm("a0") = arg0;
     register uintptr_t a1 asm("a1");
@@ -47,18 +46,33 @@ ErrorOr<long, SbiError> sbi_ecall1(EId extension_id, u32 function_id, long arg0)
 
 namespace Legacy {
 
-ErrorOr<void, long> console_putchar(int ch)
+static long sbi_legacy_ecall1(LegacyEId extension_id, long arg0)
 {
-    register uintptr_t a0 asm("a0") = ch;
-    register uintptr_t a7 asm("a7") = to_underlying(LegacyEId::ConsolePutchar);
+    register uintptr_t a0 asm("a0") = arg0;
+    register uintptr_t a7 asm("a7") = to_underlying(extension_id);
     asm volatile("ecall"
                  : "=r"(a0)
-                 : "r"(a7)
+                 : "r"(a0), "r"(a7)
                  : "memory");
-    if (a0 == 0)
+    return a0;
+}
+
+ErrorOr<void, long> set_timer(u64 stime_value)
+{
+    auto err = sbi_legacy_ecall1(LegacyEId::SetTimer, stime_value);
+    if (err == 0)
         return {};
 
-    return (long)a0;
+    return err;
+}
+
+ErrorOr<void, long> console_putchar(int ch)
+{
+    auto err = sbi_legacy_ecall1(LegacyEId::ConsolePutchar, ch);
+    if (err == 0)
+        return {};
+
+    return err;
 }
 
 }
@@ -67,7 +81,7 @@ namespace Timer {
 
 ErrorOr<void, SbiError> set_timer(u64 stime_value)
 {
-    const auto result = SBI::sbi_ecall1(EId::Timer, to_underlying(FId::SetTimer), stime_value);
+    auto const result = SBI::sbi_ecall1(EId::Timer, to_underlying(FId::SetTimer), stime_value);
     if (result.is_error()) {
         return result.error();
     }
@@ -81,7 +95,7 @@ namespace DBCN {
 
 ErrorOr<void, SbiError> debug_console_write_byte(u8 byte)
 {
-    const auto result = SBI::sbi_ecall1(EId::DebugConsole, to_underlying(FId::DebugConsoleWriteByte), byte);
+    auto const result = SBI::sbi_ecall1(EId::DebugConsole, to_underlying(FId::DebugConsoleWriteByte), byte);
     if (result.is_error()) {
         return result.error();
     }

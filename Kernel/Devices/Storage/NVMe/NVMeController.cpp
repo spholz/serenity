@@ -41,7 +41,16 @@ UNMAP_AFTER_INIT ErrorOr<void> NVMeController::initialize(bool is_queue_polled)
 
     PCI::enable_memory_space(device_identifier());
     PCI::enable_bus_mastering(device_identifier());
+
     m_bar = PCI::get_BAR0(device_identifier()) & PCI::bar_address_mask;
+    m_bar = 0x40000000;
+    dbgln("m_bar: {:#x}", m_bar);
+
+    {
+        SpinlockLocker locker(device_identifier().operation_lock());
+        PCI::write32_locked(device_identifier(), PCI::RegisterOffset::BAR0, m_bar);
+    }
+
     static_assert(sizeof(ControllerRegister) == REG_SQ0TDBL_START);
     static_assert(sizeof(NVMeSubmission) == (1 << SQ_WIDTH));
 
@@ -76,6 +85,7 @@ bool NVMeController::wait_for_ready(bool expected_ready_bit_value)
 {
     constexpr size_t one_ms_io_delay = 1000;
     auto wait_iterations = m_ready_timeout.to_milliseconds();
+    wait_iterations = 10;
 
     u32 expected_rdy = expected_ready_bit_value ? 1 : 0;
     while (((m_controller_regs->csts >> CSTS_RDY_BIT) & 0x1) != expected_rdy) {
@@ -350,7 +360,8 @@ UNMAP_AFTER_INIT ErrorOr<void> NVMeController::create_admin_queue(QueueType queu
     m_controller_regs->acq = reinterpret_cast<u64>(AK::convert_between_host_and_little_endian(cq_dma_pages.first()->paddr().as_ptr()));
     m_controller_regs->asq = reinterpret_cast<u64>(AK::convert_between_host_and_little_endian(sq_dma_pages.first()->paddr().as_ptr()));
 
-    auto irq = TRY(allocate_irq(0)); // Admin queue always uses the 0th index when using MSIx
+    // auto irq = TRY(allocate_irq(0)); // Admin queue always uses the 0th index when using MSIx
+    auto irq = 0;
 
     maybe_error = start_controller();
     if (maybe_error.is_error()) {

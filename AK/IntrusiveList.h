@@ -170,6 +170,7 @@ private:
     friend class ::AK::Detail::IntrusiveList;
 #endif
 
+public:
     IntrusiveListStorage<T, Container>* m_storage = nullptr;
     SubstitutedIntrusiveListNode<T, Container>* m_next = nullptr;
     SubstitutedIntrusiveListNode<T, Container>* m_prev = nullptr;

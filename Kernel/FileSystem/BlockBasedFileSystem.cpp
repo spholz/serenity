@@ -30,6 +30,9 @@ public:
             entries()[i].data = m_cached_block_data->data() + i * m_fs->logical_block_size();
             m_clean_list.append(entries()[i]);
         }
+
+        dbgln("m_clean_list.size_slow(): {}", m_clean_list.size_slow());
+        dbgln("this: {:p}", this);
     }
 
     ~DiskCache() = default;
@@ -39,22 +42,26 @@ public:
 
     void mark_all_clean()
     {
+        dbgln("mark_all_clean()");
         while (auto* entry = m_dirty_list.first())
             m_clean_list.prepend(*entry);
     }
 
     void mark_dirty(CacheEntry& entry)
     {
+        dbgln("mark_dirty()");
         m_dirty_list.prepend(entry);
     }
 
     void mark_clean(CacheEntry& entry)
     {
+        dbgln("mark_clean()");
         m_clean_list.prepend(entry);
     }
 
     CacheEntry* get(BlockBasedFileSystem::BlockIndex block_index) const
     {
+        dbgln("get()");
         auto it = m_hash.find(block_index);
         if (it == m_hash.end())
             return nullptr;
@@ -69,10 +76,13 @@ public:
 
     ErrorOr<CacheEntry*> ensure(BlockBasedFileSystem::BlockIndex block_index) const
     {
-        if (auto* entry = get(block_index))
-            return entry;
+        dbgln("ensure()");
+        dbgln("m_clean_list.size_slow(): {}", m_clean_list.size_slow());
+        // if (auto* entry = get(block_index))
+        //     return entry;
 
         if (m_clean_list.is_empty()) {
+            dbgln("m_clean_list is empty");
             // Not a single clean entry! Flush writes and try again.
             // NOTE: We want to make sure we only call FileBackedFileSystem flush here,
             //       not some FileBackedFileSystem subclass flush!
@@ -82,6 +92,8 @@ public:
 
         VERIFY(m_clean_list.last());
         auto& new_entry = *m_clean_list.last();
+        dbgln("this: {:p}", this);
+        dbgln("new_entry.data: {:p}", new_entry.data);
         m_clean_list.prepend(new_entry);
 
         m_hash.remove(new_entry.block_index);
@@ -99,6 +111,7 @@ public:
     template<typename Callback>
     void for_each_dirty_entry(Callback callback)
     {
+        dbgln("for_each_dirty_entry()");
         for (auto& entry : m_dirty_list)
             callback(entry);
     }
@@ -152,6 +165,7 @@ ErrorOr<void> BlockBasedFileSystem::write_block(BlockIndex index, UserOrKernelBu
     VERIFY(offset + count <= logical_block_size());
     dbgln_if(BBFS_DEBUG, "BlockBasedFileSystem::write_block {}, size={}", index, count);
 
+    allow_cache = false;
     // NOTE: We copy the `data` to write into a local buffer before taking the cache lock.
     //       This makes sure any page faults caused by accessing the data will occur before
     //       we tie down the cache.
@@ -242,16 +256,25 @@ ErrorOr<void> BlockBasedFileSystem::read_block(BlockIndex index, UserOrKernelBuf
             return {};
         }
 
-        auto* entry = TRY(cache->ensure(index));
-        if (!entry->has_data) {
-            auto base_offset = index.value() * logical_block_size();
-            auto entry_data_buffer = UserOrKernelBuffer::for_kernel_buffer(entry->data);
-            auto nread = TRY(file_description().read(entry_data_buffer, base_offset, logical_block_size()));
-            VERIFY(nread == logical_block_size());
-            entry->has_data = true;
-        }
+        // auto* entry = TRY(cache->ensure(index));
+        // if (!entry->has_data) {
+        //     auto base_offset = index.value() * logical_block_size();
+        //     dbgln("read_block: entry->data: {:p}", entry->data);
+        //     auto entry_data_buffer = UserOrKernelBuffer::for_kernel_buffer(entry->data);
+        //     auto nread = TRY(file_description().read(entry_data_buffer, base_offset, logical_block_size()));
+        //     VERIFY(nread == logical_block_size());
+        //     entry->has_data = true;
+        // }
+        // if (buffer)
+        //     TRY(buffer->write(entry->data + offset, count));
+        (void)cache;
+        auto base_offset = index.value() * logical_block_size();
+        auto entry_data_buffer_raw = TRY(FixedArray<u8>::create(logical_block_size()));
+        auto entry_data_buffer = UserOrKernelBuffer::for_kernel_buffer(entry_data_buffer_raw.data());
+        TRY(file_description().read(entry_data_buffer, base_offset, logical_block_size()));
+        TRY(file_description().read(*buffer, offset, logical_block_size()));
         if (buffer)
-            TRY(buffer->write(entry->data + offset, count));
+            TRY(buffer->write(entry_data_buffer_raw.data() + offset, count));
         return {};
     });
 }

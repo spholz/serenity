@@ -32,9 +32,6 @@ enum class EId {
     Timer = 0x54494D45,        // Timer Extension (EID #0x54494D45 "TIME")
 };
 
-ErrorOr<long, SbiError> sbi_ecall0(EId extension_id, u32 function_id);
-ErrorOr<long, SbiError> sbi_ecall1(EId extension_id, u32 function_id, long arg0);
-
 // Chapter 4. Base Extension (EID #0x10)
 // Required extension since SBI v0.2
 namespace Base {
@@ -104,6 +101,10 @@ enum class LegacyEId {
     RemoteSfancevmaWithAsid = 7,
     SystemShutdown = 8,
 };
+
+// Programs the clock for next event after stime_value time. This function also clears the pending
+// timer interrupt bit.
+ErrorOr<void, long> set_timer(u64 stime_value);
 
 // Write data present in ch to debug console.
 ErrorOr<void, long> console_putchar(int ch);

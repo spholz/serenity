@@ -154,6 +154,10 @@ UNMAP_AFTER_INIT AHCI::HBADefinedCapabilities AHCIController::capabilities() con
 
 UNMAP_AFTER_INIT ErrorOr<Memory::TypedMapping<AHCI::HBA volatile>> AHCIController::map_default_hba_region(PCI::DeviceIdentifier const& pci_device_identifier)
 {
+    {
+        SpinlockLocker locker(pci_device_identifier.operation_lock());
+        PCI::write32_locked(pci_device_identifier, PCI::RegisterOffset::BAR5, 0x4000'0000);
+    }
     return Memory::map_typed_writable<AHCI::HBA volatile>(PhysicalAddress(PCI::get_BAR5(pci_device_identifier)));
 }
 

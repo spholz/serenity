@@ -31,8 +31,8 @@
 #include <Kernel/Devices/PCISerialDevice.h>
 #include <Kernel/Devices/SerialDevice.h>
 #include <Kernel/Devices/Storage/StorageManagement.h>
-#include <Kernel/FileSystem/SysFS/Registry.h>
 #include <Kernel/FileSystem/SysFS/FileSystem.h>
+#include <Kernel/FileSystem/SysFS/Registry.h>
 #include <Kernel/FileSystem/SysFS/Subsystems/Firmware/Directory.h>
 #include <Kernel/FileSystem/VirtualFileSystem.h>
 #include <Kernel/Firmware/ACPI/Initialize.h>
@@ -240,28 +240,30 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
 
     // RVVM
     // multiboot_framebuffer_addr = PhysicalAddress { 0x2800'0000 };
-    // multiboot_framebuffer_pitch = 0xa00;
     // multiboot_framebuffer_width = 640;
     // multiboot_framebuffer_height = 480;
 
     // Qemu Placeholder
     multiboot_framebuffer_addr = PhysicalAddress { 0x8200'0000 };
-    multiboot_framebuffer_pitch = 0xa00;
     multiboot_framebuffer_width = 640;
     multiboot_framebuffer_height = 480;
 
     // VisionFive 2 U-Boot Framebuffer
     // multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 };
-    // multiboot_framebuffer_pitch = 0x1e00;
     // multiboot_framebuffer_width = 1920;
     // multiboot_framebuffer_height = 1080;
 
+    // TinyEmu
+    // multiboot_framebuffer_addr = PhysicalAddress { 0x4100'0000 };
+    // multiboot_framebuffer_width = 1024;
+    // multiboot_framebuffer_height = 640;
+
     multiboot_framebuffer_bpp = 32;
+    multiboot_framebuffer_pitch = multiboot_framebuffer_width * (multiboot_framebuffer_bpp / 8);
     multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
 
     kernel_mapping_base = KERNEL_MAPPING_BASE;
-    // FIXME: Read the /chosen/bootargs property.
-    kernel_cmdline = "nvme_poll"sv; // "early_boot_console=off"sv;
+    kernel_cmdline = "serial_debug nvme_poll init=/init"sv;
 #endif
 
     setup_serial_debug();
@@ -482,6 +484,9 @@ void init_stage2(void*)
 
     auto userspace_init = kernel_command_line().userspace_init();
     auto init_args = kernel_command_line().userspace_init_args();
+
+    // FIXME
+    Processor::enable_interrupts();
 
     auto init_or_error = Process::create_user_process(userspace_init, UserID(0), GroupID(0), move(init_args), {}, tty0);
     if (init_or_error.is_error())

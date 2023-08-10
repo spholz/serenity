@@ -29,7 +29,8 @@ void handle_crash(Kernel::RegisterState const& regs, char const* description, in
 
     // If a process crashed while inspecting another process,
     // make sure we switch back to the right page tables.
-    Memory::MemoryManager::enter_process_address_space(process);
+    // FIXME
+    // Memory::MemoryManager::enter_process_address_space(process);
 
     dmesgln("CRASH: CPU #{} {} in {}", Processor::current_id(), description, regs.previous_mode() == ExecutionMode::Kernel ? "kernel"sv : "userspace"sv);
     dump_registers(regs);

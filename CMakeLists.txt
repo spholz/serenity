@@ -166,6 +166,16 @@ include(serenity_compile_options)
 add_link_options(LINKER:-z,text)
 add_link_options(LINKER:--no-allow-shlib-undefined)
 
+
+if("${SERENITY_ARCH}" STREQUAL "riscv64")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(-march=rv64gc_zicsr_zifencei_zihintpause)
+    else()
+        # TODO
+        add_compile_options(-march=rv64gc)
+    endif()
+endif()
+
 add_compile_definitions(SANITIZE_PTRS)
 set(CMAKE_CXX_FLAGS_STATIC "${CMAKE_CXX_FLAGS} -static")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pie -fpic")

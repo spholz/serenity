@@ -984,7 +984,9 @@ void vdmesgln(StringView fmtstr, TypeErasedFormatParams& params)
     builder.append('\n');
 
     auto const string = builder.string_view();
-    kernelputstr(string.characters_without_null_termination(), string.length());
+    // FIXME: kernelputstr outputs every char twice on rv64
+    // kernelputstr(string.characters_without_null_termination(), string.length());
+    dbgputstr(string.characters_without_null_termination(), string.length());
 }
 
 void v_critical_dmesgln(StringView fmtstr, TypeErasedFormatParams& params)

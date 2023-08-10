@@ -2,7 +2,7 @@ if (ENABLE_EXTRA_KERNEL_DEBUG_SYMBOLS)
     add_compile_options(-Og)
     add_compile_options(-ggdb3)
 else()
-    add_compile_options(-Og -ggdb3)
+    add_compile_options(-O2)
 endif()
 
 if ("${SERENITY_ARCH}" STREQUAL "aarch64")
@@ -509,11 +509,14 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/InterruptController.cpp
         Arch/riscv64/InterruptManagement.cpp
         Arch/riscv64/Interrupts.cpp
-        Arch/riscv64/kprintf.cpp
+        # Arch/riscv64/kprintf.cpp
+        kprintf.cpp
         # Arch/riscv64/MainIdRegister.cpp
         Arch/riscv64/MMU.cpp
         Arch/riscv64/PageDirectory.cpp
         Arch/riscv64/Panic.cpp
+        Arch/riscv64/PCI/MSI.cpp
+        Arch/riscv64/PCI/Initializer.cpp
         Arch/riscv64/pre_init.cpp
         Arch/riscv64/Processor.cpp
         Arch/riscv64/PowerState.cpp
@@ -523,14 +526,8 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/Timer.cpp
         # Arch/riscv64/TrapFrame.cpp
         Arch/riscv64/trap_handler.S
-        Arch/riscv64/PCI.cpp
     )
 
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        add_compile_options(-march=rv64gc_zicsr_zifencei_zihintpause)
-    else()
-        add_compile_options(-march=rv64gc)
-    endif()
     add_compile_options(-fno-stack-protector -fno-sanitize=all)
 
     set_source_files_properties(Arch/riscv64/pre_init.cpp Arch/riscv64/MMU.cpp PROPERTIES COMPILE_FLAGS "-O2")

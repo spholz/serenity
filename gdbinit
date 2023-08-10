@@ -11,6 +11,7 @@ add-symbol-file Build/riscv64/Kernel/Kernel
 # Kernel
 # break pre_init
 break __panic
+break asm_trap_handler if $scause != 0x8000000000000005
 # break trap_handler
 break Kernel::dump_registers
 break trap_handler_nommu

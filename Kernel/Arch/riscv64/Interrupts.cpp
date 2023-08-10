@@ -77,19 +77,19 @@ void dump_registers(RegisterState const& regs)
     auto stval = RiscV64::Asm::get_stval();
     auto satp = RiscV64::Asm::get_satp();
 
-    dbgln("scause: {} ({:#x})", RiscV64::scause_to_string(scause), scause);
-    dbgln("sepc: {:#x}", regs.sepc);
-    dbgln("stval: {:#x}", stval);
-    dbgln("sstatus: {:#x}", regs.sstatus);
-    dbgln("satp: {:#x}", satp);
+    dbgln("scause:  {} ({:p})", RiscV64::scause_to_string(scause), scause);
+    dbgln("sepc:    {:p}", regs.sepc);
+    dbgln("stval:   {:p}", stval);
+    dbgln("sstatus: {:p}", regs.sstatus);
+    dbgln("satp:    {:p}", satp);
 
-    dbgln(" x1={:p}  x2={:p}  x3={:p}  x4={:p}  x5={:p}", regs.x[0], regs.x[1], regs.x[2], regs.x[3], regs.x[4]);
-    dbgln(" x6={:p}  x7={:p}  x8={:p}  x9={:p} x10={:p}", regs.x[5], regs.x[6], regs.x[7], regs.x[8], regs.x[9]);
-    dbgln("x11={:p} x12={:p} x13={:p} x14={:p} x15={:p}", regs.x[10], regs.x[11], regs.x[12], regs.x[13], regs.x[14]);
-    dbgln("x16={:p} x17={:p} x18={:p} x19={:p} x20={:p}", regs.x[15], regs.x[16], regs.x[17], regs.x[18], regs.x[19]);
-    dbgln("x21={:p} x22={:p} x23={:p} x24={:p} x25={:p}", regs.x[20], regs.x[21], regs.x[22], regs.x[23], regs.x[24]);
-    dbgln("x26={:p} x27={:p} x28={:p} x29={:p} x30={:p}", regs.x[25], regs.x[26], regs.x[27], regs.x[28], regs.x[29]);
-    dbgln("x31={:p}", regs.x[30]);
+    dbgln(" ra( x1)={:p}  sp( x2)={:p}  gp( x3)={:p}  tp( x4)={:p}  t0( x5)={:p}", regs.x[0], regs.x[1], regs.x[2], regs.x[3], regs.x[4]);
+    dbgln(" t1( x6)={:p}  t2( x7)={:p}  s0( x8)={:p}  s1( x9)={:p}  a0(x10)={:p}", regs.x[5], regs.x[6], regs.x[7], regs.x[8], regs.x[9]);
+    dbgln(" a1(x11)={:p}  a2(x12)={:p}  a3(x13)={:p}  a4(x14)={:p}  a5(x15)={:p}", regs.x[10], regs.x[11], regs.x[12], regs.x[13], regs.x[14]);
+    dbgln(" a6(x16)={:p}  a7(x17)={:p}  s2(x18)={:p}  s3(x19)={:p}  s4(x20)={:p}", regs.x[15], regs.x[16], regs.x[17], regs.x[18], regs.x[19]);
+    dbgln(" s5(x21)={:p}  s6(x22)={:p}  s7(x23)={:p}  s8(x24)={:p}  s9(x25)={:p}", regs.x[20], regs.x[21], regs.x[22], regs.x[23], regs.x[24]);
+    dbgln("s10(x26)={:p} s11(x27)={:p}  t3(x28)={:p}  t4(x29)={:p}  t5(x30)={:p}", regs.x[25], regs.x[26], regs.x[27], regs.x[28], regs.x[29]);
+    dbgln(" t6(x31)={:p}", regs.x[30]);
 }
 
 extern "C" [[noreturn]] [[gnu::aligned(4)]] void trap_handler_nommu();
@@ -143,7 +143,6 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
     } else {
         // Exception
         Processor::current().enter_trap(trap_frame, false);
-        Processor::enable_interrupts();
 
         if (RiscV64::scause_is_page_fault(scause)) {
             auto stval = RiscV64::Asm::get_stval();
@@ -160,11 +159,9 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
 
             fault.handle(*trap_frame.regs);
         } else {
-            dump_registers(*trap_frame.regs);
             handle_crash(*trap_frame.regs, "Unexpected exception", SIGSEGV, false);
         }
 
-        Processor::disable_interrupts();
         Processor::current().exit_trap(trap_frame);
     }
 }
