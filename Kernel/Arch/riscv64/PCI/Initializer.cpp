@@ -20,14 +20,14 @@ void initialize()
         return;
     }
 
-    u8 start_bus = 0;
+    u8 start_bus = 0x00;
     u8 end_bus = 0xff;
 
     // Qemu/RVVM
     auto start_addr = PhysicalAddress { 0x3000'0000 };
 
     // VisionFive 2 pcie1 (NVMe)
-    // auto start_addr = PhysicalAddress { 0x2c00'0000 };
+    // auto start_addr = PhysicalAddress { 0x9'c000'0000 };
 
     VERIFY(!Access::is_initialized());
     auto* access = new Access();

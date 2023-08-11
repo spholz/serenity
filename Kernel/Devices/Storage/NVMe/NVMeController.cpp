@@ -42,8 +42,9 @@ UNMAP_AFTER_INIT ErrorOr<void> NVMeController::initialize(bool is_queue_polled)
     PCI::enable_memory_space(device_identifier());
     PCI::enable_bus_mastering(device_identifier());
 
-    m_bar = PCI::get_BAR0(device_identifier()) & PCI::bar_address_mask;
+    // m_bar = PCI::get_BAR0(device_identifier()) & PCI::bar_address_mask;
     m_bar = 0x40000000;
+    // m_bar = 0x3800'0000;
     dbgln("m_bar: {:#x}", m_bar);
 
     {

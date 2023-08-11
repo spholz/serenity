@@ -218,23 +218,32 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
             sizeof(struct multiboot_mmap_entry) - sizeof(u32),
             // Qemu
             (u64)0x81000000,
+            (u64)100 * MiB,
+
             // VisionFive 2
             // (u64)0x45000000,
+            // (u64)4 * GiB,
 
-            (u64)100 * MiB,
             MULTIBOOT_MEMORY_AVAILABLE,
         },
-        // For VisionFive 2 framebuffer
+        // // VisionFive 2 framebuffer
         // {
         //     sizeof(struct multiboot_mmap_entry) - sizeof(u32),
         //     (u64)0xfe00'0000,
-
         //     (u64)10 * MiB,
-        //     MULTIBOOT_MEMORY_AVAILABLE,
+        //     MULTIBOOT_MEMORY_RESERVED,
+        // },
+        // // VisonFive 2 PCI ECAM space
+        // {
+        //     sizeof (struct multiboot_mmap_entry) - sizeof (u32),
+        //     (u64)0x9'c000'0000,
+        //     (u64)0x1000'0000,
+        //     MULTIBOOT_MEMORY_RESERVED,
         // },
     };
     multiboot_memory_map = mmap;
     multiboot_memory_map_count = 1;
+    // multiboot_memory_map_count = 3;
 
     multiboot_modules = nullptr;
     multiboot_modules_count = 0;
