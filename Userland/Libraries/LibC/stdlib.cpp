@@ -352,8 +352,11 @@ void exit(int status)
     if (secure_getenv("LIBC_DUMP_MALLOC_STATS"))
         serenity_dump_malloc_stats();
 
+#if !ARCH(RISCV64)
     extern void _fini();
     _fini();
+#endif
+
     fflush(nullptr);
 
 #ifndef _DYNAMIC_LOADER

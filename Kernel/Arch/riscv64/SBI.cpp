@@ -8,24 +8,6 @@
 
 namespace Kernel::SBI {
 
-static ErrorOr<long, SbiError> sbi_ecall0(EId extension_id, u32 function_id)
-{
-    register uintptr_t a0 asm("a0");
-    register uintptr_t a1 asm("a1");
-    register uintptr_t a6 asm("a6") = function_id;
-    register uintptr_t a7 asm("a7") = to_underlying(extension_id);
-    asm volatile("ecall"
-                 : "=r"(a0), "=r"(a1)
-                 : "r"(a6), "r"(a7)
-                 : "memory");
-    if (a0 == to_underlying(SbiError::Success)) {
-        long result = (long)a1;
-        return result;
-    }
-
-    return (SbiError)a1;
-}
-
 static ErrorOr<long, SbiError> sbi_ecall1(EId extension_id, u32 function_id, long arg0)
 {
     register uintptr_t a0 asm("a0") = arg0;
@@ -33,7 +15,7 @@ static ErrorOr<long, SbiError> sbi_ecall1(EId extension_id, u32 function_id, lon
     register uintptr_t a6 asm("a6") = function_id;
     register uintptr_t a7 asm("a7") = to_underlying(extension_id);
     asm volatile("ecall"
-                 : "=r"(a0), "=r"(a1)
+                 : "+r"(a0), "=r"(a1)
                  : "r"(a0), "r"(a6), "r"(a7)
                  : "memory");
     if (a0 == to_underlying(SbiError::Success)) {
@@ -51,7 +33,7 @@ static long sbi_legacy_ecall1(LegacyEId extension_id, long arg0)
     register uintptr_t a0 asm("a0") = arg0;
     register uintptr_t a7 asm("a7") = to_underlying(extension_id);
     asm volatile("ecall"
-                 : "=r"(a0)
+                 : "+r"(a0)
                  : "r"(a0), "r"(a7)
                  : "memory");
     return a0;

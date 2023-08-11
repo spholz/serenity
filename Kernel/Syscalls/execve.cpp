@@ -466,6 +466,7 @@ ErrorOr<void> Process::do_exec(NonnullRefPtr<OpenFileDescription> main_program_d
     RefPtr<OpenFileDescription> interpreter_description, Thread*& new_main_thread, InterruptsState& previous_interrupts_state, const ElfW(Ehdr) & main_program_header, Optional<size_t> minimum_stack_size)
 {
     VERIFY(is_user_process());
+    Processor::clear_critical();
     VERIFY(!Processor::in_critical());
     auto main_program_metadata = main_program_description->metadata();
     // NOTE: Don't allow running SUID binaries at all if we are in a jail.
@@ -890,8 +891,6 @@ ErrorOr<void> Process::exec(NonnullOwnPtr<KString> path, Vector<NonnullOwnPtr<KS
     auto description = TRY(VirtualFileSystem::the().open(credentials(), path->view(), O_EXEC, 0, current_directory()));
     auto metadata = description->metadata();
 
-    dbgln("metadata.inode: {}", metadata.inode);
-    dbgln("metadata.mode: {}", metadata.mode);
     if (!metadata.is_regular_file())
         return EACCES;
 

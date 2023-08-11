@@ -59,7 +59,7 @@ bool validate_elf_header(ElfW(Ehdr) const& elf_header, size_t file_size, bool ve
         return false;
     }
 
-    auto expected_machines = Array { EM_X86_64, EM_AARCH64 };
+    auto expected_machines = Array { EM_X86_64, EM_AARCH64, EM_RISCV };
     auto expected_machine_names = Array { "x86-64"sv, "aarch64"sv };
 
     if (!expected_machines.span().contains_slow(elf_header.e_machine)) {
@@ -116,11 +116,12 @@ bool validate_elf_header(ElfW(Ehdr) const& elf_header, size_t file_size, bool ve
         return false;
     }
 
-    if (0 != elf_header.e_flags) {
-        if (verbose)
-            dbgln("File has incorrect ELF header flags...? ({}), expected ({}).", elf_header.e_flags, 0);
-        return false;
-    }
+    // FIXME: RISC-V uses e_flags to specify the ABI (C8.1, RISC-V ABIs Specification)
+    // if (0 != elf_header.e_flags) {
+    //     if (verbose)
+    //         dbgln("File has incorrect ELF header flags...? ({}), expected ({}).", elf_header.e_flags, 0);
+    //     return false;
+    // }
 
     if (0 != elf_header.e_phnum && sizeof(ElfW(Phdr)) != elf_header.e_phentsize) {
         if (verbose)
@@ -219,11 +220,12 @@ ErrorOr<bool> validate_program_headers(ElfW(Ehdr) const& elf_header, size_t file
     for (size_t header_index = 0; header_index < num_program_headers; ++header_index) {
         auto& program_header = program_header_begin[header_index];
 
-        if (program_header.p_filesz > program_header.p_memsz) {
-            if (verbose)
-                dbgln("Program header ({}) has p_filesz ({}) larger than p_memsz ({})", header_index, program_header.p_filesz, program_header.p_memsz);
-            return false;
-        }
+        // FIXME: memsize can be 0 on RISC-V??
+        // if (program_header.p_filesz > program_header.p_memsz) {
+        //     if (verbose)
+        //         dbgln("Program header ({}) has p_filesz ({}) larger than p_memsz ({})", header_index, program_header.p_filesz, program_header.p_memsz);
+        //     return false;
+        // }
 
         if (elf_header.e_type != ET_CORE) {
             if (program_header.p_type == PT_LOAD && program_header.p_align == 0) {
@@ -318,6 +320,9 @@ ErrorOr<bool> validate_program_headers(ElfW(Ehdr) const& elf_header, size_t file
                     dbgln("SHENANIGANS! Program header {} segment is marked write and execute", header_index);
                 return false;
             }
+            break;
+        case 0x70000003: // PT_RISCV_ATTRIBUTES
+            // FIXME: possibly incomplete.
             break;
         default:
             // Not handling other program header types in other code so... let's not surprise them

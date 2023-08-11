@@ -31,6 +31,10 @@ NAKED void _start(int, char**, char**)
         "mov x30, 0\n"
         "bl _entry\n");
 #    elif ARCH(RISCV64)
+    asm(
+        "li  fp, 0\n"
+        "li  ra, 0\n"
+        "jal _entry\n");
 #    else
     asm(
         "push $0\n"
@@ -46,7 +50,9 @@ int _entry(int argc, char** argv, char** env)
 
     s_global_initializers_ran = true;
 
+#if !ARCH(RISCV64)
     _init();
+#endif
 
     int status = main(argc, argv, environ);
 

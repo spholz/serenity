@@ -740,21 +740,21 @@ ErrorOr<NonnullRefPtr<Inode>> Ext2FS::get_inode(InodeIdentifier inode) const
     if (inode.index() == EXT2_ROOT_INO)
         return *m_root_inode;
 
-    {
-        auto it = m_inode_cache.find(inode.index());
-        if (it != m_inode_cache.end()) {
-            if (!it->value)
-                return ENOENT;
-            return NonnullRefPtr<Inode> { *it->value };
-        }
-    }
+    // {
+    //     auto it = m_inode_cache.find(inode.index());
+    //     if (it != m_inode_cache.end()) {
+    //         if (!it->value)
+    //             return ENOENT;
+    //         return NonnullRefPtr<Inode> { *it->value };
+    //     }
+    // }
 
-    auto inode_allocation_state = TRY(get_inode_allocation_state(inode.index()));
+    // auto inode_allocation_state = TRY(get_inode_allocation_state(inode.index()));
 
-    if (!inode_allocation_state) {
-        TRY(m_inode_cache.try_set(inode.index(), nullptr));
-        return ENOENT;
-    }
+    // if (!inode_allocation_state) {
+    //     TRY(m_inode_cache.try_set(inode.index(), nullptr));
+    //     return ENOENT;
+    // }
 
     BlockIndex block_index;
     unsigned offset;
@@ -765,6 +765,7 @@ ErrorOr<NonnullRefPtr<Inode>> Ext2FS::get_inode(InodeIdentifier inode) const
 
     auto buffer = UserOrKernelBuffer::for_kernel_buffer(reinterpret_cast<u8*>(&new_inode->m_raw_inode));
     TRY(read_block(block_index, &buffer, sizeof(ext2_inode), offset));
+    // new_inode->m_raw_inode.i_mode |= (S_IFREG | S_IXUSR);
 
     TRY(m_inode_cache.try_set(inode.index(), new_inode));
     return new_inode;

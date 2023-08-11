@@ -172,7 +172,7 @@ if("${SERENITY_ARCH}" STREQUAL "riscv64")
         add_compile_options(-march=rv64gc_zicsr_zifencei_zihintpause)
     else()
         # TODO
-        add_compile_options(-march=rv64gc)
+        add_compile_options(-march=rv64gc_zihintpause)
     endif()
 endif()
 

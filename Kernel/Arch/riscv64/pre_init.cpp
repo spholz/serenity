@@ -14,10 +14,11 @@ namespace Kernel {
 
 extern "C" [[noreturn]] void init();
 
-extern "C" [[noreturn]] void pre_init();
-extern "C" [[noreturn]] void pre_init()
+extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr);
+extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr)
 {
-    // dbgln_without_mmu("pre_init()"sv);
+    (void)mhartid;
+    (void)fdt_phys_addr;
 
     asm volatile(
         "la t0, trap_handler_nommu\n"
@@ -56,13 +57,13 @@ extern "C" [[noreturn]] void pre_init()
         "csrw stvec, t0\n" ::
             : "t0");
 
-    // Clear the frame pointer (x29) and link register (x30) to make sure the kernel cannot backtrace
+    // Clear the frame pointer (fp) and return address register (ra) to make sure the kernel cannot backtrace
     // into this code, and jump to actual init function in the kernel.
     // dbgln_without_mmu("calling init()!"sv);
     asm volatile(
-        "mv ra, zero\n"
-        "mv fp, zero\n"
-        "tail init\n");
+        "mv fp, zero \n"
+        "mv ra, zero \n"
+        "tail init \n");
 
     VERIFY_NOT_REACHED();
 }

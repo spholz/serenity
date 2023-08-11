@@ -36,38 +36,3 @@ ErrorOr<Optional<PhysicalAddress>> find_rsdp_in_platform_specific_memory_locatio
     return Optional<PhysicalAddress> {};
 }
 }
-
-extern "C" u16 __atomic_fetch_sub_2(void volatile* ptr, u16 val, int memorder)
-{
-    (void)memorder;
-    u16 previous_value = *(reinterpret_cast<u16 volatile*>(ptr));
-    *(reinterpret_cast<u16 volatile*>(ptr)) -= val;
-    return previous_value;
-}
-
-extern "C" u16 __atomic_fetch_add_2(void volatile* ptr, u16 val, int memorder)
-{
-    (void)memorder;
-    u16 previous_value = *(reinterpret_cast<u16 volatile*>(ptr));
-    *(reinterpret_cast<u16 volatile*>(ptr)) += val;
-    return previous_value;
-}
-
-extern "C" u8 __atomic_exchange_1(void volatile* ptr, u8 val, int memorder)
-{
-    (void)memorder;
-    u8 previous_value = *(reinterpret_cast<u8 volatile*>(ptr));
-    *(reinterpret_cast<u8 volatile*>(ptr)) = val;
-    return previous_value;
-}
-
-extern "C" bool __atomic_compare_exchange_1(void volatile* ptr, void* expected, u8 desired, bool weak, int success_memorder, int failure_memorder)
-{
-    (void)ptr;
-    (void)expected;
-    (void)desired;
-    (void)weak;
-    (void)success_memorder;
-    (void)failure_memorder;
-    TODO_RISCV64();
-}

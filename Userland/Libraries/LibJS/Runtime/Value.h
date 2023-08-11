@@ -424,8 +424,8 @@ public:
         // For AArch64 the top 16 bits of the pointer should be zero.
         return static_cast<FlatPtr>(encoded & 0xffff'ffff'ffffULL);
 #elif ARCH(RISCV64)
-        (void)encoded;
-        TODO_RISCV64();
+        // FIXME: actually implement this
+        return encoded;
 #else
 #    error "Unknown architecture. Don't know whether pointers need to be sign-extended."
 #endif

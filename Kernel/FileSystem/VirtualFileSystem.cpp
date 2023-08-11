@@ -473,7 +473,7 @@ ErrorOr<NonnullRefPtr<OpenFileDescription>> VirtualFileSystem::open(Process cons
         return EEXIST;
 
     auto& custody = *custody_or_error.value();
-    dbgln("VFS::open({}): custody.inode().mode(): {}", path, custody.inode().mode());
+    // dbgln("VFS::open({}): custody.inode().mode(): {:#06o}", path, custody.inode().mode());
     auto& inode = custody.inode();
     auto metadata = inode.metadata();
 
@@ -1224,7 +1224,7 @@ ErrorOr<NonnullRefPtr<Custody>> VirtualFileSystem::resolve_path_without_veil(Cre
             return child_or_error.release_error();
         }
         auto child_inode = child_or_error.release_value();
-        dbgln("child_inode: identifier: {}, mode: {}", child_inode->identifier(), child_inode->mode());
+        // dbgln("child_inode: identifier: {}, mode: {:#06o}", child_inode->identifier(), child_inode->mode());
 
         int mount_flags_for_child = parent.mount_flags();
 

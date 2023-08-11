@@ -38,40 +38,40 @@ index b9975de902357576003cf391850fef2dc336aee1..d6cbaae46be819b6b17932d28327dd26
 --- a/libgcc/config.host
 +++ b/libgcc/config.host
 @@ -1294,6 +1294,11 @@ riscv*-*-freebsd*)
-    tmake_file="${tmake_file} riscv/t-softfp${host_address} t-softfp riscv/t-elf riscv/t-elf${host_address} t-slibgcc-libgcc"
-    extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o crtendS.o crtbeginT.o"
-    ;;
+ 	tmake_file="${tmake_file} riscv/t-softfp${host_address} t-softfp riscv/t-elf riscv/t-elf${host_address} t-slibgcc-libgcc"
+ 	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o crtendS.o crtbeginT.o"
+ 	;;
 +riscv64-*-serenity*)
-+   extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
-+   tmake_file="$tmake_file riscv/t-softfp64 t-softfp riscv/t-elf riscv/t-elf64 t-slibgcc-libgcc t-eh-dw2-dip"
-+   tmake_file="$tmake_file riscv/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-slibgcc-gld-nover"
-+   ;;
++	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
++	tmake_file="$tmake_file riscv/t-softfp64 t-softfp riscv/t-elf riscv/t-elf64 t-slibgcc-libgcc t-eh-dw2-dip"
++	tmake_file="$tmake_file riscv/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-slibgcc-gld-nover"
++	;;
  riscv*-*-*)
-    tmake_file="${tmake_file} riscv/t-softfp${host_address} t-softfp riscv/t-elf riscv/t-elf${host_address}"
-    extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o"
+ 	tmake_file="${tmake_file} riscv/t-softfp${host_address} t-softfp riscv/t-elf riscv/t-elf${host_address}"
+ 	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o"
 @@ -1507,6 +1512,22 @@ nvptx-*)
-    tmake_file="$tmake_file nvptx/t-nvptx"
-    extra_parts="crt0.o"
-    ;;
+ 	tmake_file="$tmake_file nvptx/t-nvptx"
+ 	extra_parts="crt0.o"
+ 	;;
 +i[34567]86-*-serenity*)
-+   extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
-+   tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-eh-dw2-dip"
-+   ;;
++	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
++	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-eh-dw2-dip"
++	;;
 +x86_64-*-serenity*)
-+   extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
-+   tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-eh-dw2-dip"
-+   ;;
++	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
++	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-eh-dw2-dip"
++	;;
 +aarch64-*-serenity*)
-+   extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
-+   extra_parts="$extra_parts crtfastmath.o"
-+   tmake_file="$tmake_file ${cpu_type}/t-aarch64"
-+   tmake_file="$tmake_file ${cpu_type}/t-lse t-slibgcc t-slibgcc-libgcc t-slibgcc-gld-nover"
-+   tmake_file="$tmake_file ${cpu_type}/t-softfp t-softfp t-crtfm"
-+   md_unwind_header=aarch64/aarch64-unwind.h
-+   ;;
++	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
++	extra_parts="$extra_parts crtfastmath.o"
++	tmake_file="$tmake_file ${cpu_type}/t-aarch64"
++	tmake_file="$tmake_file ${cpu_type}/t-lse t-slibgcc t-slibgcc-libgcc t-slibgcc-gld-nover"
++	tmake_file="$tmake_file ${cpu_type}/t-softfp t-softfp t-crtfm"
++	md_unwind_header=aarch64/aarch64-unwind.h
++	;;
  *)
-    echo "*** Configuration ${host} not supported" 1>&2
-    exit 1
+ 	echo "*** Configuration ${host} not supported" 1>&2
+ 	exit 1
 diff --git a/libgcc/unwind-dw2-fde-dip.c b/libgcc/unwind-dw2-fde-dip.c
 index 6223f5f18a23038c30654f191c63b9ae8baca26a..87813e9b249e7add5915ca310c86443a712caa05 100644
 --- a/libgcc/unwind-dw2-fde-dip.c
@@ -89,4 +89,3 @@ index 6223f5f18a23038c30654f191c63b9ae8baca26a..87813e9b249e7add5915ca310c86443a
  #if !defined(inhibit_libc) && defined(HAVE_LD_EH_FRAME_HDR) \
      && defined(TARGET_DL_ITERATE_PHDR) \
      && defined(__linux__)
-     

@@ -377,6 +377,8 @@ FlatPtr DebugSession::single_step()
     regs.rflags |= TRAP_FLAG;
 #elif ARCH(AARCH64)
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    TODO_AARCH64();
 #else
 #    error Unknown architecture
 #endif
@@ -393,6 +395,8 @@ FlatPtr DebugSession::single_step()
 #if ARCH(X86_64)
     regs.rflags &= ~(TRAP_FLAG);
 #elif ARCH(AARCH64)
+    TODO_AARCH64();
+#elif ARCH(RISCV64)
     TODO_AARCH64();
 #else
 #    error Unknown architecture

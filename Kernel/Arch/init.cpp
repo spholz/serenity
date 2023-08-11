@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Platform.h>
 #include <AK/Types.h>
 #include <Kernel/Arch/InterruptManagement.h>
 #include <Kernel/Arch/Processor.h>
@@ -263,7 +264,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
 
     kernel_mapping_base = KERNEL_MAPPING_BASE;
-    kernel_cmdline = "serial_debug nvme_poll init=/init"sv;
+    kernel_cmdline = "serial_debug nvme_poll"sv;
 #endif
 
     setup_serial_debug();
@@ -285,7 +286,9 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
         (*ctor)();
     kmalloc_init();
 
+#if !defined(AK_COMPILER_CLANG) || !ARCH(RISCV64)
     load_kernel_symbol_table();
+#endif
 
     bsp_processor().initialize(0);
 
