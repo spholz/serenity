@@ -246,7 +246,7 @@ public:
 
     ALWAYS_INLINE static void wait_check()
     {
-        asm volatile("pause");
+        Processor::pause();
         // FIXME: Process SMP messages once we support SMP on riscv64; cf. x86_64
     }
 

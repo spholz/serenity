@@ -85,10 +85,8 @@ void dbgln_without_mmu(StringView message)
     dbgln_without_mmu("PANIC!\n"sv);
     dbgln_without_mmu(message);
 
-    for (;;) {
+    for (;;)
         asm volatile("wfi");
-        asm volatile("pause");
-    }
 }
 
 }

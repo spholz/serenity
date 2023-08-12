@@ -794,7 +794,6 @@ add_custom_command(
         COMMAND ${CMAKE_OBJCOPY} --only-keep-debug Kernel Kernel.debug
         COMMAND ${CMAKE_OBJCOPY} --strip-debug Kernel
         COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=Kernel.debug Kernel
-        COMMAND ${CMAKE_OBJCOPY} -O binary Kernel Kernel.bin
         BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/kernel.map
 )
 
@@ -808,6 +807,12 @@ if ("${SERENITY_ARCH}" STREQUAL "aarch64")
         TARGET Kernel POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -O binary Kernel kernel8.img
         BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/kernel8.img
+    )
+elseif ("${SERENITY_ARCH}" STREQUAL "riscv64")
+    add_custom_command(
+        TARGET Kernel POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -O binary Kernel Kernel.bin
+        BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/Kernel.bin
     )
 endif()
 

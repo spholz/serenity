@@ -108,7 +108,6 @@ private:
 
 class PageTableEntry {
 public:
-    // FIXME: there are other bits before the PPN!
     PhysicalPtr physical_page_base() const { return PhysicalAddress::physical_page_base(m_raw); }
     void set_physical_page_base([[maybe_unused]] PhysicalPtr value)
     {
@@ -160,9 +159,9 @@ public:
     }
 
     // bool is_execute_disabled() const { TODO_RISCV64(); }
-    void set_execute_disabled(bool b)
+    void set_execute_disabled(bool)
     {
-        set_bit(PageTableEntryFlags::Executable, !b);
+        // set_bit(PageTableEntryFlags::Executable, !b);
     }
 
     // bool is_pat() const { TODO_RISCV64(); }

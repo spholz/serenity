@@ -42,9 +42,7 @@ u32 Processor::smp_wake_n_idle_processors(u32 wake_count)
 {
     disable_interrupts();
     for (;;)
-        asm volatile(
-            "wfi \n"
-            "pause");
+        asm volatile("wfi");
 }
 
 void Processor::flush_entire_tlb_local()

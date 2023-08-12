@@ -101,10 +101,7 @@ void dump_registers(RegisterState const& regs)
 extern "C" [[noreturn]] [[gnu::aligned(4)]] void trap_handler_nommu();
 extern "C" [[noreturn]] [[gnu::aligned(4)]] void trap_handler_nommu()
 {
-    dbgln_without_mmu("UNHANDLED TRAP (nommu)!"sv);
-
-    for (;;)
-        asm volatile("wfi");
+    panic_without_mmu("UNHANDLED TRAP (nommu)!"sv);
 }
 
 extern "C" void trap_handler(TrapFrame& trap_frame);
