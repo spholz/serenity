@@ -130,7 +130,8 @@ bool get_good_random_bytes(Bytes buffer, bool allow_wait, bool fallback_to_fast)
     bool result = false;
     auto& kernel_rng = KernelRng::the();
     // FIXME: What if interrupts are disabled because we're in an interrupt?
-    bool can_wait = Processor::are_interrupts_enabled();
+    // bool can_wait = Processor::are_interrupts_enabled();
+    bool can_wait = false;
     if (!can_wait && allow_wait) {
         // If we can't wait but the caller would be ok with it, then we
         // need to definitely fallback to *something*, even if it's less

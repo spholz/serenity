@@ -20,6 +20,8 @@ break __panic
 break trap_handler
 break trap_handler_nommu
 
+skip function memset
+
 set remotecache off
 set stack-cache off
 set code-cache off

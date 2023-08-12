@@ -497,8 +497,15 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
     #       by the compiler. The CPU cannot access global variables without the MMU as the kernel is linked for a virtual address in high memory.
     set_source_files_properties(${SOURCES_RUNNING_WITHOUT_MMU} PROPERTIES COMPILE_FLAGS "-fno-stack-protector -fno-sanitize=all")
 elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
+    set(SOURCES_RUNNING_WITHOUT_MMU
+        Arch/riscv64/Interrupts.cpp
+        Arch/riscv64/MMU.cpp
+        Arch/riscv64/pre_init.cpp
+        Arch/riscv64/SBI.cpp
+    )
     set(KERNEL_SOURCES
         ${KERNEL_SOURCES}
+        ${SOURCES_RUNNING_WITHOUT_MMU}
         Arch/Processor.cpp
 
         Arch/riscv64/boot.S
@@ -508,39 +515,25 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/Dummy.cpp
         Arch/riscv64/InterruptController.cpp
         Arch/riscv64/InterruptManagement.cpp
-        Arch/riscv64/Interrupts.cpp
         # Arch/riscv64/kprintf.cpp
         kprintf.cpp
         # Arch/riscv64/MainIdRegister.cpp
-        Arch/riscv64/MMU.cpp
         Arch/riscv64/PageDirectory.cpp
         Arch/riscv64/Panic.cpp
         Arch/riscv64/PCI/MSI.cpp
         Arch/riscv64/PCI/Initializer.cpp
-        Arch/riscv64/pre_init.cpp
         Arch/riscv64/Processor.cpp
         Arch/riscv64/PowerState.cpp
         Arch/riscv64/SafeMem.cpp
-        Arch/riscv64/SBI.cpp
         Arch/riscv64/SmapDisabler.cpp
         Arch/riscv64/Timer.cpp
         # Arch/riscv64/TrapFrame.cpp
         Arch/riscv64/trap_handler.S
     )
 
-    add_compile_options(-fno-stack-protector -fno-sanitize=all)
-
-    set_source_files_properties(Arch/riscv64/pre_init.cpp Arch/riscv64/MMU.cpp PROPERTIES COMPILE_FLAGS "-O2")
-
-    # Otherwise compiling with -O0 crashes as it tries to access absolute addresses
-    # add_compile_options(-fPIC -mno-plt -mcmodel=medany -mno-relax)
-
-    # Otherwise linker errors e.g undefined reference to `__aarch64_cas8_acq_rel'
-    # add_compile_options(-latomic)
-
     # NOTE: These files cannot use a stack protector and sanitizers, as these will cause accesses to global variables to be inserted
     #       by the compiler. The CPU cannot access global variables without the MMU as the kernel is linked for a virtual address in high memory.
-    # set_source_files_properties(Arch/riscv64/pre_init.cpp PROPERTIES COMPILE_FLAGS "-fno-stack-protector -fno-sanitize=all")
+    set_source_files_properties(${SOURCES_RUNNING_WITHOUT_MMU} PROPERTIES COMPILE_FLAGS "-O2 -fno-stack-protector -fno-sanitize=all")
 endif()
 
 set(AK_SOURCES

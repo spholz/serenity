@@ -1,14 +1,14 @@
 /*
- * Copyright (c) 2023, Sönke Holz <sholz8530@gmail.com, SbiError>
+ * Copyright (c) 2023, Sönke Holz <sholz8530@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/Types.h>
 
-#include <Kernel/Arch/riscv64/PageDirectory.h>
 #include <Kernel/Arch/riscv64/ASM_wrapper.h>
 #include <Kernel/Arch/riscv64/CPU.h>
+#include <Kernel/Arch/riscv64/PageDirectory.h>
 #include <Kernel/Sections.h>
 
 // These come from the linker script

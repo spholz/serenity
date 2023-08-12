@@ -16,6 +16,8 @@ break asm_trap_handler if $scause != 0x8000000000000005
 break Kernel::dump_registers
 break trap_handler_nommu
 
+skip function memset
+
 source Meta/serenity_gdb.py
 source riscv-gdb-utils.py
 

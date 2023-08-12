@@ -50,9 +50,9 @@ int _entry(int argc, char** argv, char** env)
 
     s_global_initializers_ran = true;
 
-#if !ARCH(RISCV64)
+#    if !ARCH(RISCV64)
     _init();
-#endif
+#    endif
 
     int status = main(argc, argv, environ);
 

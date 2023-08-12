@@ -52,7 +52,7 @@ static_assert(sizeof(struct __jmp_buf) == 72, "struct __jmp_buf unsynchronized w
 #    elif defined(__aarch64__)
 static_assert(sizeof(struct __jmp_buf) == 184, "struct __jmp_buf unsynchronized with aarch64/setjmp.S");
 #    elif defined(__riscv)
-    // FIXME
+// FIXME
 #    else
 #        error
 #    endif

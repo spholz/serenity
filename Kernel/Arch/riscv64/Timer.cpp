@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2023, Sönke Holz <sholz8530@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
 #include <AK/Format.h>
 #include <AK/NeverDestroyed.h>
 #include <Kernel/Arch/riscv64/Registers.h>

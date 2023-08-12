@@ -213,38 +213,44 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     // FIXME: Read the /chosen/bootargs property.
     kernel_cmdline = RPi::Mailbox::the().query_kernel_command_line(s_command_line_buffer);
 #elif ARCH(RISCV64)
+    // Qemu
     static multiboot_memory_map_t mmap[] = {
         {
             sizeof(struct multiboot_mmap_entry) - sizeof(u32),
-            // Qemu
             (u64)0x81000000,
             (u64)100 * MiB,
-
-            // VisionFive 2
-            // (u64)0x45000000,
-            // (u64)4 * GiB,
-
             MULTIBOOT_MEMORY_AVAILABLE,
         },
-        // // VisionFive 2 framebuffer
-        // {
-        //     sizeof(struct multiboot_mmap_entry) - sizeof(u32),
-        //     (u64)0xfe00'0000,
-        //     (u64)10 * MiB,
-        //     MULTIBOOT_MEMORY_RESERVED,
-        // },
-        // // VisonFive 2 PCI ECAM space
-        // {
-        //     sizeof (struct multiboot_mmap_entry) - sizeof (u32),
-        //     (u64)0x9'c000'0000,
-        //     (u64)0x1000'0000,
-        //     MULTIBOOT_MEMORY_RESERVED,
-        // },
     };
-    multiboot_memory_map = mmap;
     multiboot_memory_map_count = 1;
+
+    // VisonFive 2
+    // static multiboot_memory_map_t mmap[] = {
+    //     {
+    //         sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+    //         (u64)0x45000000,
+    //         (u64)4 * GiB,
+
+    //         MULTIBOOT_MEMORY_AVAILABLE,
+    //     },
+    //     {
+    //         // Framebuffer
+    //         sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+    //         (u64)0xfe00'0000,
+    //         (u64)10 * MiB,
+    //         MULTIBOOT_MEMORY_RESERVED,
+    //     },
+    //     {
+    //         // PCIe ECAM space
+    //         sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+    //         (u64)0x9'c000'0000,
+    //         (u64)0x1000'0000,
+    //         MULTIBOOT_MEMORY_RESERVED,
+    //     },
+    // };
     // multiboot_memory_map_count = 3;
 
+    multiboot_memory_map = mmap;
     multiboot_modules = nullptr;
     multiboot_modules_count = 0;
 

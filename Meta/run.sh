@@ -33,9 +33,9 @@ fi
 # we need to use 64-bit qemu
 if [ "$(uname)" = "Darwin" ]; then
 
-    if [ "$SERENITY_ARCH" == "aarch64" ]; then
+    if [ "$SERENITY_ARCH" = "aarch64" ]; then
         [ -z "$SERENITY_QEMU_BIN" ] && SERENITY_QEMU_BIN="qemu-system-aarch64"
-    elif [ "$SERENITY_ARCH" == "riscv64" ]; then
+    elif [ "$SERENITY_ARCH" = "riscv64" ]; then
         [ -z "$SERENITY_QEMU_BIN" ] && SERENITY_QEMU_BIN="qemu-system-riscv64"
     else
         [ -z "$SERENITY_QEMU_BIN" ] && SERENITY_QEMU_BIN="qemu-system-x86_64"

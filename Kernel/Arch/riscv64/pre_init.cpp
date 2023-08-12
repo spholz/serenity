@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Sönke Holz <sholz8530@gmail.com, SbiError>
+ * Copyright (c) 2023, Sönke Holz <sholz8530@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +7,7 @@
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <Kernel/Arch/riscv64/CPU.h>
+#include <Kernel/Arch/riscv64/SBI.h>
 #include <Kernel/Sections.h>
 #include <Kernel/kstdio.h>
 
@@ -21,8 +22,8 @@ extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr)
     (void)fdt_phys_addr;
 
     asm volatile(
-        "la t0, trap_handler_nommu\n"
-        "csrw stvec, t0\n");
+        "la t0, trap_handler_nommu \n"
+        "csrw stvec, t0 \n");
 
     // dbgln_without_mmu("Memory::init_page_tables()"sv);
     Memory::init_page_tables();
@@ -35,17 +36,21 @@ extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr)
 
     // Continue execution at high virtual address, by using an absolute jump.
     asm volatile(
-        "ld t0, 1f\n"
-        "jr t0\n"
-        "1: .dword 2f\n"
-        "2:\n" ::
+        "    ld t0, 1f \n"
+        "    jr t0 \n"
+        "1:  .dword 2f \n"
+        "2:  \n" ::
             : "t0");
 
-    // Add kernel_mapping_base to the stack pointer, such that it is also using the mapping
+    // Add kernel_mapping_base to the stack pointer and to the global pointer, such that it is also using the mapping
     // in high virtual memory.
     asm volatile(
-        "mv t0, %[base]\n"
-        "add sp, sp, t0\n" ::[base] "r"(physical_to_virtual_offset)
+        "    mv t0, %[base] \n"
+        "    add sp, sp, t0 \n"
+        ".option push \n"
+        ".option norelax \n"
+        "    add gp, gp, t0 \n"
+        ".option pop \n" ::[base] "r"(physical_to_virtual_offset)
         : "t0");
 
     // We can now unmap the identity map as everything is running in high virtual memory at this point.
@@ -53,8 +58,8 @@ extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr)
 
     // Set the Supervisor Trap Vector Base Address Register (stvec) to the trap handler function
     asm volatile(
-        "la t0, asm_trap_handler\n"
-        "csrw stvec, t0\n" ::
+        "la t0, asm_trap_handler \n"
+        "csrw stvec, t0 \n" ::
             : "t0");
 
     // Clear the frame pointer (fp) and return address register (ra) to make sure the kernel cannot backtrace
@@ -70,18 +75,20 @@ extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr)
 
 void dbgln_without_mmu(StringView message)
 {
-    dbgputstr(message);
-    dbgputchar('\n');
+    for (auto c : message)
+        (void)SBI::Legacy::console_putchar(c);
+    (void)SBI::Legacy::console_putchar('\n');
 }
 
 [[noreturn]] void panic_without_mmu(StringView message)
 {
-    dbgputstr("PANIC!\n"sv);
-    dbgputstr(message);
-    dbgputchar('\n');
+    dbgln_without_mmu("PANIC!\n"sv);
+    dbgln_without_mmu(message);
 
-    for (;;)
+    for (;;) {
         asm volatile("wfi");
+        asm volatile("pause");
+    }
 }
 
 }

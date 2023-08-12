@@ -614,13 +614,13 @@ PageTableEntry* MemoryManager::ensure_pte(PageDirectory& page_directory, Virtual
     u32 page_table_index = (vaddr.get() >> 12) & 0x1ff;
 
     // if (vaddr.get() == 0x0000002005700000)
-        // dbgln("MemoryManager::ensure_pte(): page_directory_table_index: {:#x}, page_directory_index: {:#x}, page_table_index: {:#x}", page_directory_table_index, page_directory_index, page_table_index);
+    // dbgln("MemoryManager::ensure_pte(): page_directory_table_index: {:#x}, page_directory_index: {:#x}, page_table_index: {:#x}", page_directory_table_index, page_directory_index, page_table_index);
 
     auto* pd = quickmap_pd(page_directory, page_directory_table_index);
     auto& pde = pd[page_directory_index];
     if (pde.is_present()) {
         // if (vaddr.get() == 0x0000002005700000)
-            // dbgln("ensure_pte(page_directory, {}): pt_addr: {}", vaddr, PhysicalAddress(pde.page_table_base()));
+        // dbgln("ensure_pte(page_directory, {}): pt_addr: {}", vaddr, PhysicalAddress(pde.page_table_base()));
         return &quickmap_pt(PhysicalAddress(pde.page_table_base()))[page_table_index];
     }
 
@@ -650,7 +650,7 @@ PageTableEntry* MemoryManager::ensure_pte(PageDirectory& page_directory, Virtual
     (void)page_table.leak_ref();
 
     // if (vaddr.get() == 0x0000002005700000)
-        // dbgln("ensure_pte(page_directory, {}): pt_addr: {}", vaddr, PhysicalAddress(pde.page_table_base()));
+    // dbgln("ensure_pte(page_directory, {}): pt_addr: {}", vaddr, PhysicalAddress(pde.page_table_base()));
 
     return &quickmap_pt(PhysicalAddress(pde.page_table_base()))[page_table_index];
 }

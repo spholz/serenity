@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2023, Sönke Holz <sholz8530@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
 #include <Kernel/Arch/RegisterState.h>
 #include <Kernel/Arch/SafeMem.h>
 #include <Kernel/Library/StdLib.h>

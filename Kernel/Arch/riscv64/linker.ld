@@ -13,12 +13,11 @@ PHDRS
 
 SECTIONS
 {
-    /* . = KERNEL_MAPPING_BASE + 0x80200000; */
     . = KERNEL_MAPPING_BASE;
 
     start_of_kernel_image = .;
 
-    .text ALIGN(4K) : /* AT (ADDR(.text) - KERNEL_MAPPING_BASE) */
+    .text ALIGN(4K) :
     {
         *(.text.first)
 
@@ -32,7 +31,7 @@ SECTIONS
         *(.text*)
     } :text
 
-    .rodata ALIGN(4K) : /* AT (ADDR(.rodata) - KERNEL_MAPPING_BASE) */
+    .rodata ALIGN(4K) :
     {
         start_heap_ctors = .;
         *libkernel_heap.a:*(.init_array)
@@ -45,19 +44,24 @@ SECTIONS
         *(.rodata*)
     } :data
 
-    .data ALIGN(4K) : /* AT (ADDR(.data) - KERNEL_MAPPING_BASE) */
+    .data ALIGN(4K) :
     {
+        /* gp-based relaxation can load values between gp +/- 2048,
+           so place it 2048 bytes after the start of .data to cover as much as possible
+           Note: this value has to be called __global_pointer$ as defined by the RISC-V ABIs Specification */
+        __global_pointer$ = . + 2048;
+
         *(.data*)
     } :data
 
-    .ksyms ALIGN(4K) : /* AT (ADDR(.ksyms) - KERNEL_MAPPING_BASE) */
+    .ksyms ALIGN(4K) :
     {
         start_of_kernel_ksyms = .;
         *(.kernel_symbols)
         end_of_kernel_ksyms = .;
     } :ksyms
 
-    .bss ALIGN(4K) (NOLOAD) : /* AT (ADDR(.bss) - KERNEL_MAPPING_BASE) */
+    .bss ALIGN(4K) (NOLOAD) :
     {
         start_of_bss = .;
         *(.bss)

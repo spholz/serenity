@@ -1,6 +1,12 @@
+/*
+ * Copyright (c) 2023, Sönke Holz <sholz8530@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
 #include <Kernel/Arch/riscv64/IRQController.h>
-#include <Kernel/Arch/riscv64/InterruptManagement.h>
 #include <Kernel/Arch/riscv64/InterruptController.h>
+#include <Kernel/Arch/riscv64/InterruptManagement.h>
 
 namespace Kernel {
 
