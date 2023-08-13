@@ -14,7 +14,7 @@ start:
   // for gp-based linker relaxation and has to always point to the same location in memory.
 .option push
 .option norelax
-  la gp, __global_pointer$
+  lla gp, __global_pointer$
 .option pop
 
   // Clear BSS.
@@ -29,6 +29,10 @@ start:
 
   // Let stack start before .text for now.
   lla sp, start
+
+  // lla t0, end_of_kernel_image
+  // li t1, 512 * 1024
+  // add sp, t0, t1
 
   mv fp, zero
   mv ra, zero

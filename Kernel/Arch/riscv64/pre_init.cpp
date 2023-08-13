@@ -85,6 +85,8 @@ void dbgln_without_mmu(StringView message)
     dbgln_without_mmu("PANIC!\n"sv);
     dbgln_without_mmu(message);
 
+    // Make sure that all interrupts are disabled.
+    asm volatile("csrw sie, zero");
     for (;;)
         asm volatile("wfi");
 }

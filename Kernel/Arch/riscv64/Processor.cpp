@@ -6,6 +6,7 @@
 
 #include <Kernel/Arch/Processor.h>
 #include <Kernel/Arch/TrapFrame.h>
+#include <Kernel/Arch/riscv64/ASM_wrapper.h>
 #include <Kernel/Arch/riscv64/Registers.h>
 #include <Kernel/Interrupts/InterruptDisabler.h>
 #include <Kernel/Sections.h>
@@ -34,13 +35,15 @@ READONLY_AFTER_INIT FPUState Processor::s_clean_fpu_state;
 u32 Processor::smp_wake_n_idle_processors(u32 wake_count)
 {
     (void)wake_count;
-    // FIXME: Actually wake up other cores when SMP is supported for aarch64.
+    // FIXME: Actually wake up other cores when SMP is supported for riscv64.
     return 0;
 }
 
 [[noreturn]] void Processor::halt()
 {
-    disable_interrupts();
+    // WFI ignores the value of sstatus.SIE, so we can't use disable_interrupts().
+    // Instead, disable all interrupts sources by setting SIE to all-zeroes.
+    asm volatile("csrw sie, zero");
     for (;;)
         asm volatile("wfi");
 }
@@ -89,7 +92,7 @@ void Processor::initialize_context_switching(Thread& initial_thread)
 
     m_scheduler_initialized = true;
 
-    // FIXME: Figure out if we need to call {pre_,post_,}init_finished once aarch64 supports SMP
+    // FIXME: Figure out if we need to call {pre_,post_,}init_finished once riscv64 supports SMP
     Processor::set_current_in_scheduler(true);
 
     m_in_critical = 0; // FIXME
@@ -368,7 +371,7 @@ extern "C" [[gnu::used]] void enter_thread_context(Thread* from_thread, Thread* 
     auto& from_regs = from_thread->regs();
     auto& to_regs = to_thread->regs();
     if (from_regs.satp != to_regs.satp) {
-        // Aarch64::Asm::set_ttbr0_el1(to_regs.ttbr0_el1);
+        RISCV64::Asm::set_satp(to_regs.satp);
         Processor::flush_entire_tlb_local();
     }
 

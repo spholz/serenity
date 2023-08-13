@@ -5,7 +5,6 @@
  */
 
 #include <Kernel/Arch/PowerState.h>
-#include <Kernel/Arch/aarch64/RPi/Watchdog.h>
 
 namespace Kernel {
 

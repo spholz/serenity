@@ -49,8 +49,8 @@ void register_generic_interrupt_handler(u8 interrupt_number, GenericInterruptHan
     }
     if (!handler_slot->is_shared_handler()) {
         if (handler_slot->type() == HandlerType::SpuriousInterruptHandler) {
-            // FIXME: Add support for spurious interrupts on aarch64
-            TODO_AARCH64();
+            // FIXME: Add support for spurious interrupts on riscv64
+            TODO_RISCV64();
         }
         VERIFY(handler_slot->type() == HandlerType::IRQHandler);
         auto& previous_handler = *handler_slot;

@@ -149,7 +149,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         TODO_AARCH64();
 #elif ARCH(RISCV64)
         const FlatPtr ip = 0; // FIXME
-        TODO_AARCH64();
+        TODO_RISCV64();
 #else
 #    error Unknown architecture
 #endif
