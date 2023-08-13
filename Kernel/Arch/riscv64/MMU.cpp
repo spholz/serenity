@@ -236,7 +236,7 @@ static void build_mappings(PageBumpAllocator& allocator, u64* root_table)
 static void activate_mmu(u64 const* root_table)
 {
     FlatPtr const satp_val = (FlatPtr)SatpMode::Sv39 << 60 | (FlatPtr)root_table >> PADDR_PPN_OFFSET;
-    RiscV64::Asm::set_satp(satp_val);
+    RISCV64::Asm::set_satp(satp_val);
     Processor::flush_entire_tlb_local();
 }
 

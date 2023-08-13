@@ -47,12 +47,12 @@ struct ThreadRegisters {
 
     void set_sstatus(bool is_kernel_process)
     {
-        RiscV64::Sstatus saved_sstatus = {};
+        RISCV64::Sstatus saved_sstatus = {};
 
         // Don't mask any interrupts, so all interrupts are enabled when transfering into the new context
         saved_sstatus.SIE = 1;
 
-        saved_sstatus.SPP = is_kernel_process ? RiscV64::Sstatus::PrivilegeMode::Supervisor : RiscV64::Sstatus::PrivilegeMode::User;
+        saved_sstatus.SPP = is_kernel_process ? RISCV64::Sstatus::PrivilegeMode::Supervisor : RISCV64::Sstatus::PrivilegeMode::User;
         memcpy(&sstatus, &saved_sstatus, sizeof(u64));
     }
 };

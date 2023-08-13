@@ -7,7 +7,7 @@
 #include <Kernel/Arch/riscv64/InterruptController.h>
 #include <Kernel/Interrupts/GenericInterruptHandler.h>
 
-namespace Kernel::RiscV {
+namespace Kernel::RISCV64 {
 
 InterruptController::InterruptController()
 {

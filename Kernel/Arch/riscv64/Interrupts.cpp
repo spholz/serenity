@@ -79,11 +79,11 @@ ErrorOr<u8> reserve_interrupt_handlers([[maybe_unused]] u8 number_of_irqs)
 void dump_registers(RegisterState const& regs);
 void dump_registers(RegisterState const& regs)
 {
-    auto scause = RiscV64::Asm::get_scause();
-    auto stval = RiscV64::Asm::get_stval();
-    auto satp = RiscV64::Asm::get_satp();
+    auto scause = RISCV64::Asm::get_scause();
+    auto stval = RISCV64::Asm::get_stval();
+    auto satp = RISCV64::Asm::get_satp();
 
-    dbgln("scause:  {} ({:p})", RiscV64::scause_to_string(scause), scause);
+    dbgln("scause:  {} ({:p})", RISCV64::scause_to_string(scause), scause);
     dbgln("sepc:    {:p}", regs.sepc);
     dbgln("stval:   {:p}", stval);
     dbgln("sstatus: {:p}", regs.sstatus);
@@ -107,7 +107,7 @@ extern "C" [[noreturn]] [[gnu::aligned(4)]] void trap_handler_nommu()
 extern "C" void trap_handler(TrapFrame& trap_frame);
 extern "C" void trap_handler(TrapFrame& trap_frame)
 {
-    auto scause = RiscV64::Asm::get_scause();
+    auto scause = RISCV64::Asm::get_scause();
 
     if ((scause >> 63) == 1) {
         // Interrupt
@@ -147,8 +147,8 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
         // Exception
         Processor::current().enter_trap(trap_frame, false);
 
-        if (RiscV64::scause_is_page_fault(scause)) {
-            auto stval = RiscV64::Asm::get_stval();
+        if (RISCV64::scause_is_page_fault(scause)) {
+            auto stval = RISCV64::Asm::get_stval();
             PageFault fault { VirtualAddress(stval) };
 
             if (scause == 12)
@@ -158,7 +158,7 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
             else if (scause == 15)
                 fault.set_access(PageFault::Access::Write);
 
-            fault.set_type(PageFault::Type::ProtectionViolation);
+            fault.set_type(PageFault::Type::PageNotPresent);
 
             fault.handle(*trap_frame.regs);
         } else {

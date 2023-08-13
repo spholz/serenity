@@ -21,7 +21,7 @@ enum class HardwareTimerType {
 #if ARCH(AARCH64)
     RPiTimer = 0x5
 #elif ARCH(RISCV64)
-    RiscVTimer = 0x6,
+    RISCVTimer = 0x6,
 #endif
 };
 

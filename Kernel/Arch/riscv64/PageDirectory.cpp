@@ -65,7 +65,7 @@ ErrorOr<NonnullLockRefPtr<PageDirectory>> PageDirectory::try_create_for_userspac
 LockRefPtr<PageDirectory> PageDirectory::find_current()
 {
     return s_satp_map->map.with([&](auto& map) {
-        return map.find(RiscV64::Asm::get_satp());
+        return map.find(RISCV64::Asm::get_satp());
     });
 }
 
@@ -74,7 +74,7 @@ void activate_kernel_page_directory(PageDirectory const& page_directory)
     dbgln("XXX activate_kernel_page_directory({:p}): page_directory.satp(): {:p}", &page_directory, page_directory.satp());
 
     FlatPtr const satp_val = page_directory.satp();
-    RiscV64::Asm::set_satp(satp_val);
+    RISCV64::Asm::set_satp(satp_val);
     Processor::flush_entire_tlb_local();
 }
 
@@ -84,7 +84,7 @@ void activate_page_directory(PageDirectory const& page_directory, Thread* curren
 
     FlatPtr const satp_val = page_directory.satp();
     current_thread->regs().satp = satp_val;
-    RiscV64::Asm::set_satp(satp_val);
+    RISCV64::Asm::set_satp(satp_val);
     Processor::flush_entire_tlb_local();
 }
 

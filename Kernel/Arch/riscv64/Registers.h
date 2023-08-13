@@ -10,7 +10,7 @@
 #include <AK/StringView.h>
 #include <AK/Types.h>
 
-namespace Kernel::RiscV64 {
+namespace Kernel::RISCV64 {
 
 struct [[gnu::packed]] alignas(u64) Sstatus {
     enum class PrivilegeMode : unsigned {
@@ -146,20 +146,20 @@ static inline bool scause_is_page_fault(uintptr_t scause)
 }
 
 template<>
-struct AK::Formatter<Kernel::RiscV64::Sstatus> : AK::Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, Kernel::RiscV64::Sstatus value)
+struct AK::Formatter<Kernel::RISCV64::Sstatus> : AK::Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Kernel::RISCV64::Sstatus value)
     {
         if (value.SD)
             TRY(builder.put_literal("SD "sv));
 
         switch (value.UXL) {
-        case Kernel::RiscV64::Sstatus::XLEN::_32:
+        case Kernel::RISCV64::Sstatus::XLEN::_32:
             TRY(builder.put_literal("UXL=32 "sv));
             break;
-        case Kernel::RiscV64::Sstatus::XLEN::_64:
+        case Kernel::RISCV64::Sstatus::XLEN::_64:
             TRY(builder.put_literal("UXL=64 "sv));
             break;
-        case Kernel::RiscV64::Sstatus::XLEN::_128:
+        case Kernel::RISCV64::Sstatus::XLEN::_128:
             TRY(builder.put_literal("UXL=128 "sv));
             break;
         }
@@ -171,55 +171,55 @@ struct AK::Formatter<Kernel::RiscV64::Sstatus> : AK::Formatter<FormatString> {
             TRY(builder.put_literal("SUM "sv));
 
         switch (value.XS) {
-        case Kernel::RiscV64::Sstatus::UserModeExtensionsStatus::AllOff:
+        case Kernel::RISCV64::Sstatus::UserModeExtensionsStatus::AllOff:
             TRY(builder.put_literal("XS=AllOff "sv));
             break;
-        case Kernel::RiscV64::Sstatus::UserModeExtensionsStatus::NoneDirtyOrClean_SomeOn:
+        case Kernel::RISCV64::Sstatus::UserModeExtensionsStatus::NoneDirtyOrClean_SomeOn:
             TRY(builder.put_literal("XS=NoneDirtyOrClean_SomeOn "sv));
             break;
-        case Kernel::RiscV64::Sstatus::UserModeExtensionsStatus::NoneDirty_SomeOn:
+        case Kernel::RISCV64::Sstatus::UserModeExtensionsStatus::NoneDirty_SomeOn:
             TRY(builder.put_literal("XS=NoneDirty_SomeOn "sv));
             break;
-        case Kernel::RiscV64::Sstatus::UserModeExtensionsStatus::SomeDirty:
+        case Kernel::RISCV64::Sstatus::UserModeExtensionsStatus::SomeDirty:
             TRY(builder.put_literal("XS=SomeDirty "sv));
             break;
         }
 
         switch (value.FS) {
-        case Kernel::RiscV64::Sstatus::FloatingPointStatus::Off:
+        case Kernel::RISCV64::Sstatus::FloatingPointStatus::Off:
             TRY(builder.put_literal("FS=Off "sv));
             break;
-        case Kernel::RiscV64::Sstatus::FloatingPointStatus::Initial:
+        case Kernel::RISCV64::Sstatus::FloatingPointStatus::Initial:
             TRY(builder.put_literal("FS=Initial "sv));
             break;
-        case Kernel::RiscV64::Sstatus::FloatingPointStatus::Clean:
+        case Kernel::RISCV64::Sstatus::FloatingPointStatus::Clean:
             TRY(builder.put_literal("FS=Clean "sv));
             break;
-        case Kernel::RiscV64::Sstatus::FloatingPointStatus::Dirty:
+        case Kernel::RISCV64::Sstatus::FloatingPointStatus::Dirty:
             TRY(builder.put_literal("FS=Dirty "sv));
             break;
         }
 
         switch (value.VS) {
-        case Kernel::RiscV64::Sstatus::VectorStatus::Off:
+        case Kernel::RISCV64::Sstatus::VectorStatus::Off:
             TRY(builder.put_literal("VS=Off "sv));
             break;
-        case Kernel::RiscV64::Sstatus::VectorStatus::Initial:
+        case Kernel::RISCV64::Sstatus::VectorStatus::Initial:
             TRY(builder.put_literal("VS=Initial "sv));
             break;
-        case Kernel::RiscV64::Sstatus::VectorStatus::Clean:
+        case Kernel::RISCV64::Sstatus::VectorStatus::Clean:
             TRY(builder.put_literal("VS=Clean "sv));
             break;
-        case Kernel::RiscV64::Sstatus::VectorStatus::Dirty:
+        case Kernel::RISCV64::Sstatus::VectorStatus::Dirty:
             TRY(builder.put_literal("VS=Dirty "sv));
             break;
         }
 
         switch (value.SPP) {
-        case Kernel::RiscV64::Sstatus::PrivilegeMode::User:
+        case Kernel::RISCV64::Sstatus::PrivilegeMode::User:
             TRY(builder.put_literal("SPP=User "sv));
             break;
-        case Kernel::RiscV64::Sstatus::PrivilegeMode::Supervisor:
+        case Kernel::RISCV64::Sstatus::PrivilegeMode::Supervisor:
             TRY(builder.put_literal("SPP=Supervisor "sv));
             break;
         }

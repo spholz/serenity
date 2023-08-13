@@ -29,7 +29,7 @@ void initialize()
     u8 start_bus = 0x00;
     u8 end_bus = 0xff;
 
-    // Qemu/RVVM
+    // QEMU/RVVM
     auto start_addr = PhysicalAddress { 0x3000'0000 };
 
     // VisionFive 2 pcie1 (NVMe)

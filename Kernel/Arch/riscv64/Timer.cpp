@@ -10,15 +10,18 @@
 #include <Kernel/Arch/riscv64/SBI.h>
 #include <Kernel/Arch/riscv64/Timer.h>
 
-namespace Kernel::RiscV {
+namespace Kernel::RISCV64 {
 
 Timer::Timer()
     : HardwareTimer(5)
 {
-    m_frequency = 3000000;
+    // /cpus/timebase-frequency (in Hz)
+    // QEMU/RVVM
+    m_frequency = 10'000'000;
+    // VisionFive 2
+    // m_frequency = 4000000; ?
 
-    // set_interrupt_interval_usec(m_frequency / OPTIMAL_TICKS_PER_SECOND_RATE);
-    set_interrupt_interval_usec(m_frequency);
+    set_interrupt_interval_usec(m_frequency / OPTIMAL_TICKS_PER_SECOND_RATE);
     enable_interrupt_mode();
 }
 
@@ -31,7 +34,7 @@ NonnullLockRefPtr<Timer> Timer::initialize()
 
 u64 Timer::microseconds_since_boot()
 {
-    return RiscV64::rdtime();
+    return RISCV64::rdtime();
 }
 
 bool Timer::handle_irq(RegisterState const& regs)
@@ -46,11 +49,28 @@ bool Timer::handle_irq(RegisterState const& regs)
 
 u64 Timer::update_time(u64& seconds_since_boot, u32& ticks_this_second, bool query_only)
 {
-    (void)seconds_since_boot;
-    (void)ticks_this_second;
-    (void)query_only;
-    // TODO_RISCV64();
-    return 10;
+    // Should only be called by the time keeper interrupt handler!
+    u64 current_value = microseconds_since_boot();
+    u64 delta_ticks = m_main_counter_drift;
+    if (current_value >= m_main_counter_last_read) {
+        delta_ticks += current_value - m_main_counter_last_read;
+    } else {
+        // the counter wrapped around
+        delta_ticks += (NumericLimits<u64>::max() - m_main_counter_last_read + 1) + current_value;
+    }
+
+    u64 ticks_since_last_second = (u64)ticks_this_second + delta_ticks;
+    auto ticks_per_second = frequency();
+    seconds_since_boot += ticks_since_last_second / ticks_per_second;
+    ticks_this_second = ticks_since_last_second % ticks_per_second;
+
+    if (!query_only) {
+        m_main_counter_drift = 0;
+        m_main_counter_last_read = current_value;
+    }
+
+    // Return the time passed (in ns) since last time update_time was called
+    return (delta_ticks * 1000000000ull) / ticks_per_second;
 }
 
 void Timer::enable_interrupt_mode()
@@ -71,9 +91,8 @@ void Timer::clear_interrupt()
 
 void Timer::set_compare(u64 compare)
 {
-    if (SBI::Timer::set_timer(compare).is_error()) {
+    if (SBI::Timer::set_timer(compare).is_error())
         MUST(SBI::Legacy::set_timer(compare));
-    }
 }
 
 }

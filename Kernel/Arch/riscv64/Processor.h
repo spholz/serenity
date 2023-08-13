@@ -226,7 +226,7 @@ public:
 
     ALWAYS_INLINE static bool are_interrupts_enabled()
     {
-        return RiscV64::Sstatus::read().SIE == 1;
+        return RISCV64::Sstatus::read().SIE == 1;
     }
 
     ALWAYS_INLINE static void enable_interrupts()

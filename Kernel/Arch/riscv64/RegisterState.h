@@ -18,7 +18,7 @@ namespace Kernel {
 
 struct RegisterState {
     u64 x[31]; // Saved general purpose registers
-    RiscV64::Sstatus sstatus;
+    RISCV64::Sstatus sstatus;
     u64 sepc;
 
     FlatPtr userspace_sp() const
@@ -38,9 +38,9 @@ struct RegisterState {
     ExecutionMode previous_mode() const
     {
         switch (sstatus.SPP) {
-        case RiscV64::Sstatus::PrivilegeMode::User:
+        case RISCV64::Sstatus::PrivilegeMode::User:
             return ExecutionMode::User;
-        case RiscV64::Sstatus::PrivilegeMode::Supervisor:
+        case RISCV64::Sstatus::PrivilegeMode::Supervisor:
             return ExecutionMode::Kernel;
         }
     }

@@ -213,7 +213,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     // FIXME: Read the /chosen/bootargs property.
     kernel_cmdline = RPi::Mailbox::the().query_kernel_command_line(s_command_line_buffer);
 #elif ARCH(RISCV64)
-    // Qemu
+    // QEMU
     static multiboot_memory_map_t mmap[] = {
         {
             sizeof(struct multiboot_mmap_entry) - sizeof(u32),
@@ -259,7 +259,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     // multiboot_framebuffer_width = 640;
     // multiboot_framebuffer_height = 480;
 
-    // Qemu Placeholder
+    // QEMU Placeholder
     multiboot_framebuffer_addr = PhysicalAddress { 0x8200'0000 };
     multiboot_framebuffer_width = 640;
     multiboot_framebuffer_height = 480;

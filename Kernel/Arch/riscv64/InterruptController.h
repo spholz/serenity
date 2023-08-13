@@ -10,7 +10,7 @@
 #include <AK/Types.h>
 #include <Kernel/Arch/riscv64/IRQController.h>
 
-namespace Kernel::RiscV {
+namespace Kernel::RISCV64 {
 
 class InterruptController : public IRQController {
 public:

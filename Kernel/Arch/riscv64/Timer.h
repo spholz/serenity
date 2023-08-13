@@ -11,7 +11,7 @@
 #include <Kernel/Library/NonnullLockRefPtr.h>
 #include <Kernel/Time/HardwareTimer.h>
 
-namespace Kernel::RiscV {
+namespace Kernel::RISCV64 {
 
 struct TimerRegisters;
 
@@ -21,7 +21,7 @@ public:
 
     static NonnullLockRefPtr<Timer> initialize();
 
-    virtual HardwareTimerType timer_type() const override { return HardwareTimerType::RiscVTimer; }
+    virtual HardwareTimerType timer_type() const override { return HardwareTimerType::RISCVTimer; }
     virtual StringView model() const override { return "RISC-V Timer"sv; }
     virtual size_t ticks_per_second() const override { return m_frequency; }
 
