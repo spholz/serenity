@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Platform.h>
 #include <AK/Types.h>
 #include <Kernel/Arch/InterruptManagement.h>
 #include <Kernel/Arch/Processor.h>
@@ -32,7 +31,6 @@
 #include <Kernel/Devices/PCISerialDevice.h>
 #include <Kernel/Devices/SerialDevice.h>
 #include <Kernel/Devices/Storage/StorageManagement.h>
-#include <Kernel/FileSystem/SysFS/FileSystem.h>
 #include <Kernel/FileSystem/SysFS/Registry.h>
 #include <Kernel/FileSystem/SysFS/Subsystems/Firmware/Directory.h>
 #include <Kernel/FileSystem/VirtualFileSystem.h>
@@ -261,8 +259,8 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
 
     // QEMU Placeholder
     multiboot_framebuffer_addr = PhysicalAddress { 0x8200'0000 };
-    multiboot_framebuffer_width = 640;
-    multiboot_framebuffer_height = 480;
+    multiboot_framebuffer_width = 16;
+    multiboot_framebuffer_height = 16;
 
     // VisionFive 2 U-Boot Framebuffer
     // multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 };
@@ -458,6 +456,8 @@ void init_stage2(void*)
     SyncTask::spawn();
     FinalizerTask::spawn();
 
+    MM.dump_kernel_regions();
+
     auto boot_profiling = kernel_command_line().is_boot_profiling_enabled();
 
     if (!PCI::Access::is_disabled()) {
@@ -502,9 +502,6 @@ void init_stage2(void*)
 
     auto userspace_init = kernel_command_line().userspace_init();
     auto init_args = kernel_command_line().userspace_init_args();
-
-    // FIXME
-    Processor::enable_interrupts();
 
     auto init_or_error = Process::create_user_process(userspace_init, UserID(0), GroupID(0), move(init_args), {}, tty0);
     if (init_or_error.is_error())

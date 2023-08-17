@@ -140,7 +140,7 @@ NEVER_INLINE static void dump_backtrace_impl(FlatPtr base_pointer, bool use_ksym
                 break;
 
             void* fault_at;
-            if (!safe_memcpy(copied_stack_ptr, stack_ptr, sizeof(copied_stack_ptr), fault_at))
+            if (!safe_memcpy(copied_stack_ptr, stack_ptr - 2, sizeof(copied_stack_ptr), fault_at))
                 break;
             FlatPtr retaddr = copied_stack_ptr[1];
             recognized_symbols[recognized_symbol_count++] = { retaddr, symbolicate_kernel_address(retaddr) };
@@ -149,7 +149,7 @@ NEVER_INLINE static void dump_backtrace_impl(FlatPtr base_pointer, bool use_ksym
         void* fault_at;
         FlatPtr copied_stack_ptr[2];
         FlatPtr* stack_ptr = (FlatPtr*)base_pointer;
-        while (stack_ptr && safe_memcpy(copied_stack_ptr, stack_ptr, sizeof(copied_stack_ptr), fault_at)) {
+        while (stack_ptr && safe_memcpy(copied_stack_ptr, stack_ptr - 2, sizeof(copied_stack_ptr), fault_at)) {
             FlatPtr retaddr = copied_stack_ptr[1];
             PRINT_LINE("{:p} (next: {:p})", retaddr, stack_ptr ? (FlatPtr*)copied_stack_ptr[0] : 0);
             stack_ptr = (FlatPtr*)copied_stack_ptr[0];

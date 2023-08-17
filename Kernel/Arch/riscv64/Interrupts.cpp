@@ -11,6 +11,7 @@
 #include <Kernel/Arch/PageFault.h>
 #include <Kernel/Arch/riscv64/ASM_wrapper.h>
 #include <Kernel/Arch/riscv64/InterruptManagement.h>
+#include <Kernel/Arch/riscv64/PageDirectory.h>
 #include <Kernel/Arch/riscv64/Registers.h>
 #include <Kernel/Arch/riscv64/TrapFrame.h>
 #include <Kernel/Interrupts/GenericInterruptHandler.h>
@@ -18,6 +19,7 @@
 #include <Kernel/Interrupts/UnhandledInterruptHandler.h>
 #include <Kernel/Library/Panic.h>
 #include <Kernel/Library/StdLib.h>
+#include <Kernel/Memory/MemoryManager.h>
 
 namespace Kernel {
 
@@ -84,7 +86,7 @@ void dump_registers(RegisterState const& regs)
     auto satp = RISCV64::Asm::get_satp();
 
     dbgln("scause:  {} ({:p})", RISCV64::scause_to_string(scause), scause);
-    dbgln("sepc:    {:p}", regs.sepc);
+    dbgln("sepc:    {:p}", regs.pc);
     dbgln("stval:   {:p}", stval);
     dbgln("sstatus: {:p}", regs.sstatus);
     dbgln("satp:    {:p}", satp);
@@ -150,6 +152,14 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
         if (RISCV64::scause_is_page_fault(scause)) {
             auto stval = RISCV64::Asm::get_stval();
             PageFault fault { VirtualAddress(stval) };
+            auto page_directory = Memory::PageDirectory::find_current();
+            if (page_directory.is_null()) {
+                page_directory = MM.kernel_page_directory();
+            }
+
+            auto previous_interrupts_state = page_directory->get_lock().lock();
+            auto* pte = MM.pte(*page_directory, VirtualAddress { stval });
+            page_directory->get_lock().unlock(previous_interrupts_state);
 
             if (scause == 12)
                 fault.set_instruction_fetch(true);
@@ -158,7 +168,10 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
             else if (scause == 15)
                 fault.set_access(PageFault::Access::Write);
 
-            fault.set_type(PageFault::Type::PageNotPresent);
+            if (pte == nullptr)
+                fault.set_type(PageFault::Type::PageNotPresent);
+            else
+                fault.set_type(PageFault::Type::ProtectionViolation);
 
             fault.handle(*trap_frame.regs);
         } else {

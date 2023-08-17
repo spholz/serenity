@@ -16,7 +16,7 @@ namespace Kernel {
 extern "C" [[noreturn]] void init();
 
 extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr);
-extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr)
+extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, PhysicalPtr fdt_phys_addr)
 {
     (void)mhartid;
     (void)fdt_phys_addr;

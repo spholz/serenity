@@ -44,6 +44,8 @@ def handler_class_for_type(type, re=re.compile('^([^<]+)(<.*>)?$')):
         return AKStringView
     elif klass == 'AK::StringImpl':
         return AKStringImpl
+    elif klass == 'AK::FixedStringBuffer':
+        return AKFixedStringBuffer
     elif klass == 'AK::Variant':
         return AKVariant
     elif klass == 'AK::Optional':
@@ -216,6 +218,21 @@ class AKStringImpl:
     @classmethod
     def prettyprint_type(cls, type):
         return 'AK::StringImpl'
+
+
+class AKFixedStringBuffer:
+    def __init__(self, val):
+        self.val = val
+
+    def to_string(self):
+        if int(self.val["m_stored_length"]) == 0:
+            return '""'
+        else:
+            return self.val["m_storage"]["__data"].string(length=self.val["m_stored_length"])
+
+    @classmethod
+    def prettyprint_type(cls, type):
+        return 'AK::FixedStringBuffer'
 
 
 class AKOwnPtr:

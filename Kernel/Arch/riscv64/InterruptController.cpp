@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BuiltinWrappers.h>
 #include <Kernel/Arch/riscv64/InterruptController.h>
 #include <Kernel/Interrupts/GenericInterruptHandler.h>
 
@@ -17,12 +18,14 @@ void InterruptController::enable(GenericInterruptHandler const& handler)
 {
     u8 interrupt_number = handler.interrupt_number();
     VERIFY(interrupt_number < 64);
+    asm volatile("csrs sie, %0" ::"r"(1 << interrupt_number));
 }
 
 void InterruptController::disable(GenericInterruptHandler const& handler)
 {
     u8 interrupt_number = handler.interrupt_number();
     VERIFY(interrupt_number < 64);
+    asm volatile("csrc sie, %0" ::"r"(1 << interrupt_number));
 }
 
 void InterruptController::eoi(GenericInterruptHandler const&) const
@@ -31,7 +34,12 @@ void InterruptController::eoi(GenericInterruptHandler const&) const
 
 u64 InterruptController::pending_interrupts() const
 {
-    return 1;
+
+    uintptr_t sip;
+    asm volatile("csrr %0, sip"
+                 : "=r"(sip));
+
+    return popcount(sip);
 }
 
 }

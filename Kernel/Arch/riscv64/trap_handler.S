@@ -8,7 +8,8 @@
 #endif
 
 #define SSTATUS_SLOT        (31 * XLEN)
-#define SEPC_SLOT           (32 * XLEN)
+#define PC_SLOT             (32 * XLEN)
+#define USERSPACE_SP_SLOT   (33 * XLEN)
 
 .extern trap_handler
 
@@ -60,7 +61,7 @@ asm_trap_handler:
     csrr t0, sstatus
     sd t0, SSTATUS_SLOT(sp)
     csrr t0, sepc
-    sd t0, SEPC_SLOT(sp)
+    sd t0, PC_SLOT(sp)
 
     // Set up TrapFrame struct on the stack
     mv t0, sp
@@ -82,7 +83,7 @@ asm_trap_handler:
     // Restore special registers first
     ld t0, SSTATUS_SLOT(sp)
     csrw sstatus, t0
-    ld t0, SEPC_SLOT(sp)
+    ld t0, PC_SLOT(sp)
     csrw sepc, t0
 
     ld x1, 0*XLEN(sp)
@@ -126,3 +127,60 @@ asm_trap_handler:
 
     sret
     .cfi_endproc
+
+.global restore_context
+restore_context:
+    mv a0, sp
+    call exit_trap
+
+    // Remove TrapFrame from the stack
+    addi sp, sp, 16
+
+    // Restore special registers first
+    ld t0, SSTATUS_SLOT(sp)
+    csrw sstatus, t0
+    ld t0, PC_SLOT(sp)
+    csrw sepc, t0
+
+    ld x1, 0*XLEN(sp)
+    // sp
+    ld x3, 2*XLEN(sp)
+    ld x4, 3*XLEN(sp)
+    ld x5, 4*XLEN(sp)
+    ld x6, 5*XLEN(sp)
+    ld x7, 6*XLEN(sp)
+    ld x8, 7*XLEN(sp)
+    ld x9, 8*XLEN(sp)
+    ld x10, 9*XLEN(sp)
+    ld x11, 10*XLEN(sp)
+    ld x12, 11*XLEN(sp)
+    ld x13, 12*XLEN(sp)
+    ld x14, 13*XLEN(sp)
+    ld x15, 14*XLEN(sp)
+    ld x16, 15*XLEN(sp)
+    ld x17, 16*XLEN(sp)
+    ld x18, 17*XLEN(sp)
+    ld x19, 18*XLEN(sp)
+    ld x20, 19*XLEN(sp)
+    ld x21, 20*XLEN(sp)
+    ld x22, 21*XLEN(sp)
+    ld x23, 22*XLEN(sp)
+    ld x24, 23*XLEN(sp)
+    ld x25, 24*XLEN(sp)
+    ld x26, 25*XLEN(sp)
+    ld x27, 26*XLEN(sp)
+    ld x28, 27*XLEN(sp)
+    ld x29, 28*XLEN(sp)
+    ld x30, 29*XLEN(sp)
+    ld x31, 30*XLEN(sp)
+
+    // FIXME: don't use t0 and t1
+    ld t0, PC_SLOT(sp)
+    ld t1, USERSPACE_SP_SLOT(sp)
+
+    addi sp, sp, REGISTER_STATE_SIZE
+
+    // Restore sp last
+    mv sp, t1
+
+    jr t0

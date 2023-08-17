@@ -527,7 +527,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/SafeMem.cpp
         Arch/riscv64/SmapDisabler.cpp
         Arch/riscv64/Timer.cpp
-        # Arch/riscv64/TrapFrame.cpp
+        Arch/riscv64/TrapFrame.cpp
         Arch/riscv64/trap_handler.S
     )
 
@@ -765,7 +765,7 @@ elseif ("${SERENITY_ARCH}" STREQUAL "x86_64")
     set_target_properties(Kernel PROPERTIES LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/linker.ld")
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        # target_compile_options(Kernel PRIVATE -mpreferred-stack-boundary=3)
+        target_compile_options(Kernel PRIVATE -mpreferred-stack-boundary=3)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
         target_compile_options(Kernel PRIVATE -mstack-alignment=8)
     endif()
@@ -776,7 +776,7 @@ if (ENABLE_KERNEL_LTO)
     check_ipo_supported()
     add_definitions(-DENABLE_KERNEL_LTO)
     set_property(TARGET Kernel PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-    if ((NOT "${SERENITY_ARCH}" STREQUAL "aarch64") AND (NOT "${SERENITY_ARCH}" STREQUAL "riscv64"))
+    if ("${SERENITY_ARCH}" STREQUAL "x86_64")
         set_property(TARGET kernel_heap PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
 endif()

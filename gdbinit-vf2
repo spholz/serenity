@@ -8,7 +8,7 @@
 # Kernel at physical load address...
 add-symbol-file Build/riscv64/Kernel/Kernel.debug 0x44000000
 # ... and at the final remapped virtual address
-add-symbol-file Build/riscv64/Kernel/Kernel.debug
+# add-symbol-file Build/riscv64/Kernel/Kernel.debug
 
 # U-Boot
 # break do_go_exec
@@ -17,7 +17,8 @@ add-symbol-file Build/riscv64/Kernel/Kernel.debug
 break start
 break pre_init
 break __panic
-break trap_handler
+break asm_trap_handler if $scause != 0x8000000000000005
+# break trap_handler
 break trap_handler_nommu
 
 skip function memset
@@ -28,6 +29,12 @@ set code-cache off
 
 source Meta/serenity_gdb.py
 source riscv-gdb-utils.py
+
+set confirm off
+directory Build/riscv64/
+set confirm on
+set print frame-arguments none
+set print asm-demangle on
 
 continue
 

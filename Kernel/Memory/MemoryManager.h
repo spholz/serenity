@@ -240,6 +240,8 @@ public:
 
     IterationDecision for_each_physical_memory_range(Function<IterationDecision(PhysicalMemoryRange const&)>);
 
+    PageTableEntry* pte(PageDirectory&, VirtualAddress);
+
 private:
     MemoryManager();
     ~MemoryManager();
@@ -266,7 +268,6 @@ private:
     PageDirectoryEntry* quickmap_pd(PageDirectory&, size_t pdpt_index);
     PageTableEntry* quickmap_pt(PhysicalAddress);
 
-    PageTableEntry* pte(PageDirectory&, VirtualAddress);
     PageTableEntry* ensure_pte(PageDirectory&, VirtualAddress);
     enum class IsLastPTERelease {
         Yes,

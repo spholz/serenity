@@ -49,7 +49,7 @@ SECTIONS
         /* gp-based relaxation can load values between gp +/- 2048,
            so place it 2048 bytes after the start of .data to cover as much as possible
            Note: this value has to be called __global_pointer$ as defined by the RISC-V ABIs Specification */
-        __global_pointer$ = . + 2048;
+        /* __global_pointer$ = . + 2048; */
 
         *(.data*)
     } :data
@@ -94,5 +94,3 @@ SECTIONS
 
     end_of_kernel_image = .;
 }
-
-size_of_bss_divided_by_8 = (end_of_bss - start_of_bss + 7) / 8;

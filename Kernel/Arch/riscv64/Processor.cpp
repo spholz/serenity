@@ -7,15 +7,17 @@
 #include <Kernel/Arch/Processor.h>
 #include <Kernel/Arch/TrapFrame.h>
 #include <Kernel/Arch/riscv64/ASM_wrapper.h>
-#include <Kernel/Arch/riscv64/Registers.h>
 #include <Kernel/Interrupts/InterruptDisabler.h>
 #include <Kernel/Sections.h>
+#include <Kernel/Security/Random.h>
 #include <Kernel/Tasks/Process.h>
 #include <Kernel/Tasks/Scheduler.h>
-#include <Kernel/Tasks/Thread.h>
-#include <Kernel/Time/TimeManagement.h>
 
 namespace Kernel {
+
+extern "C" void thread_context_first_enter(void);
+extern "C" void exit_kernel_thread(void);
+extern "C" void context_first_init(Thread* from_thread, Thread* to_thread) __attribute__((used));
 
 Processor* g_current_processor;
 READONLY_AFTER_INIT FPUState Processor::s_clean_fpu_state;
@@ -102,17 +104,13 @@ void Processor::initialize_context_switching(Thread& initial_thread)
     asm volatile(
         "mv sp, %[new_sp] \n"
 
-        "li t0, 1 << 5 /* STIE */\n"
-        "csrw sie, t0\n"
-        "csrsi sstatus, 1 << 1 /* SIE */\n"
-
         "addi sp, sp, -32 \n"
         "sd %[from_to_thread], 0(sp) \n"
         "sd %[from_to_thread], 8(sp) \n"
 
         "jr %[new_ip] \n"
-        :: [new_sp] "r" (regs.sp),
-        [new_ip] "r" (regs.sepc),
+        :: [new_sp] "r" (regs.sp()),
+        [new_ip] "r" (regs.ip()),
         [from_to_thread] "r" (&initial_thread)
         : "t0"
     );
@@ -131,15 +129,13 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
     // m_in_critical is restored in enter_thread_context
     from_thread->save_critical(m_in_critical);
 
-    // FIXME: fix CFI directives by moving this asm code into a seperate function
     // clang-format off
     asm volatile(
-        "addi sp, sp, -256 \n"
-        ".cfi_adjust_cfa_offset 256 \n"
+        // Store a RegisterState of from_thread on from_thread's stack
+        "addi sp, sp, -(34 * 8) \n"
 
         "sd x1, 0*8(sp) \n"
-        ".cfi_offset ra, -256 \n"
-        "sd x2, 1*8(sp) \n"
+        // sp
         "sd x3, 2*8(sp) \n"
         "sd x4, 3*8(sp) \n"
         "sd x5, 4*8(sp) \n"
@@ -170,16 +166,18 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         "sd x30, 29*8(sp) \n"
         "sd x31, 30*8(sp) \n"
 
-        "mv t0, sp \n"
-        "sd t0, %[from_sp] \n"
+        // Store current sp as from_thread's sp.
+        "sd sp, %[from_sp] \n"
+
+        // Set from_thread's pc to label "1"
         "la t0, 1f \n"
         "sd t0, %[from_ip] \n"
 
-        "ld t0, %[to_sp] \n"
-        "mv sp, t0 \n"
+        // Switch to to_thread's stack
+        "ld sp, %[to_sp] \n"
 
-        "addi sp, sp, -32 \n"
-        ".cfi_adjust_cfa_offset 32 \n"
+        // Store from_thread, to_thread, to_ip on stack
+        "addi sp, sp, -(4 * 8) \n"
         "ld a0, %[from_thread] \n"
         "ld a1, %[to_thread] \n"
         "ld t2, %[to_ip] \n"
@@ -187,16 +185,18 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         "sd a1, 1*8(sp) \n"
         "sd t2, 2*8(sp) \n"
 
+        // enter_thread_context(from_thread, to_thread)
         "call enter_thread_context \n"
+
+        // Jump to to_ip
         "ld t0, 2*8(sp) \n"
         "jr t0 \n"
 
+        // A thread enters here when they were already scheduled at least once
         "1: \n"
-        "addi sp, sp, 32 \n"
-        ".cfi_adjust_cfa_offset -32 \n"
+        "addi sp, sp, 4 * 8 \n"
 
         "ld x1, 0*8(sp) \n"
-        ".cfi_restore ra \n"
         // sp
         "ld x3, 2*8(sp) \n"
         "ld x4, 3*8(sp) \n"
@@ -228,32 +228,27 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         "ld x30, 29*8(sp) \n"
         "ld x31, 30*8(sp) \n"
 
-        // Restore sp last
-        "ld x2, 1*8(sp) \n"
-
-        "addi sp, sp, -32 \n"
-        ".cfi_adjust_cfa_offset 32 \n"
+        "addi sp, sp, -(4 * 8) \n"
         "ld t0, 0*8(sp) \n"
         "ld t1, 1*8(sp) \n"
-        "sd t0, %[from_thread] \n"
-        "sd t1, %[to_thread] \n"
+        // "sd t0, %[from_thread] \n"
+        // "sd t1, %[to_thread] \n"
 
-        "addi sp, sp, 288 \n"
-        ".cfi_adjust_cfa_offset -288 \n"
+        "addi sp, sp, 34 * 8 \n"
         :
-        [from_ip] "=m"(from_thread->regs().sepc),
-        [from_sp] "=m"(from_thread->regs().sp),
+        [from_ip] "=m"(from_thread->regs().pc),
+        [from_sp] "=m"(from_thread->regs().kernel_sp),
         "=m"(from_thread),
         "=m"(to_thread)
 
-        : [to_ip] "m"(to_thread->regs().sepc),
-        [to_sp] "m"(to_thread->regs().sp),
+        : [to_ip] "m"(to_thread->regs().pc),
+        [to_sp] "m"(to_thread->regs().x[1]),
         [from_thread] "m"(from_thread),
         [to_thread] "m"(to_thread)
         : "memory", "t0", "t1", "t2", "a0", "a1");
     // clang-format on
 
-    dbgln_if(CONTEXT_SWITCH_DEBUG, "switch_context <-- from {} {} to {} {}", VirtualAddress(from_thread), *from_thread, VirtualAddress(to_thread), *to_thread);
+    // dbgln_if(CONTEXT_SWITCH_DEBUG, "switch_context <-- from {} {} to {} {}", VirtualAddress(from_thread), *from_thread, VirtualAddress(to_thread), *to_thread);
 }
 
 void Processor::assume_context(Thread& thread, InterruptsState new_interrupts_state)
@@ -265,9 +260,63 @@ void Processor::assume_context(Thread& thread, InterruptsState new_interrupts_st
 
 FlatPtr Processor::init_context(Thread& thread, bool leave_crit)
 {
-    (void)thread;
-    (void)leave_crit;
-    return 0;
+    VERIFY(g_scheduler_lock.is_locked());
+    if (leave_crit) {
+        // Leave the critical section we set up in Process::exec,
+        // but because we still have the scheduler lock we should end up with 1
+        VERIFY(in_critical() == 2);
+        m_in_critical = 1; // leave it without triggering anything or restoring flags
+    }
+
+    u64 kernel_stack_top = thread.kernel_stack_top();
+
+    // Add a random offset between 0-256 (16-byte aligned)
+    kernel_stack_top -= round_up_to_power_of_two(get_fast_random<u8>(), 16);
+
+    u64 stack_top = kernel_stack_top;
+    dbgln("kernel_stack_top: {:p}", kernel_stack_top);
+
+    auto& thread_regs = thread.regs();
+    dbgln("thread_regs.satp: {:p}", thread_regs.satp);
+
+    // Push a RegisterState and TrapFrame onto the stack, which will be popped of the stack and restored into the
+    // state of the processor by restore_previous_context.
+    stack_top -= sizeof(RegisterState);
+    RegisterState& frame = *reinterpret_cast<RegisterState*>(stack_top);
+    memcpy(frame.x, thread_regs.x, sizeof(thread_regs.x));
+
+    // We don't overwrite the return address register if it's not 0, since that means this thread's register state was already initialized with
+    // an existing return address register value (e.g. it was fork()'ed), so we assume exit_kernel_thread is already saved as previous RA on the
+    // stack somewhere.
+    if (frame.x[0] == 0x0) {
+        // x1 is the return address register for the riscv64 ABI, so this will return to exit_kernel_thread when main thread function returns.
+        frame.x[0] = FlatPtr(&exit_kernel_thread);
+    }
+    frame.pc = thread_regs.pc;
+    frame.user_sp = thread_regs.sp();
+    frame.sstatus = thread_regs.sstatus;
+
+    // Push a TrapFrame onto the stack
+    stack_top -= sizeof(TrapFrame);
+    TrapFrame& trap = *reinterpret_cast<TrapFrame*>(stack_top);
+    trap.regs = &frame;
+    trap.next_trap = nullptr;
+
+    if constexpr (CONTEXT_SWITCH_DEBUG) {
+        dbgln("init_context {} ({}) set up to execute at ip={}, sp={}, stack_top={}",
+            thread,
+            VirtualAddress(&thread),
+            VirtualAddress(thread_regs.pc),
+            VirtualAddress(thread_regs.sp()),
+            VirtualAddress(stack_top));
+    }
+
+    // This make sure the thread first executes thread_context_first_enter, which will actually call restore_previous_context
+    // which restores the context set up above.
+    thread_regs.set_sp(stack_top);
+    thread_regs.set_ip(FlatPtr(&thread_context_first_enter));
+
+    return stack_top;
 }
 
 void Processor::enter_trap(TrapFrame& trap, bool raise_irq)
@@ -356,6 +405,46 @@ void Processor::check_invoke_scheduler()
         m_invoke_scheduler_async = false;
         Scheduler::invoke_async();
     }
+}
+
+NAKED void thread_context_first_enter(void)
+{
+    asm(
+        "ld a0, 0(sp) \n"
+        "ld a1, 8(sp) \n"
+        "addi sp, sp, 32 \n"
+        "call context_first_init \n"
+        "tail restore_context \n");
+}
+
+void exit_kernel_thread(void)
+{
+    Thread::current()->exit();
+}
+
+extern "C" void context_first_init(Thread* from_thread, Thread* to_thread)
+{
+    dbgln("last Processor::enable_interrupts(): {}:{} {}", Processor::current().last_interrupt_enable_file, Processor::current().last_interrupt_enable_line, Processor::current().last_interrupt_enable_function);
+    VERIFY_INTERRUPTS_DISABLED();
+    dbgln_if(CONTEXT_SWITCH_DEBUG, "switch_context <-- from {} {} to {} {} (context_first_init)", VirtualAddress(from_thread), *from_thread, VirtualAddress(to_thread), *to_thread);
+
+    VERIFY(to_thread == Thread::current());
+
+    Scheduler::enter_current(*from_thread);
+
+    auto in_critical = to_thread->saved_critical();
+    VERIFY(in_critical > 0);
+    Processor::restore_critical(in_critical);
+
+    // Since we got here and don't have Scheduler::context_switch in the
+    // call stack (because this is the first time we switched into this
+    // context), we need to notify the scheduler so that it can release
+    // the scheduler lock. We don't want to enable interrupts at this point
+    // as we're still in the middle of a context switch. Doing so could
+    // trigger a context switch within a context switch, leading to a crash.
+    Scheduler::leave_on_first_switch(InterruptsState::Disabled);
+
+    dbgln("sstatus: {}", bit_cast<RISCV64::Sstatus>(to_thread->regs().sstatus));
 }
 
 extern "C" [[gnu::used]] void enter_thread_context(Thread* from_thread, Thread* to_thread);

@@ -16,13 +16,16 @@ namespace Kernel {
 struct ThreadRegisters {
     u64 x[31];
     u64 sstatus;
-    u64 sepc;
-    u64 sp;
+    u64 pc;
     u64 satp;
 
-    FlatPtr ip() const { return sepc; }
-    void set_ip(FlatPtr value) { sepc = value; }
-    void set_sp(FlatPtr value) { sp = value; }
+    u64 kernel_sp;
+
+    FlatPtr ip() const { return pc; }
+    void set_ip(FlatPtr value) { pc = value; }
+
+    FlatPtr sp() const { return x[1]; }
+    void set_sp(FlatPtr value) { x[1] = value; }
 
     void set_initial_state(bool is_kernel_process, Memory::AddressSpace& space, FlatPtr kernel_stack_top)
     {
@@ -34,7 +37,7 @@ struct ThreadRegisters {
     void set_entry_function(FlatPtr entry_ip, FlatPtr entry_data)
     {
         set_ip(entry_ip);
-        x[10] = entry_data; // a0
+        x[9] = entry_data; // a0
     }
 
     void set_exec_state(FlatPtr entry_ip, FlatPtr userspace_sp, Memory::AddressSpace& space)
@@ -47,13 +50,15 @@ struct ThreadRegisters {
 
     void set_sstatus(bool is_kernel_process)
     {
-        RISCV64::Sstatus saved_sstatus = {};
+        RISCV64::Sstatus sstatus = {};
 
-        // Don't mask any interrupts, so all interrupts are enabled when transfering into the new context
-        saved_sstatus.SIE = 1;
+        // Enable interrupts
+        sstatus.SIE = 1;
 
-        saved_sstatus.SPP = is_kernel_process ? RISCV64::Sstatus::PrivilegeMode::Supervisor : RISCV64::Sstatus::PrivilegeMode::User;
-        memcpy(&sstatus, &saved_sstatus, sizeof(u64));
+        sstatus.SPP = is_kernel_process ? RISCV64::Sstatus::PrivilegeMode::Supervisor : RISCV64::Sstatus::PrivilegeMode::User;
+        sstatus.UXL = RISCV64::Sstatus::XLEN::Bits64;
+
+        memcpy(&this->sstatus, &sstatus, sizeof(u64));
     }
 };
 

@@ -93,74 +93,10 @@ static bool page_table_entry_valid(u64 entry)
     return (entry & to_underlying(PageTableEntryFlags::Valid)) != 0;
 }
 
-#if 0
-static u64* insert_page_table(PageBumpAllocator& allocator, u64* root_table, VirtualAddress virtual_addr, PhysicalAddress physical_address, PageTableEntryFlags flags)
-{
-    constexpr ssize_t LEVELS = 3;
-
-    // dbgln("insert_page_table({}, {}, {}, {})", root_table, virtual_addr, physical_address, to_underlying(flags));
-
-    // Each level has 9 bits (512 entries)
-    u64 const vpns[3] = {
-        (virtual_addr.get() >> 12) & 0x1FF,
-        (virtual_addr.get() >> 21) & 0x1FF,
-        (virtual_addr.get() >> 30) & 0x1FF,
-    };
-
-    // dbgln("vpns: {:#x}, {:#x}, {:#x}", vpns[0], vpns[1], vpns[2]);
-    // dbgln();
-
-    // dbgln("vpns[level={}]: {}", LEVELS - 1, vpns[LEVELS - 1]);
-    u64* current_entry = &root_table[vpns[LEVELS - 1]];
-
-    for (ssize_t level = LEVELS - 2; level >= 0; level--) {
-        // dbgln("level: {}", level);
-        // dbgln("current_entry: {:p}", current_entry);
-
-        if (!page_table_entry_valid(*current_entry)) {
-            // dbgln("  current entry invalid");
-            *current_entry = ((FlatPtr)allocator.take_page() >> PADDR_PPN_OFFSET) << PTE_PPN_OFFSET;
-            *current_entry |= to_underlying(PageTableEntryFlags::Valid);
-
-            // dbgln("  -> *current_entry: {:#x}", *current_entry);
-            // dbgln("  -> *current_entry.ppn: {:#x}", *current_entry >> PTE_PPN_OFFSET);
-        }
-
-        // dbgln("vpns[level={}]: {}", level, vpns[level]);
-        u64* next_table = (u64*)((*current_entry >> PTE_PPN_OFFSET) << PADDR_PPN_OFFSET);
-        current_entry = &next_table[vpns[level]];
-    }
-
-    // dbgln("-> current_entry: {:p}", current_entry);
-    // dbgln();
-
-    if (page_table_entry_valid(*current_entry)) {
-        TODO();
-    }
-
-    *current_entry = (physical_address.get() >> PADDR_PPN_OFFSET) << PTE_PPN_OFFSET;
-    *current_entry |= to_underlying(PageTableEntryFlags::Valid | PageTableEntryFlags::Accessed | PageTableEntryFlags::Dirty | flags);
-
-    return current_entry;
-}
-
-static void insert_entries_for_memory_range(PageBumpAllocator& allocator, u64* root_table, VirtualAddress start, VirtualAddress end, PhysicalAddress paddr, PageTableEntryFlags flags)
-{
-    // dbgln("start: {}, end: {}, paddr: {}", start, end, paddr);
-
-    // Not very efficient, but simple and it works.
-    for (VirtualAddress vaddr = start; vaddr < end;) {
-        insert_page_table(allocator, root_table, vaddr, paddr, flags);
-        vaddr = vaddr.offset(PAGE_TABLE_SIZE);
-        paddr = paddr.offset(PAGE_TABLE_SIZE);
-    }
-}
-#endif
-
 static u64* insert_page_table(PageBumpAllocator& allocator, u64* root_table, VirtualAddress virtual_addr)
 {
-    size_t vpn_1 = (virtual_addr.get() >> 21) & 0x1FF;
-    size_t vpn_2 = (virtual_addr.get() >> 30) & 0x1FF;
+    size_t vpn_1 = (virtual_addr.get() >> VPN_1_OFFSET) & PAGE_TABLE_INDEX_MASK;
+    size_t vpn_2 = (virtual_addr.get() >> VPN_2_OFFSET) & PAGE_TABLE_INDEX_MASK;
 
     u64* level0_table = root_table;
 
@@ -181,7 +117,7 @@ static u64* insert_page_table(PageBumpAllocator& allocator, u64* root_table, Vir
 
 static u64* get_page_directory(u64* root_table, VirtualAddress virtual_addr)
 {
-    size_t vpn_2 = (virtual_addr.get() >> 30) & 0x1FF;
+    size_t vpn_2 = (virtual_addr.get() >> VPN_2_OFFSET) & PAGE_TABLE_INDEX_MASK;
 
     u64* level0_table = root_table;
 
@@ -199,7 +135,7 @@ static void insert_entries_for_memory_range(PageBumpAllocator& allocator, u64* r
     for (VirtualAddress vaddr = start; vaddr < end;) {
         u64* level2_table = insert_page_table(allocator, root_table, vaddr);
 
-        size_t vpn_0 = (vaddr.get() >> PADDR_PPN_OFFSET) & 0x1FF;
+        size_t vpn_0 = (vaddr.get() >> PADDR_PPN_OFFSET) & PAGE_TABLE_INDEX_MASK;
         level2_table[vpn_0] = (paddr.get() >> PADDR_PPN_OFFSET) << PTE_PPN_OFFSET;
         level2_table[vpn_0] |= to_underlying(PageTableEntryFlags::Valid | PageTableEntryFlags::Accessed | PageTableEntryFlags::Dirty | flags);
 
@@ -235,8 +171,13 @@ static void build_mappings(PageBumpAllocator& allocator, u64* root_table)
 
 static void activate_mmu(u64 const* root_table)
 {
-    FlatPtr const satp_val = (FlatPtr)SatpMode::Sv39 << 60 | (FlatPtr)root_table >> PADDR_PPN_OFFSET;
-    RISCV64::Asm::set_satp(satp_val);
+    RISCV64::Satp satp = {
+        .PPN = (FlatPtr)root_table >> PADDR_PPN_OFFSET,
+        .ASID = 0,
+        .MODE = RISCV64::Satp::Mode::Sv39,
+    };
+
+    RISCV64::Satp::write(satp);
     Processor::flush_entire_tlb_local();
 }
 

@@ -1,4 +1,5 @@
 import gdb
+import psutil
 
 from enum import IntEnum, IntFlag
 
@@ -28,6 +29,34 @@ class PteFlags(IntFlag):
 
 PAGE_SHIFT = 12
 ENTRIES_PER_PAGE_PAGE_TABLE = 512
+
+
+def get_proc_owning_port(port: int) -> psutil.Process:
+    for proc in psutil.process_iter():
+        try:
+            for conn in proc.connections():
+                if conn.status == 'LISTEN' and conn.laddr.port == port:
+                    return proc
+        except Exception:
+            continue
+    assert False
+
+
+def read_physical_memory(addr: int, conn_name) -> int:
+    if 'qemu' in conn_name:
+        val = gdb.execute(f'mon xp/x {addr:#x}', to_string=True).split(': ')[1].strip()
+        try:
+            return int(val, 16)
+        except ValueError:
+            raise gdb.GdbError(f'error while trying to read memory at {addr:#x}: {val}')
+    elif 'openocd' in conn_name:
+        val = gdb.execute(f'mon read_memory {addr:#x} 64 1 phys', to_string=True).strip()
+        try:
+            return int(val, 16)
+        except ValueError:
+            raise gdb.GdbError(f'error while trying to read memory at {addr:#x}: {val}')
+    else:
+        return int.from_bytes(bytes(gdb.selected_inferior().read_memory(addr, 8)), 'little')
 
 
 class DumpPageTable(gdb.Command):
@@ -67,6 +96,9 @@ class DumpPageTable(gdb.Command):
 
         search_for_vaddr = None if len(args) == 0 else int(args[0], 16)
 
+        port = int(gdb.selected_inferior().connection.details.split(':')[1])
+        conn_name = get_proc_owning_port(port).name()
+
         def walk(tbl_addr: int, level: int = 0, vpn_split: list[int] = [], trace: list[int] = []):
             if level >= 3:
                 raise gdb.GdbError('page table recursion limit exceeded!')
@@ -76,13 +108,7 @@ class DumpPageTable(gdb.Command):
 
             i = 0
             for addr in range(tbl_addr, tbl_addr + ENTRIES_PER_PAGE_PAGE_TABLE * 8, 8):
-                # entry = int.from_bytes(bytes(inferior.read_memory(addr, 8)), 'little')
-                entry = gdb.execute(f'mon xp/x {addr:#x}', to_string=True).split(': ')[1].strip()
-                # entry = gdb.execute(f'mon read_memory {addr:#x} 64 1 phys', to_string=True).strip()
-                try:
-                    entry = int(entry, 16)
-                except ValueError:
-                    raise gdb.GdbError(entry)
+                entry = read_physical_memory(addr, conn_name)
 
                 if (entry & 1) != 0:
                     # valid bit set
@@ -252,18 +278,14 @@ class TranslateVAddr(gdb.Command):
 
         print(f'VPN: {vpn:#x} -> VPN[]: {", ".join(map(hex, vpn_split))}')
 
+        port = int(gdb.selected_inferior().connection.details.split(':')[1])
+        conn_name = get_proc_owning_port(port).name()
+
         level = LEVELS - 1
         current_table = root_tbl_paddr
         while True:
             entry_addr = current_table + (vpn_split[level] * 8)
-            # entry = int.from_bytes(bytes(inferior.read_memory(entry_addr, 8)), 'little')
-            entry = gdb.execute(f'mon xp/x {entry_addr:#x}', to_string=True).split(': ')[1].strip()
-            # entry = gdb.execute(f'mon read_memory {entry_addr:#x} 64 1 phys', to_string=True).strip()
-
-            try:
-                entry = int(entry, 16)
-            except ValueError:
-                raise gdb.GdbError(f'error while trying to read memory at {entry_addr:#x}: {entry}')
+            entry = read_physical_memory(entry_addr, conn_name)
 
             print(f'PTE @ {entry_addr:#x}:')
 

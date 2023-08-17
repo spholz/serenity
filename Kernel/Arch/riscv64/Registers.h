@@ -12,28 +12,64 @@
 
 namespace Kernel::RISCV64 {
 
+// https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf
+
+// 5.1.11 Supervisor Address Translation and Protection (satp) Register
+struct [[gnu::packed]] alignas(u64) Satp {
+    enum class Mode : u64 {
+        Bare = 0,
+        Sv39 = 8,
+        Sv48 = 9,
+        Sv67 = 10,
+    };
+
+    // Physical page number of root page table
+    u64 PPN : 44;
+
+    // Address space identifier
+    u64 ASID : 16;
+
+    // Current address-translation scheme
+    Mode MODE : 4;
+
+    static inline void write(Satp satp)
+    {
+        asm volatile("csrw satp, %[value]" ::[value] "r"(satp));
+    }
+
+    static inline Satp read()
+    {
+        Satp satp;
+
+        asm volatile("csrr %[value], satp"
+                     : [value] "=r"(satp));
+
+        return satp;
+    }
+};
+
+// 5.1.1 Supervisor Status Register (sstatus)
 struct [[gnu::packed]] alignas(u64) Sstatus {
-    enum class PrivilegeMode : unsigned {
+    enum class PrivilegeMode : u64 {
         User = 0,
         Supervisor = 1,
-        // Machine = 3,
     };
 
-    enum class FloatingPointStatus : unsigned {
+    enum class FloatingPointStatus : u64 {
         Off = 0,
         Initial = 1,
         Clean = 2,
         Dirty = 3,
     };
 
-    enum class VectorStatus : unsigned {
+    enum class VectorStatus : u64 {
         Off = 0,
         Initial = 1,
         Clean = 2,
         Dirty = 3,
     };
 
-    enum class UserModeExtensionsStatus : unsigned {
+    enum class UserModeExtensionsStatus : u64 {
         AllOff = 0,
         NoneDirtyOrClean_SomeOn = 1,
         NoneDirty_SomeOn = 2,
@@ -41,33 +77,74 @@ struct [[gnu::packed]] alignas(u64) Sstatus {
     };
 
     enum class XLEN : unsigned {
-        _32 = 1,
-        _64 = 2,
-        _128 = 3,
+        Bits32 = 1,
+        Bits64 = 2,
+        Bits128 = 3,
     };
 
     u64 _reserved0 : 1;
+
+    // Enables or disables all interrupts in supervisor mode
     u64 SIE : 1;
+
     u64 _reserved2 : 3;
+
+    // Indicates whether supervisor interrupts were enabled prior to trapping into supervisor mode
+    // When a trap is taken into supervisor mode, SPIE is set to SIE, and SIE is set to 0. When
+    // an SRET instruction is executed, SIE is set to SPIE, then SPIE is set to 1.
     u64 SPIE : 1;
+
+    // Controls the endianness of explicit memory accesses made from
+    // U-mode, which may differ from the endianness of memory accesses in S-mode
     u64 UBE : 1;
+
     u64 _reserved7 : 1;
+
+    // Indicates the privilege level at which a hart was executing before entering supervisor mode
     PrivilegeMode SPP : 1;
+
+    // Encodes the status of the vector extension state, including the vector registers v0–v31 and
+    // the CSRs vcsr, vxrm, vxsat, vstart, vl, vtype, and vlenb.
     VectorStatus VS : 2;
+
     u64 _reserved11 : 2;
+
+    // Encodes the status of the floating-point unit state,
+    // including the floating-point registers f0–f31 and the CSRs fcsr, frm, and fflags.
     FloatingPointStatus FS : 2;
+
+    // The XS field encodes the status of additional user-mode extensions and associated state.
     UserModeExtensionsStatus XS : 2;
+
     u64 _reserved17 : 1;
+
+    // The SUM (permit Supervisor User Memory access) bit modifies the privilege with which S-mode
+    // loads and stores access virtual memory. When SUM=0, S-mode memory accesses to pages that are
+    // accessible by U-mode (U=1 in Figure 5.18) will fault. When SUM=1, these accesses are permitted.
+    // SUM has no effect when page-based virtual memory is not in effect, nor when executing in U-mode.
+    // Note that S-mode can never execute instructions from user pages, regardless of the state of SUM.
     u64 SUM : 1;
+
+    // The MXR (Make eXecutable Readable) bit modifies the privilege with which loads access virtual
+    // memory. When MXR=0, only loads from pages marked readable (R=1 in Figure 5.18) will succeed.
+    // When MXR=1, loads from pages marked either readable or executable (R=1 or X=1) will succeed.
+    // MXR has no effect when page-based virtual memory is not in effect.
     u64 MXR : 1;
+
     u64 _reserved20 : 12;
+
+    // Controls the value of XLEN for U-mode
     XLEN UXL : 2;
+
     u64 _reserved34 : 29;
+
+    // The SD bit is a read-only bit that summarizes whether either the FS, VS, or XS fields signal the
+    // presence of some dirty state that will require saving extended user context to memory.
     u64 SD : 1;
 
-    static inline void write(Sstatus spsr_el3)
+    static inline void write(Sstatus sstatus)
     {
-        asm volatile("csrw sstatus, %[value]" ::[value] "r"(spsr_el3));
+        asm volatile("csrw sstatus, %[value]" ::[value] "r"(sstatus));
     }
 
     static inline Sstatus read()
@@ -94,7 +171,7 @@ inline u64 rdtime()
 
 static inline StringView scause_to_string(uintptr_t scause)
 {
-    constexpr uintptr_t INTERRUPT = 1LU << 63;
+    constexpr u64 INTERRUPT = 1LU << 63;
 
     switch (scause) {
     case INTERRUPT | 1:
@@ -153,13 +230,13 @@ struct AK::Formatter<Kernel::RISCV64::Sstatus> : AK::Formatter<FormatString> {
             TRY(builder.put_literal("SD "sv));
 
         switch (value.UXL) {
-        case Kernel::RISCV64::Sstatus::XLEN::_32:
+        case Kernel::RISCV64::Sstatus::XLEN::Bits32:
             TRY(builder.put_literal("UXL=32 "sv));
             break;
-        case Kernel::RISCV64::Sstatus::XLEN::_64:
+        case Kernel::RISCV64::Sstatus::XLEN::Bits64:
             TRY(builder.put_literal("UXL=64 "sv));
             break;
-        case Kernel::RISCV64::Sstatus::XLEN::_128:
+        case Kernel::RISCV64::Sstatus::XLEN::Bits128:
             TRY(builder.put_literal("UXL=128 "sv));
             break;
         }

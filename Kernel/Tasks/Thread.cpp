@@ -68,7 +68,7 @@ Thread::Thread(NonnullRefPtr<Process> process, NonnullOwnPtr<Memory::Region> ker
     }
 
     // FIXME: Handle KString allocation failure.
-    m_kernel_stack_region->set_name(MUST(KString::formatted("Kernel stack (thread {})", m_tid.value())));
+    m_kernel_stack_region->set_name(MUST(KString::formatted("Kernel stack (thread {})", *this)));
 
     Thread::all_instances().with([&](auto& list) {
         list.append(*this);

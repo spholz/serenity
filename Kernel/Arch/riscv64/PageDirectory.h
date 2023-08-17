@@ -24,17 +24,24 @@ namespace Kernel::Memory {
 // Currently, only the Sv39 (3 level paging) virtual memory system is implemented
 
 // Figure 4.19-4.21
-constexpr size_t PAGE_TABLE_SIZE = 0x1000;
+constexpr size_t PAGE_TABLE_SHIFT = 12;
+constexpr size_t PAGE_TABLE_SIZE = 0x1000; // 2^12
 
-constexpr size_t PADDR_PPN_OFFSET = 12;
-constexpr size_t VADDR_VPN_OFFSET = 12;
+constexpr size_t PADDR_PPN_OFFSET = PAGE_TABLE_SHIFT;
+constexpr size_t VADDR_VPN_OFFSET = PAGE_TABLE_SHIFT;
 constexpr size_t PTE_PPN_OFFSET = 10;
 
 constexpr size_t PPN_SIZE = 26 + 9 + 9;
 constexpr size_t VPN_SIZE = 9 + 9 + 9;
 
+constexpr size_t VPN_2_OFFSET = 30;
+constexpr size_t VPN_1_OFFSET = 21;
+constexpr size_t VPN_0_OFFSET = 12;
+
 constexpr size_t PPN_MASK = (1LU << PPN_SIZE) - 1;
 constexpr size_t PTE_PPN_MASK = PPN_MASK << PTE_PPN_OFFSET;
+
+constexpr size_t PAGE_TABLE_INDEX_MASK = 0x1ff;
 
 enum class PageTableEntryFlags {
     Valid = 1 << 0,
@@ -47,13 +54,6 @@ enum class PageTableEntryFlags {
     Dirty = 1 << 7,
 };
 AK_ENUM_BITWISE_OPERATORS(PageTableEntryFlags);
-
-enum class SatpMode {
-    Bare = 0,
-    Sv39 = 8,
-    Sv48 = 9,
-    Sv67 = 10,
-};
 
 class PageDirectoryEntry {
 public:
@@ -109,7 +109,7 @@ private:
 class PageTableEntry {
 public:
     PhysicalPtr physical_page_base() const { return PhysicalAddress::physical_page_base(m_raw); }
-    void set_physical_page_base([[maybe_unused]] PhysicalPtr value)
+    void set_physical_page_base(PhysicalPtr value)
     {
         m_raw &= ~PTE_PPN_MASK; // clear old PPN bits
         m_raw |= (value >> PADDR_PPN_OFFSET) << PTE_PPN_OFFSET;
@@ -122,10 +122,6 @@ public:
         set_bit(PageTableEntryFlags::Readable, b);
         set_bit(PageTableEntryFlags::Accessed, b);
         set_bit(PageTableEntryFlags::Dirty, b);
-
-        // FIXME: dont set all permissions
-        set_bit(PageTableEntryFlags::Writeable, b);
-        set_bit(PageTableEntryFlags::Executable, b);
     }
 
     // bool is_user_allowed() const { TODO_RISCV64(); }
@@ -138,12 +134,9 @@ public:
     {
         return (m_raw & to_underlying(PageTableEntryFlags::Writeable)) != 0;
     }
-    void set_writable(bool)
+    void set_writable(bool b)
     {
-        // Only W bit set is reserved (Table 4.5)
-        // set_bit(PageTableEntryFlags::Readable, b);
-
-        // set_bit(PageTableEntryFlags::Writeable, b);
+        set_bit(PageTableEntryFlags::Writeable, b);
     }
 
     // bool is_cache_disabled() const { TODO_RISCV64(); }
@@ -159,9 +152,9 @@ public:
     }
 
     // bool is_execute_disabled() const { TODO_RISCV64(); }
-    void set_execute_disabled(bool)
+    void set_execute_disabled(bool b)
     {
-        // set_bit(PageTableEntryFlags::Executable, !b);
+        set_bit(PageTableEntryFlags::Executable, !b);
     }
 
     // bool is_pat() const { TODO_RISCV64(); }
@@ -208,7 +201,13 @@ public:
 
     FlatPtr satp() const
     {
-        return (FlatPtr)SatpMode::Sv39 << 60 | (FlatPtr)m_directory_table->paddr().get() >> PADDR_PPN_OFFSET;
+        RISCV64::Satp satp = {
+            .PPN = (FlatPtr)m_directory_table->paddr().get() >> PADDR_PPN_OFFSET,
+            .ASID = 0,
+            .MODE = RISCV64::Satp::Mode::Sv39,
+        };
+
+        return bit_cast<FlatPtr>(satp);
     }
 
     Process* process() { return m_process; }
@@ -228,7 +227,7 @@ private:
     RecursiveSpinlock<LockRank::None> m_lock {};
 };
 
-void activate_kernel_page_directory([[maybe_unused]] PageDirectory const& pgd);
-void activate_page_directory([[maybe_unused]] PageDirectory const& pgd, [[maybe_unused]] Thread* current_thread);
+void activate_kernel_page_directory(PageDirectory const& page_directory);
+void activate_page_directory(PageDirectory const& page_directory, Thread* current_thread);
 
 }
