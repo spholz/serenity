@@ -87,6 +87,7 @@ private:
     static void update_time(RegisterState const&);
 #elif ARCH(AARCH64)
     bool probe_and_set_aarch64_hardware_timers();
+#elif ARCH(RISCV64)
 #else
 #    error Unknown architecture
 #endif

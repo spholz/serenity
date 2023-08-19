@@ -38,5 +38,29 @@ void msi_signal_eoi();
     TODO_AARCH64();
     return;
 }
+#elif ARCH(RISCV64)
+[[maybe_unused]] static u64 msi_address_register([[maybe_unused]] u8 destination_id, [[maybe_unused]] bool redirection_hint, [[maybe_unused]] bool destination_mode)
+{
+    TODO_RISCV64();
+    return 0;
+}
+
+[[maybe_unused]] static u32 msi_data_register([[maybe_unused]] u8 vector, [[maybe_unused]] bool level_trigger, [[maybe_unused]] bool assert)
+{
+    TODO_RISCV64();
+    return 0;
+}
+
+[[maybe_unused]] static u32 msix_vector_control_register([[maybe_unused]] u32 vector_control, [[maybe_unused]] bool mask)
+{
+    TODO_RISCV64();
+    return 0;
+}
+
+[[maybe_unused]] static void msi_signal_eoi()
+{
+    TODO_RISCV64();
+    return;
+}
 #endif
 }

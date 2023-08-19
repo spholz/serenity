@@ -545,7 +545,7 @@ struct SC_faccessat_params {
 void initialize();
 int sync();
 
-#    if ARCH(X86_64) || ARCH(AARCH64)
+#    if ARCH(X86_64) || ARCH(AARCH64) || ARCH(RISCV64)
 inline uintptr_t invoke(Function function)
 {
     uintptr_t result;
@@ -562,6 +562,10 @@ inline uintptr_t invoke(Function function)
                  : "r"(x8)
                  : "memory");
     result = x0;
+#        elif ARCH(RISCV64)
+    (void)function;
+    result = 0;
+    TODO_RISCV64();
 #        endif
     return result;
 }
@@ -584,6 +588,11 @@ inline uintptr_t invoke(Function function, T1 arg1)
                  : "r"(x1), "r"(x8)
                  : "memory");
     result = x0;
+#        elif ARCH(RISCV64)
+    (void)function;
+    (void)arg1;
+    result = 0;
+    TODO_RISCV64();
 #        endif
     return result;
 }
@@ -607,6 +616,12 @@ inline uintptr_t invoke(Function function, T1 arg1, T2 arg2)
                  : "r"(x1), "r"(x2), "r"(x8)
                  : "memory");
     result = x0;
+#        elif ARCH(RISCV64)
+    (void)function;
+    (void)arg1;
+    (void)arg2;
+    result = 0;
+    TODO_RISCV64();
 #        endif
     return result;
 }
@@ -631,6 +646,13 @@ inline uintptr_t invoke(Function function, T1 arg1, T2 arg2, T3 arg3)
                  : "r"(x1), "r"(x2), "r"(x3), "r"(x8)
                  : "memory");
     result = x0;
+#        elif ARCH(RISCV64)
+    (void)function;
+    (void)arg1;
+    (void)arg2;
+    (void)arg3;
+    result = 0;
+    TODO_RISCV64();
 #        endif
     return result;
 }
@@ -656,6 +678,14 @@ inline uintptr_t invoke(Function function, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
                  : "r"(x1), "r"(x2), "r"(x3), "r"(x4), "r"(x8)
                  : "memory");
     result = x0;
+#        elif ARCH(RISCV64)
+    (void)function;
+    (void)arg1;
+    (void)arg2;
+    (void)arg3;
+    (void)arg4;
+    result = 0;
+    TODO_RISCV64();
 #        endif
     return result;
 }

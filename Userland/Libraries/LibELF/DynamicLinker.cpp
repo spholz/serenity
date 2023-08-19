@@ -686,6 +686,8 @@ void ELF::DynamicLinker::linker_main(DeprecatedString&& main_program_path, int m
     if (s_do_breakpoint_trap_before_entry) {
 #if ARCH(AARCH64)
         asm("brk #0");
+#elif ARCH(RISCV64)
+        asm("ebreak");
 #else
         asm("int3");
 #endif

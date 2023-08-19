@@ -18,6 +18,7 @@
 #    include <Kernel/Arch/x86_64/Time/RTC.h>
 #elif ARCH(AARCH64)
 #    include <Kernel/Arch/aarch64/RPi/Timer.h>
+#elif ARCH(RISCV64)
 #else
 #    error Unknown architecture
 #endif
@@ -135,6 +136,8 @@ MonotonicTime TimeManagement::monotonic_time(TimePrecision precision) const
 #elif ARCH(AARCH64)
             // FIXME: Get rid of these horrible casts
             const_cast<RPi::Timer*>(static_cast<RPi::Timer const*>(m_system_timer.ptr()))->update_time(seconds, ticks, true);
+#elif ARCH(RISCV64)
+            TODO_RISCV64();
 #else
 #    error Unknown architecture
 #endif
@@ -203,6 +206,8 @@ UNMAP_AFTER_INIT void TimeManagement::initialize([[maybe_unused]] u32 cpu)
         VERIFY(!s_the.is_initialized());
         s_the.ensure_instance();
     }
+#elif ARCH(RISCV64)
+    TODO_RISCV64();
 #else
 #    error Unknown architecture
 #endif
@@ -234,6 +239,8 @@ UnixDateTime TimeManagement::boot_time()
 #elif ARCH(AARCH64)
     // FIXME: Return correct boot time
     return UnixDateTime::epoch();
+#elif ARCH(RISCV64)
+    TODO_RISCV64();
 #else
 #    error Unknown architecture
 #endif
@@ -271,6 +278,8 @@ UNMAP_AFTER_INIT TimeManagement::TimeManagement()
     }
 #elif ARCH(AARCH64)
     probe_and_set_aarch64_hardware_timers();
+#elif ARCH(RISCV64)
+    TODO_RISCV64();
 #else
 #    error Unknown architecture
 #endif
@@ -474,6 +483,8 @@ UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_aarch64_hardware_timers()
 
     return true;
 }
+#elif ARCH(RISCV64)
+    // TODO_RISCV64();
 #else
 #    error Unknown architecture
 #endif

@@ -103,6 +103,11 @@ if ("${SERENITY_ARCH}" STREQUAL "aarch64")
     set(ELF_SOURCES ${ELF_SOURCES} ../LibELF/Arch/aarch64/entry.S ../LibELF/Arch/aarch64/plt_trampoline.S ../LibELF/Arch/aarch64/tls.S)
     set(CRTI_SOURCE "arch/aarch64/crti.S")
     set(CRTN_SOURCE "arch/aarch64/crtn.S")
+elseif ("${SERENITY_ARCH}" STREQUAL "riscv64")
+    set(ASM_SOURCES "arch/riscv64/setjmp.S")
+    set(ELF_SOURCES ${ELF_SOURCES} ../LibELF/Arch/riscv64/entry.S ../LibELF/Arch/riscv64/plt_trampoline.S)
+    set(CRTI_SOURCE "arch/riscv64/crti.S")
+    set(CRTN_SOURCE "arch/riscv64/crtn.S")
 elseif ("${SERENITY_ARCH}" STREQUAL "x86_64")
     set(LIBC_SOURCES ${LIBC_SOURCES} "arch/x86_64/memset.cpp")
     set(ASM_SOURCES "arch/x86_64/setjmp.S" "arch/x86_64/memset.S")
@@ -122,6 +127,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-warning-option")
 # in runtime/startup objects.
 # Since all native serenity applications use dynamic libraries, prevent coverage on libc.a as well
 
+if (NOT "${SERENITY_ARCH}" STREQUAL "riscv64")
 add_library(crt0 STATIC crt0.cpp)
 add_dependencies(crt0 install_libc_headers)
 target_link_libraries(crt0 PRIVATE NoCoverage)
@@ -137,6 +143,7 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}" -E copy $<TARGET_OBJECTS:crt0_shared> ${CMAKE_INSTALL_PREFIX}/usr/lib/crt0_shared.o
 )
 
+# if (NOT "${SERENITY_ARCH}" STREQUAL "riscv64")
 add_library(crti STATIC ${CRTI_SOURCE})
 target_link_libraries(crti PRIVATE NoCoverage)
 add_custom_command(
@@ -203,3 +210,4 @@ file(WRITE "${CMAKE_STAGING_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libpthread.so" "INPU
 file(WRITE "${CMAKE_STAGING_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libdl.so" "INPUT(libc.so)")
 file(WRITE "${CMAKE_STAGING_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libm.so" "INPUT(libc.so)")
 file(WRITE "${CMAKE_STAGING_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libssp.so" "INPUT(libc.so)")
+endif()

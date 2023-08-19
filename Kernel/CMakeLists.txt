@@ -2,7 +2,7 @@ if (ENABLE_EXTRA_KERNEL_DEBUG_SYMBOLS)
     add_compile_options(-Og)
     add_compile_options(-ggdb3)
 else()
-    add_compile_options(-O2)
+    add_compile_options(-O2 -ggdb3)
 endif()
 
 if ("${SERENITY_ARCH}" STREQUAL "aarch64")
@@ -499,12 +499,46 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
 elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
     set(KERNEL_SOURCES
         ${KERNEL_SOURCES}
-        Arch/riscv64/boot.S
         Arch/Processor.cpp
-        kprintf.cpp
+
+        Arch/riscv64/boot.S
+        # Arch/riscv64/BootPPMParser.cpp
+        # Arch/riscv64/CPUID.cpp
+        # Arch/riscv64/CurrentTime.cpp
+        Arch/riscv64/Dummy.cpp
+            Arch/riscv64/InterruptManagement.cpp
+        Arch/riscv64/Interrupts.cpp
+        Arch/riscv64/kprintf.cpp
+        # Arch/riscv64/MainIdRegister.cpp
+        Arch/riscv64/MMU.cpp
+        Arch/riscv64/PageDirectory.cpp
+        Arch/riscv64/Panic.cpp
+        Arch/riscv64/pre_init.cpp
+        Arch/riscv64/Processor.cpp
+        Arch/riscv64/PowerState.cpp
+        Arch/riscv64/SafeMem.cpp
+        Arch/riscv64/SBI.cpp
+        Arch/riscv64/SmapDisabler.cpp
+        # Arch/riscv64/TrapFrame.cpp
+        # Arch/riscv64/vector_table.S
     )
 
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(-march=rv64gc_zicsr_zifencei)
+    else()
+        add_compile_options(-march=rv64gc)
+    endif()
     add_compile_options(-fno-stack-protector -fno-sanitize=all)
+
+    # Otherwise compiling with -O0 crashes as it tries to access absolute addresses
+    # add_compile_options(-fPIC -mno-plt -mcmodel=medany -mno-relax)
+
+    # Otherwise linker errors e.g undefined reference to `__aarch64_cas8_acq_rel'
+    # add_compile_options(-latomic)
+
+    # NOTE: These files cannot use a stack protector and sanitizers, as these will cause accesses to global variables to be inserted
+    #       by the compiler. The CPU cannot access global variables without the MMU as the kernel is linked for a virtual address in high memory.
+    # set_source_files_properties(Arch/riscv64/pre_init.cpp PROPERTIES COMPILE_FLAGS "-fno-stack-protector -fno-sanitize=all")
 endif()
 
 set(AK_SOURCES
@@ -704,6 +738,9 @@ if ("${SERENITY_ARCH}" STREQUAL "aarch64")
     # those unaligned accesses, this flag is added.
     add_compile_options(-mstrict-align -Wno-cast-align)
 endif()
+if ("${SERENITY_ARCH}" STREQUAL "riscv64")
+    add_compile_options(-mstrict-align -Wno-cast-align)
+endif()
 
 add_compile_definitions(KERNEL)
 add_link_options(LINKER:-z,notext)
@@ -733,7 +770,7 @@ elseif ("${SERENITY_ARCH}" STREQUAL "x86_64")
     set_target_properties(Kernel PROPERTIES LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/linker.ld")
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_compile_options(Kernel PRIVATE -mpreferred-stack-boundary=3)
+        # target_compile_options(Kernel PRIVATE -mpreferred-stack-boundary=3)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
         target_compile_options(Kernel PRIVATE -mstack-alignment=8)
     endif()
@@ -744,7 +781,7 @@ if (ENABLE_KERNEL_LTO)
     check_ipo_supported()
     add_definitions(-DENABLE_KERNEL_LTO)
     set_property(TARGET Kernel PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-    if (NOT "${SERENITY_ARCH}" STREQUAL "aarch64")
+    if ((NOT "${SERENITY_ARCH}" STREQUAL "aarch64") AND (NOT "${SERENITY_ARCH}" STREQUAL "riscv64"))
         set_property(TARGET kernel_heap PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
 endif()

@@ -235,7 +235,9 @@ elseif("${SERENITY_ARCH}" STREQUAL "x86_64")
 endif()
 
 add_subdirectory(Userland)
-add_subdirectory(Tests)
+if (NOT "${SERENITY_ARCH}" STREQUAL "riscv64")
+    add_subdirectory(Tests)
+endif()
 
 if (ENABLE_COMPILETIME_HEADER_CHECK)
     add_subdirectory(Meta/HeaderCheck)

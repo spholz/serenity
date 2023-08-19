@@ -10,7 +10,7 @@
 // This is the size of the floating point environment image in protected mode
 static_assert(sizeof(__x87_floating_point_environment) == 28);
 
-#if !ARCH(AARCH64)
+#if !ARCH(AARCH64) && !ARCH(RISCV64)
 static u16 read_status_register()
 {
     u16 status_register;
@@ -58,6 +58,9 @@ int fegetenv(fenv_t* env)
 #if ARCH(AARCH64)
     (void)env;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)env;
+    TODO_RISCV64();
 #else
     asm volatile("fnstenv %0"
                  : "=m"(env->__x87_fpu_env)::"memory");
@@ -76,6 +79,9 @@ int fesetenv(fenv_t const* env)
 #if ARCH(AARCH64)
     (void)env;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)env;
+    TODO_RISCV64();
 #else
     if (env == FE_DFL_ENV) {
         asm volatile("finit");
@@ -102,6 +108,9 @@ int feholdexcept(fenv_t* env)
 #if ARCH(AARCH64)
     (void)env;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)env;
+    TODO_RISCV64();
 #else
     current_env.__x87_fpu_env.__status_word &= ~FE_ALL_EXCEPT;
     current_env.__x87_fpu_env.__status_word &= ~(1 << 7);      // Clear the "Exception Status Summary" bit
@@ -143,6 +152,10 @@ int fesetexceptflag(fexcept_t const* except, int exceptions)
     (void)exceptions;
     (void)except;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)exceptions;
+    (void)except;
+    TODO_RISCV64();
 #else
     current_env.__x87_fpu_env.__status_word &= exceptions;
     current_env.__x87_fpu_env.__status_word &= ~(1 << 7); // Make sure exceptions don't get raised
@@ -156,6 +169,8 @@ int fegetround()
 {
 #if ARCH(AARCH64)
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    TODO_RISCV64();
 #else
     // There's no way to signal whether the SSE rounding mode and x87 ones are different, so we assume they're the same
     return (read_status_register() >> 10) & 3;
@@ -169,6 +184,8 @@ int fesetround(int rounding_mode)
 
 #if ARCH(AARCH64)
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    TODO_RISCV64();
 #else
     auto control_word = read_control_word();
 
@@ -199,6 +216,9 @@ int feclearexcept(int exceptions)
 #if ARCH(AARCH64)
     (void)exceptions;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)exceptions;
+    TODO_RISCV64();
 #else
     current_env.__x87_fpu_env.__status_word &= ~exceptions;
     current_env.__x87_fpu_env.__status_word &= ~(1 << 7); // Clear the "Exception Status Summary" bit
@@ -213,6 +233,9 @@ int fetestexcept(int exceptions)
 #if ARCH(AARCH64)
     (void)exceptions;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)exceptions;
+    TODO_RISCV64();
 #else
     u16 status_register = read_status_register() & FE_ALL_EXCEPT;
     exceptions &= FE_ALL_EXCEPT;
@@ -231,6 +254,9 @@ int feraiseexcept(int exceptions)
 #if ARCH(AARCH64)
     (void)exceptions;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)exceptions;
+    TODO_RISCV64();
 #else
     // While the order in which the exceptions is raised is unspecified, FE_OVERFLOW and FE_UNDERFLOW must be raised before FE_INEXACT, so handle that case in this branch
     if (exceptions & FE_INEXACT) {

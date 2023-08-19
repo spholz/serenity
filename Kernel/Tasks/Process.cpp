@@ -457,6 +457,13 @@ void signal_trampoline_dummy()
         ".global asm_signal_trampoline_end\n"
         "asm_signal_trampoline_end: \n" ::[sigreturn_syscall_number] "i"(Syscall::SC_sigreturn),
         [offset_to_first_register_slot] "i"(offset_to_first_register_slot));
+#elif ARCH(RISCV64)
+    asm(
+        ".global asm_signal_trampoline\n"
+        "asm_signal_trampoline:\n"
+        ".global asm_signal_trampoline_end\n"
+        "asm_signal_trampoline_end: \n");
+    TODO_RISCV64();
 #else
 #    error Unknown architecture
 #endif
@@ -500,6 +507,9 @@ void Process::crash(int signal, Optional<RegisterState const&> regs, bool out_of
         constexpr bool userspace_backtrace = false;
 #elif ARCH(AARCH64)
         constexpr bool userspace_backtrace = true;
+#elif ARCH(RISCV64)
+        constexpr bool userspace_backtrace = true;
+        TODO_RISCV64();
 #else
 #    error "Unknown architecture"
 #endif

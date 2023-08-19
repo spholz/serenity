@@ -21,7 +21,7 @@ SCRIPT_DIR="$(dirname "${0}")"
 # Check if SERENITY_VIRTUALIZATION_SUPPORT is unset
 if [ -z ${SERENITY_VIRTUALIZATION_SUPPORT+x} ]; then
     VIRTUALIZATION_SUPPORT="0"
-    [ -e /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ] && [ "$SERENITY_ARCH" != "aarch64" ] && [ "$(uname -m)" != "aarch64" ] && VIRTUALIZATION_SUPPORT="1"
+    [ -e /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ] && [ "$SERENITY_ARCH" != "aarch64" ] && [ "$SERENITY_ARCH" != "riscv64" ] && [ "$(uname -m)" != "aarch64" ] && VIRTUALIZATION_SUPPORT="1"
     command -v wslpath >/dev/null && VIRTUALIZATION_SUPPORT="1"
 else
     VIRTUALIZATION_SUPPORT="$SERENITY_VIRTUALIZATION_SUPPORT"
@@ -33,10 +33,12 @@ fi
 # we need to use 64-bit qemu
 if [ "$(uname)" = "Darwin" ]; then
 
-    if [ "$SERENITY_ARCH" != "aarch64" ]; then
-        [ -z "$SERENITY_QEMU_BIN" ] && SERENITY_QEMU_BIN="qemu-system-x86_64"
-    else
+    if [ "$SERENITY_ARCH" == "aarch64" ]; then
         [ -z "$SERENITY_QEMU_BIN" ] && SERENITY_QEMU_BIN="qemu-system-aarch64"
+    elif [ "$SERENITY_ARCH" == "riscv64" ]; then
+        [ -z "$SERENITY_QEMU_BIN" ] && SERENITY_QEMU_BIN="qemu-system-riscv64"
+    else
+        [ -z "$SERENITY_QEMU_BIN" ] && SERENITY_QEMU_BIN="qemu-system-x86_64"
     fi
 
     if [ "$(uname -m)" = "x86_64" ]; then
@@ -74,6 +76,8 @@ if [ -z "$SERENITY_QEMU_BIN" ]; then
         SERENITY_QEMU_BIN="${QEMU_BINARY_PREFIX}qemu-system-aarch64${QEMU_BINARY_SUFFIX}"
     elif [ "$SERENITY_ARCH" = "x86_64" ]; then
         SERENITY_QEMU_BIN="${QEMU_BINARY_PREFIX}qemu-system-x86_64${QEMU_BINARY_SUFFIX}"
+    elif [ "$SERENITY_ARCH" = "riscv64" ]; then
+        SERENITY_QEMU_BIN="${QEMU_BINARY_PREFIX}qemu-system-riscv64${QEMU_BINARY_SUFFIX}"
     else
         die "Please specify a valid CPU architecture."
     fi
@@ -145,9 +149,13 @@ fi
 
 [ "$VIRTUALIZATION_SUPPORT" -eq "1" ] && [ "$NATIVE_WINDOWS_QEMU" -ne "1" ] && SERENITY_VIRT_TECH_ARG="-enable-kvm"
 
-[ -z "$SERENITY_QEMU_CPU" ] && SERENITY_QEMU_CPU="max"
+if [ "$SERENITY_ARCH" != "riscv64" ]; then
+    [ -z "$SERENITY_QEMU_CPU" ] && SERENITY_QEMU_CPU="max"
+else
+    [ -z "$SERENITY_QEMU_CPU" ] && SERENITY_QEMU_CPU="rv64"
+fi
 
-if [ "$SERENITY_ARCH" != "aarch64" ]; then
+if [ "$SERENITY_ARCH" != "aarch64" ] && [ "$SERENITY_ARCH" != "riscv64" ]; then
     [ -z "$SERENITY_CPUS" ] && SERENITY_CPUS="2"
     if [ "$SERENITY_CPUS" -le 8 ]; then
         # Explicitly disable x2APIC so we can test it more easily
@@ -242,6 +250,8 @@ fi
 
 if [ "$SERENITY_ARCH" = 'aarch64' ]; then
     SERENITY_BOOT_DRIVE="-drive file=${SERENITY_DISK_IMAGE},if=sd,format=raw"
+elif [ "$SERENITY_ARCH" = 'riscv64' ]; then
+    SERENITY_BOOT_DRIVE= # "-drive file=${SERENITY_DISK_IMAGE},if=sd,format=raw"
 elif [ -z "${SERENITY_NVME_ENABLE}" ] || [ "${SERENITY_NVME_ENABLE}" -eq 1 ]; then
     # NVME is enabled by default; disable by setting SERENITY_NVME_ENABLE=0
     SERENITY_BOOT_DRIVE="-drive file=${SERENITY_DISK_IMAGE},format=raw,index=0,media=disk,if=none,id=disk"
@@ -282,6 +292,9 @@ fi
 if [ "$SERENITY_ARCH" = "aarch64" ]; then
     SERENITY_NETFLAGS=
     SERENITY_NETFLAGS_WITH_DEFAULT_DEVICE=
+elif [ "$SERENITY_ARCH" = "riscv64" ]; then
+    SERENITY_NETFLAGS=
+    SERENITY_NETFLAGS_WITH_DEFAULT_DEVICE=
 else
     SERENITY_NETFLAGS="-netdev user,id=breh,hostfwd=tcp:${SERENITY_HOST_IP}:8888-10.0.2.15:8888,hostfwd=tcp:${SERENITY_HOST_IP}:8823-10.0.2.15:23,hostfwd=tcp:${SERENITY_HOST_IP}:8000-10.0.2.15:8000,hostfwd=tcp:${SERENITY_HOST_IP}:2222-10.0.2.15:22"
     SERENITY_NETFLAGS_WITH_DEFAULT_DEVICE="
@@ -296,6 +309,11 @@ if [ -z "$SERENITY_MACHINE" ]; then
         SERENITY_MACHINE="
         -M raspi3b
         -serial stdio
+        "
+    elif [ "$SERENITY_ARCH" = "riscv64" ]; then
+        SERENITY_MACHINE="
+        -M virt
+        -serial mon:stdio
         "
     else
         SERENITY_MACHINE="
@@ -328,6 +346,10 @@ if [ "$SERENITY_ARCH" = "aarch64" ]; then
     SERENITY_KERNEL_AND_INITRD="
     -kernel Kernel/Kernel
     "
+elif [ "$SERENITY_ARCH" = "riscv64" ]; then
+    SERENITY_KERNEL_AND_INITRD="
+    -kernel Kernel/Kernel
+    "
 else
     SERENITY_KERNEL_AND_INITRD="
     -kernel Kernel/Prekernel/Prekernel
@@ -347,7 +369,7 @@ $SERENITY_BOOT_DRIVE
 $SERENITY_SPICE_SERVER_CHARDEV
 "
 
-if [ "$SERENITY_ARCH" != "aarch64" ]; then
+if [ "$SERENITY_ARCH" != "aarch64" ] && [ "${SERENITY_ARCH}" != "riscv64" ]; then
     if [ "${SERENITY_SPICE}" ] && "${SERENITY_QEMU_BIN}" -chardev help | grep -iq spice; then
         SERENITY_COMMON_QEMU_ARGS="$SERENITY_COMMON_QEMU_ARGS
         -spice port=5930,agent-mouse=off,disable-ticketing=on
@@ -516,6 +538,21 @@ elif [ "$SERENITY_RUN" = "ci" ]; then
             $SERENITY_VIRT_TECH_ARG \
             $SERENITY_BOOT_DRIVE \
             -M raspi3b \
+            -d guest_errors \
+            -no-reboot \
+            -nographic \
+            -monitor none \
+            -display none \
+            -serial file:debug.log \
+            -serial stdio \
+            $SERENITY_KERNEL_AND_INITRD \
+            -append "${SERENITY_KERNEL_CMDLINE}"
+    elif [ "$SERENITY_ARCH" = "riscv64" ]; then
+      "$SERENITY_QEMU_BIN" \
+            $SERENITY_EXTRA_QEMU_ARGS \
+            $SERENITY_VIRT_TECH_ARG \
+            $SERENITY_BOOT_DRIVE \
+            -M virt \
             -d guest_errors \
             -no-reboot \
             -nographic \

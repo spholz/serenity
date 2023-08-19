@@ -10,7 +10,7 @@
 #include <AK/BuiltinWrappers.h>
 #include <AK/ExtraMathConstants.h>
 #include <AK/FloatingPoint.h>
-#if !ARCH(AARCH64)
+#if !ARCH(AARCH64) && !ARCH(RISCV64)
 #    include <AK/FPControl.h>
 #endif
 #include <AK/Math.h>
@@ -364,7 +364,7 @@ MAKE_AK_BACKED2(remainder);
 
 long double truncl(long double x) NOEXCEPT
 {
-#if !ARCH(AARCH64)
+#if !ARCH(AARCH64) && !ARCH(RISCV64)
     if (fabsl(x) < LONG_LONG_MAX) {
         // This is 1.6 times faster than the implementation using the "internal_to_integer"
         // helper (on x86_64)
@@ -384,7 +384,7 @@ long double truncl(long double x) NOEXCEPT
 
 double trunc(double x) NOEXCEPT
 {
-#if !ARCH(AARCH64)
+#if !ARCH(AARCH64) && !ARCH(RISCV64)
     if (fabs(x) < LONG_LONG_MAX) {
         u64 temp;
         asm(
@@ -401,7 +401,7 @@ double trunc(double x) NOEXCEPT
 
 float truncf(float x) NOEXCEPT
 {
-#if !ARCH(AARCH64)
+#if !ARCH(AARCH64) && !ARCH(RISCV64)
     if (fabsf(x) < LONG_LONG_MAX) {
         u64 temp;
         asm(
@@ -421,6 +421,9 @@ long double rintl(long double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     long double res;
     asm(
@@ -435,6 +438,9 @@ double rint(double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     double res;
     asm(
@@ -449,6 +455,9 @@ float rintf(float value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     float res;
     asm(
@@ -464,6 +473,9 @@ long lrintl(long double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     long res;
     asm(
@@ -479,6 +491,9 @@ long lrint(double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     long res;
     asm(
@@ -494,6 +509,9 @@ long lrintf(float value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     long res;
     asm(
@@ -510,6 +528,9 @@ long long llrintl(long double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     long long res;
     asm(
@@ -525,6 +546,9 @@ long long llrint(double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     long long res;
     asm(
@@ -540,6 +564,9 @@ long long llrintf(float value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
 #else
     long long res;
     asm(

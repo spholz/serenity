@@ -30,6 +30,7 @@ NAKED void _start(int, char**, char**)
         "mov x29, 0\n"
         "mov x30, 0\n"
         "bl _entry\n");
+#    elif ARCH(RISCV64)
 #    else
     asm(
         "push $0\n"

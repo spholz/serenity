@@ -210,6 +210,28 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     multiboot_modules_count = 0;
     // FIXME: Read the /chosen/bootargs property.
     kernel_cmdline = RPi::Mailbox::the().query_kernel_command_line(s_command_line_buffer);
+#elif ARCH(RISCV64)
+    static multiboot_memory_map_t mmap[] = {
+        {
+            sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+            // Qemu
+            (u64)0x81000000,
+            // VisionFive 2
+            // (u64)0x45000000,
+
+            (u64)100 * MiB,
+            MULTIBOOT_MEMORY_AVAILABLE,
+        },
+    };
+    multiboot_memory_map = mmap;
+    multiboot_memory_map_count = 1;
+
+    multiboot_modules = nullptr;
+    multiboot_modules_count = 0;
+
+    kernel_mapping_base = KERNEL_MAPPING_BASE;
+    // FIXME: Read the /chosen/bootargs property.
+    kernel_cmdline = "early_boot_console=off"sv;
 #endif
 
     setup_serial_debug();

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/EnumBits.h>
 #include <AK/IntrusiveList.h>
 #include <AK/IntrusiveRedBlackTree.h>

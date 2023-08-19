@@ -92,6 +92,8 @@ UNMAP_AFTER_INIT static void load_kernel_symbols_from_data(Bytes buffer)
         ksym.address = kernel_load_base + address;
 #elif ARCH(AARCH64)
         ksym.address = address;
+#elif ARCH(RISCV64)
+        ksym.address = address;
 #else
 #    error "Unknown architecture"
 #endif

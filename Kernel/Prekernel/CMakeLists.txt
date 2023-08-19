@@ -11,6 +11,8 @@ if ("${SERENITY_ARCH}" STREQUAL "x86_64")
     set(PREKERNEL_TARGET Prekernel64)
 elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
     message(SEND_ERROR "Prekernel is not needed on aarch64 and should not be compiled!")
+elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
+    message(SEND_ERROR "Prekernel is not needed on riscv64 and should not be compiled!")
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")

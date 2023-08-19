@@ -1,9 +1,3 @@
-/*
- * Copyright (c) 2023, Sönke Holz <sholz830@gmail.com>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
-
 ENTRY(start)
 
 KERNEL_MAPPING_BASE = 0x2000000000;
@@ -11,21 +5,21 @@ KERNEL_MAPPING_BASE = 0x2000000000;
 /* TODO: Add FLAGS to the program headers */
 PHDRS
 {
-    text PT_LOAD ;
-    data PT_LOAD ;
-    ksyms PT_LOAD ;
-    bss PT_LOAD ;
+  text PT_LOAD ;
+  data PT_LOAD ;
+  ksyms PT_LOAD ;
+  bss PT_LOAD ;
 }
 
 SECTIONS
 {
+    /* . = KERNEL_MAPPING_BASE + 0x80200000; */
     . = KERNEL_MAPPING_BASE;
 
     start_of_kernel_image = .;
 
-    .text ALIGN(4K) :
+    .text ALIGN(4K) : /* AT (ADDR(.text) - KERNEL_MAPPING_BASE) */
     {
-        start_of_kernel_text = .;
         *(.text.first)
 
         start_of_safemem_text = .;
@@ -36,10 +30,9 @@ SECTIONS
         end_of_safemem_atomic_text = .;
 
         *(.text*)
-        end_of_kernel_text = .;
     } :text
 
-    .rodata ALIGN(4K) :
+    .rodata ALIGN(4K) : /* AT (ADDR(.rodata) - KERNEL_MAPPING_BASE) */
     {
         start_heap_ctors = .;
         *libkernel_heap.a:*(.init_array)
@@ -52,21 +45,19 @@ SECTIONS
         *(.rodata*)
     } :data
 
-    .data ALIGN(4K) :
+    .data ALIGN(4K) : /* AT (ADDR(.data) - KERNEL_MAPPING_BASE) */
     {
-        start_of_kernel_data = .;
         *(.data*)
-        end_of_kernel_data = .;
     } :data
 
-    .ksyms ALIGN(4K) :
+    .ksyms ALIGN(4K) : /* AT (ADDR(.ksyms) - KERNEL_MAPPING_BASE) */
     {
         start_of_kernel_ksyms = .;
         *(.kernel_symbols)
         end_of_kernel_ksyms = .;
     } :ksyms
 
-    .bss ALIGN(4K) (NOLOAD) :
+    .bss ALIGN(4K) (NOLOAD) : /* AT (ADDR(.bss) - KERNEL_MAPPING_BASE) */
     {
         start_of_bss = .;
         *(.bss)
@@ -82,10 +73,14 @@ SECTIONS
     */
 
     /* FIXME: Placeholder to satisfy linker */
+    start_of_kernel_text = .;
+    end_of_kernel_text = .;
     start_of_unmap_after_init = .;
     end_of_unmap_after_init = .;
     start_of_ro_after_init = .;
     end_of_ro_after_init = .;
+    start_of_kernel_data = .;
+    end_of_kernel_data = .;
 
     . = ALIGN(4K);
     page_tables_phys_start = .;
@@ -95,3 +90,5 @@ SECTIONS
 
     end_of_kernel_image = .;
 }
+
+size_of_bss_divided_by_8 = (end_of_bss - start_of_bss + 7) / 8;
