@@ -68,7 +68,7 @@ Thread::Thread(NonnullRefPtr<Process> process, NonnullOwnPtr<Memory::Region> ker
     }
 
     // FIXME: Handle KString allocation failure.
-    m_kernel_stack_region->set_name(MUST(KString::formatted("Kernel stack (thread {})", *this)));
+    m_kernel_stack_region->set_name(MUST(KString::formatted("Kernel stack (thread {})", m_tid.value())));
 
     Thread::all_instances().with([&](auto& list) {
         list.append(*this);
@@ -179,7 +179,7 @@ Thread::BlockResult Thread::block_impl(BlockTimeout const& timeout, Blocker& blo
     auto previous_locked = unlock_process_if_locked(lock_count_to_restore);
     for (;;) {
         // Yield to the scheduler, and wait for us to resume unblocked.
-        // VERIFY(!g_scheduler_lock.is_locked_by_current_processor());
+        VERIFY(!g_scheduler_lock.is_locked_by_current_processor());
         VERIFY(Processor::in_critical());
         yield_without_releasing_big_lock();
         VERIFY(Processor::in_critical());
@@ -449,7 +449,7 @@ void Thread::exit(void* exit_value)
 
 void Thread::yield_without_releasing_big_lock(VerifyLockNotHeld verify_lock_not_held)
 {
-    // VERIFY(!g_scheduler_lock.is_locked_by_current_processor());
+    VERIFY(!g_scheduler_lock.is_locked_by_current_processor());
     VERIFY(verify_lock_not_held == VerifyLockNotHeld::No || !process().big_lock().is_exclusively_locked_by_current_thread());
     // Disable interrupts here. This ensures we don't accidentally switch contexts twice
     InterruptDisabler disable;

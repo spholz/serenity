@@ -230,8 +230,6 @@ bool Region::map_individual_page_impl(size_t page_index, RefPtr<PhysicalPage> pa
         return true;
     }
 
-    // dbgln("Region::map_individual_page_impl({:#x}, {}): page_vaddr={}, pte={}, page->paddr()={}", page_index, page, page_vaddr, pte, page->paddr());
-
     pte->set_cache_disabled(!m_cacheable);
     pte->set_physical_page_base(page->paddr().get());
     pte->set_present(true);
@@ -244,8 +242,6 @@ bool Region::map_individual_page_impl(size_t page_index, RefPtr<PhysicalPage> pa
     if (Processor::current().has_pat())
         pte->set_pat(is_write_combine());
     pte->set_user_allowed(user_allowed);
-
-    // dbgln("pte: {:#x}", *((u64 *)pte));
 
     return true;
 }

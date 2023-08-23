@@ -217,11 +217,7 @@ public:
     PhysicalPage& shared_zero_page() { return *m_shared_zero_page; }
     PhysicalPage& lazy_committed_page() { return *m_lazy_committed_page; }
 
-    PageDirectory& kernel_page_directory()
-    {
-        // dbgln("m_kernel_page_directory: {}", m_kernel_page_directory);
-        return *m_kernel_page_directory;
-    }
+    PageDirectory& kernel_page_directory() { return *m_kernel_page_directory; }
 
     template<typename Callback>
     void for_each_used_memory_range(Callback callback)

@@ -77,6 +77,15 @@ UNMAP_AFTER_INIT KernelRng::KernelRng()
             current_time += 0x40b2u;
         }
     }
+#elif ARCH(RISCV64)
+    // Fallback to TimeManagement as entropy
+    dmesgln("KernelRng: Using bad entropy source TimeManagement");
+    auto current_time = static_cast<u64>(TimeManagement::now().milliseconds_since_epoch());
+    for (size_t i = 0; i < pool_count * reseed_threshold; ++i) {
+        add_random_event(current_time, i % 32);
+        current_time *= 0x574au;
+        current_time += 0x40b2u;
+    }
 #else
     dmesgln("KernelRng: No entropy source available!");
 #endif
@@ -130,8 +139,7 @@ bool get_good_random_bytes(Bytes buffer, bool allow_wait, bool fallback_to_fast)
     bool result = false;
     auto& kernel_rng = KernelRng::the();
     // FIXME: What if interrupts are disabled because we're in an interrupt?
-    // bool can_wait = Processor::are_interrupts_enabled();
-    bool can_wait = false;
+    bool can_wait = Processor::are_interrupts_enabled();
     if (!can_wait && allow_wait) {
         // If we can't wait but the caller would be ok with it, then we
         // need to definitely fallback to *something*, even if it's less

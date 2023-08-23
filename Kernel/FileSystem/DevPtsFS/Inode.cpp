@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
-
 #include <Kernel/Devices/DeviceManagement.h>
 #include <Kernel/FileSystem/DevPtsFS/Inode.h>
 

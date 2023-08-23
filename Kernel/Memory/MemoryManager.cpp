@@ -417,21 +417,15 @@ UNMAP_AFTER_INIT void MemoryManager::initialize_physical_pages()
     m_global_data.with([&](auto& global_data) {
         // We assume that the physical page range is contiguous and doesn't contain huge gaps!
         PhysicalAddress highest_physical_address;
-        // dbgln("global_data.used_memory_ranges:");
         for (auto& range : global_data.used_memory_ranges) {
-            // dbgln("  range: {} - {}", range.start, range.end);
             if (range.end.get() > highest_physical_address.get())
                 highest_physical_address = range.end;
         }
-        // dbgln("global_data.physical_memory_ranges:");
         for (auto& region : global_data.physical_memory_ranges) {
             auto range_end = PhysicalAddress(region.start).offset(region.length);
-            // dbgln("  range: {} - {}", region.start, range_end);
             if (range_end.get() > highest_physical_address.get())
                 highest_physical_address = range_end;
         }
-
-        // dbgln("highest_physical_address: {}", highest_physical_address);
 
         // Calculate how many total physical pages the array will have
         m_physical_page_entries_count = PhysicalAddress::physical_page_index(highest_physical_address.get()) + 1;
@@ -510,7 +504,6 @@ UNMAP_AFTER_INIT void MemoryManager::initialize_physical_pages()
             __builtin_memset(pt, 0, PAGE_SIZE);
             for (size_t pte_index = 0; pte_index < PAGE_SIZE / sizeof(PageTableEntry); pte_index++) {
                 auto& pte = pt[pte_index];
-                // dbgln(" {:#x} -> {:#x}", virtual_page_array_current_page, physical_page_array_current_page);
                 pte.set_physical_page_base(physical_page_array_current_page);
                 pte.set_user_allowed(false);
                 pte.set_writable(true);
@@ -546,7 +539,6 @@ UNMAP_AFTER_INIT void MemoryManager::initialize_physical_pages()
         // We now have the entire PhysicalPageEntry array mapped!
         m_physical_page_entries = (PhysicalPageEntry*)range.base().get();
         for (size_t i = 0; i < m_physical_page_entries_count; i++) {
-            // dbgln("p: {:p}", &m_physical_page_entries[i]);
             new (&m_physical_page_entries[i]) PageTableEntry();
         }
 
@@ -606,21 +598,15 @@ PageTableEntry* MemoryManager::pte(PageDirectory& page_directory, VirtualAddress
 
 PageTableEntry* MemoryManager::ensure_pte(PageDirectory& page_directory, VirtualAddress vaddr)
 {
-    // dbgln("MemoryManager::ensure_pte(page_directory, {})", vaddr);
     VERIFY_INTERRUPTS_DISABLED();
     VERIFY(page_directory.get_lock().is_locked_by_current_processor());
     u32 page_directory_table_index = (vaddr.get() >> 30) & 0x1ff;
     u32 page_directory_index = (vaddr.get() >> 21) & 0x1ff;
     u32 page_table_index = (vaddr.get() >> 12) & 0x1ff;
 
-    // if (vaddr.get() == 0x0000002005700000)
-    // dbgln("MemoryManager::ensure_pte(): page_directory_table_index: {:#x}, page_directory_index: {:#x}, page_table_index: {:#x}", page_directory_table_index, page_directory_index, page_table_index);
-
     auto* pd = quickmap_pd(page_directory, page_directory_table_index);
     auto& pde = pd[page_directory_index];
     if (pde.is_present()) {
-        // if (vaddr.get() == 0x0000002005700000)
-        // dbgln("ensure_pte(page_directory, {}): pt_addr: {}", vaddr, PhysicalAddress(pde.page_table_base()));
         return &quickmap_pt(PhysicalAddress(pde.page_table_base()))[page_table_index];
     }
 
@@ -648,9 +634,6 @@ PageTableEntry* MemoryManager::ensure_pte(PageDirectory& page_directory, Virtual
 
     // NOTE: This leaked ref is matched by the unref in MemoryManager::release_pte()
     (void)page_table.leak_ref();
-
-    // if (vaddr.get() == 0x0000002005700000)
-    // dbgln("ensure_pte(page_directory, {}): pt_addr: {}", vaddr, PhysicalAddress(pde.page_table_base()));
 
     return &quickmap_pt(PhysicalAddress(pde.page_table_base()))[page_table_index];
 }
@@ -1122,8 +1105,6 @@ void MemoryManager::flush_tlb(PageDirectory const* page_directory, VirtualAddres
 
 PageDirectoryEntry* MemoryManager::quickmap_pd(PageDirectory& directory, size_t pdpt_index)
 {
-    // dbgln("MemoryManager::quickmap_pd: pdpt_index: {:#x}", pdpt_index);
-
     VERIFY_INTERRUPTS_DISABLED();
 
     VirtualAddress vaddr(KERNEL_QUICKMAP_PD_PER_CPU_BASE + Processor::current_id() * PAGE_SIZE);
@@ -1168,7 +1149,6 @@ u8* MemoryManager::quickmap_page(PhysicalAddress const& physical_address)
     VirtualAddress vaddr(KERNEL_QUICKMAP_PER_CPU_BASE + Processor::current_id() * PAGE_SIZE);
     u32 pte_idx = (vaddr.get() - KERNEL_PT1024_BASE) / PAGE_SIZE;
 
-    // dbgln("boot_pd_kernel_pt1023: {:#x}", boot_pd_kernel_pt1023);
     auto& pte = ((PageTableEntry*)boot_pd_kernel_pt1023)[pte_idx];
     if (pte.physical_page_base() != physical_address.get()) {
         pte.set_physical_page_base(physical_address.get());

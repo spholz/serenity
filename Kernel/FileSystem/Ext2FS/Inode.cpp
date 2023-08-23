@@ -471,7 +471,6 @@ InodeMetadata Ext2FSInode::metadata() const
     metadata.inode = identifier();
     metadata.size = size();
     metadata.mode = m_raw_inode.i_mode;
-    // dbgln("m_raw_inode.i_mode: {:#06o}", m_raw_inode.i_mode);
     metadata.uid = m_raw_inode.i_uid;
     metadata.gid = m_raw_inode.i_gid;
     metadata.link_count = m_raw_inode.i_links_count;

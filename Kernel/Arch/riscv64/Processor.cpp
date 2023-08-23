@@ -248,7 +248,7 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         : "memory", "t0", "t1", "t2", "a0", "a1");
     // clang-format on
 
-    // dbgln_if(CONTEXT_SWITCH_DEBUG, "switch_context <-- from {} {} to {} {}", VirtualAddress(from_thread), *from_thread, VirtualAddress(to_thread), *to_thread);
+    dbgln_if(CONTEXT_SWITCH_DEBUG, "switch_context <-- from {} {} to {} {}", VirtualAddress(from_thread), *from_thread, VirtualAddress(to_thread), *to_thread);
 }
 
 void Processor::assume_context(Thread& thread, InterruptsState new_interrupts_state)

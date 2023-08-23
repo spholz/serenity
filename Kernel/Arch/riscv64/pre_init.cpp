@@ -25,9 +25,7 @@ extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, PhysicalPtr fdt_phys_addr
         "la t0, trap_handler_nommu \n"
         "csrw stvec, t0 \n");
 
-    // dbgln_without_mmu("Memory::init_page_tables()"sv);
     Memory::init_page_tables();
-    // dbgln_without_mmu("Memory::init_page_tables() done"sv);
 
     // At this point the MMU is enabled, physical memory is identity mapped,
     // and the kernel is also mapped into higher virtual memory. However we are still executing
@@ -64,7 +62,6 @@ extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, PhysicalPtr fdt_phys_addr
 
     // Clear the frame pointer (fp) and return address register (ra) to make sure the kernel cannot backtrace
     // into this code, and jump to actual init function in the kernel.
-    // dbgln_without_mmu("calling init()!"sv);
     asm volatile(
         "mv fp, zero \n"
         "mv ra, zero \n"

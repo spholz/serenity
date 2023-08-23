@@ -87,8 +87,6 @@ ErrorOr<VirtualRange> RegionTree::allocate_range_specific(VirtualAddress base, s
     VERIFY((size % PAGE_SIZE) == 0);
 
     VirtualRange const range { base, size };
-    // dbgln("m_total_range: {}", m_total_range);
-    // dbgln("range: {}", range);
     if (!m_total_range.contains(range))
         return ENOMEM;
 

@@ -16,7 +16,7 @@ namespace Kernel {
 #elif ARCH(AARCH64)
 #    define UNAME_MACHINE "AArch64"
 #elif ARCH(RISCV64)
-#    define UNAME_MACHINE "RISCV64"
+#    define UNAME_MACHINE "riscv64"
 #else
 #    error Unknown architecture
 #endif

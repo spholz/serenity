@@ -798,7 +798,6 @@ add_custom_command(
 )
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel" DESTINATION boot)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel.bin" DESTINATION boot)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel.debug" DESTINATION boot)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/kernel.map" DESTINATION res)
 

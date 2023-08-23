@@ -57,7 +57,6 @@ private:
         : m_size(size)
         , m_region(move(region))
     {
-        memset(data(), 0, size);
     }
 
     size_t m_size { 0 };

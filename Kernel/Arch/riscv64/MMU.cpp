@@ -43,8 +43,6 @@ public:
         u64* page = m_current;
         m_current += (PAGE_TABLE_SIZE / sizeof(FlatPtr));
 
-        // dbgln("    page alloc: {:p}", page);
-
         zero_page(page);
         return page;
     }
@@ -129,8 +127,6 @@ static u64* get_page_directory(u64* root_table, VirtualAddress virtual_addr)
 
 static void insert_entries_for_memory_range(PageBumpAllocator& allocator, u64* root_table, VirtualAddress start, VirtualAddress end, PhysicalAddress paddr, PageTableEntryFlags flags)
 {
-    // dbgln("start: {}, end: {}, paddr: {}", start, end, paddr);
-
     // Not very efficient, but simple and it works.
     for (VirtualAddress vaddr = start; vaddr < end;) {
         u64* level2_table = insert_page_table(allocator, root_table, vaddr);

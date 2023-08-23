@@ -299,7 +299,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
         (*ctor)();
     kmalloc_init();
 
-#if !defined(AK_COMPILER_CLANG) || !ARCH(RISCV64)
+#if !(defined(AK_COMPILER_CLANG) && ARCH(RISCV64))
     load_kernel_symbol_table();
 #endif
 
@@ -333,9 +333,9 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     DeviceManagement::the().attach_console_device(*ConsoleDevice::must_create());
     DeviceManagement::the().attach_device_control_device(*DeviceControlDevice::must_create());
 
-    // MM.unmap_prekernel();
-
 #if ARCH(X86_64)
+    MM.unmap_prekernel();
+
     // Ensure that the safemem sections are not empty. This could happen if the linker accidentally discards the sections.
     VERIFY(+start_of_safemem_text != +end_of_safemem_text);
     VERIFY(+start_of_safemem_atomic_text != +end_of_safemem_atomic_text);
@@ -455,8 +455,6 @@ void init_stage2(void*)
 
     SyncTask::spawn();
     FinalizerTask::spawn();
-
-    MM.dump_kernel_regions();
 
     auto boot_profiling = kernel_command_line().is_boot_profiling_enabled();
 

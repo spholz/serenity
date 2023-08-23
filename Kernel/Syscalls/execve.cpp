@@ -466,7 +466,6 @@ ErrorOr<void> Process::do_exec(NonnullRefPtr<OpenFileDescription> main_program_d
     RefPtr<OpenFileDescription> interpreter_description, Thread*& new_main_thread, InterruptsState& previous_interrupts_state, const ElfW(Ehdr) & main_program_header, Optional<size_t> minimum_stack_size)
 {
     VERIFY(is_user_process());
-    Processor::clear_critical();
     VERIFY(!Processor::in_critical());
     auto main_program_metadata = main_program_description->metadata();
     // NOTE: Don't allow running SUID binaries at all if we are in a jail.
