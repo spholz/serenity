@@ -176,7 +176,7 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         // Switch to to_thread's stack
         "ld sp, %[to_sp] \n"
 
-        // Store from_thread, to_thread, to_ip on stack
+        // Store from_thread, to_thread, to_ip on to_thread's stack
         "addi sp, sp, -(4 * 8) \n"
         "ld a0, %[from_thread] \n"
         "ld a1, %[to_thread] \n"
@@ -231,13 +231,13 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         "addi sp, sp, -(4 * 8) \n"
         "ld t0, 0*8(sp) \n"
         "ld t1, 1*8(sp) \n"
-        // "sd t0, %[from_thread] \n"
-        // "sd t1, %[to_thread] \n"
+        "sd t0, %[from_thread] \n"
+        "sd t1, %[to_thread] \n"
 
-        "addi sp, sp, 34 * 8 \n"
+        "addi sp, sp, (34 * 8) + (4 * 8) \n"
         :
         [from_ip] "=m"(from_thread->regs().pc),
-        [from_sp] "=m"(from_thread->regs().kernel_sp),
+        [from_sp] "=m"(from_thread->regs().x[1]),
         "=m"(from_thread),
         "=m"(to_thread)
 
