@@ -128,8 +128,8 @@ asm_trap_handler:
     sret
     .cfi_endproc
 
-.global restore_context
-restore_context:
+.global restore_context_and_sret
+restore_context_and_sret:
     mv a0, sp
     call exit_trap
 
@@ -174,13 +174,12 @@ restore_context:
     ld x30, 29*XLEN(sp)
     ld x31, 30*XLEN(sp)
 
-    // FIXME: don't use t0 and t1
-    ld t0, PC_SLOT(sp)
-    ld t1, USERSPACE_SP_SLOT(sp)
+    // FIXME: don't use t0
+    ld t0, USERSPACE_SP_SLOT(sp)
 
     addi sp, sp, REGISTER_STATE_SIZE
 
     // Restore sp last
-    mv sp, t1
+    mv sp, t0
 
-    jr t0
+    sret

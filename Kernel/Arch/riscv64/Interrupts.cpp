@@ -149,8 +149,10 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
         // Exception
         Processor::current().enter_trap(trap_frame, false);
 
+        auto const stval = RISCV64::Asm::get_stval();
+        Processor::enable_interrupts();
+
         if (RISCV64::scause_is_page_fault(scause)) {
-            auto stval = RISCV64::Asm::get_stval();
             PageFault fault { VirtualAddress(stval) };
             auto page_directory = Memory::PageDirectory::find_current();
             if (page_directory.is_null()) {
@@ -168,7 +170,7 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
             else if (scause == 15)
                 fault.set_access(PageFault::Access::Write);
 
-            if (pte == nullptr)
+            if (pte == nullptr || !pte->is_present())
                 fault.set_type(PageFault::Type::PageNotPresent);
             else
                 fault.set_type(PageFault::Type::ProtectionViolation);
@@ -178,6 +180,7 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
             handle_crash(*trap_frame.regs, "Unexpected exception", SIGSEGV, false);
         }
 
+        Processor::disable_interrupts();
         Processor::current().exit_trap(trap_frame);
     }
 }

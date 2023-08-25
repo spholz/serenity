@@ -11,8 +11,13 @@ namespace Kernel {
 SmapDisabler::SmapDisabler()
     : m_flags(0)
 {
+    asm volatile("csrs sstatus, %0" ::"r"(1 << 18));
 }
 
-SmapDisabler::~SmapDisabler() = default;
+SmapDisabler::~SmapDisabler()
+{
+    // FIXME: only disable if previously disabled
+    asm volatile("csrc sstatus, %0" ::"r"(1 << 18));
+}
 
 }

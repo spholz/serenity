@@ -1,3 +1,10 @@
+# OpenSBI
+add-symbol-file /media/data/repos/riscv/opensbi/build/platform/generic/firmware/fw_dynamic.elf
+
+# Load the U-Boot image at the `relocaddr` from `bdinfo`
+# NOTE: This needs to be adjusted when the U-Boot image is updated
+add-symbol-file /media/data/repos/u-boot/u-boot 0xfff39000
+
 # # Kernel at physical load address...
 # add-symbol-file Build/riscv64/Kernel/Kernel.debug 0x80200000
 # # ... and at the final remapped virtual address

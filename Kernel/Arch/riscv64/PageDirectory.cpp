@@ -33,6 +33,13 @@ void PageDirectory::register_page_directory(PageDirectory* directory)
     });
 }
 
+void PageDirectory::deregister_page_directory(PageDirectory* directory)
+{
+    s_satp_map->map.with([&](auto& map) {
+        map.remove(directory->satp());
+    });
+}
+
 ErrorOr<NonnullLockRefPtr<PageDirectory>> PageDirectory::try_create_for_userspace(Process& process)
 {
     auto directory = TRY(adopt_nonnull_lock_ref_or_enomem(new (nothrow) PageDirectory));
@@ -95,6 +102,8 @@ UNMAP_AFTER_INIT NonnullLockRefPtr<PageDirectory> PageDirectory::must_create_ker
     return adopt_lock_ref_if_nonnull(new (nothrow) PageDirectory).release_nonnull();
 }
 
+PageDirectory::PageDirectory() = default;
+
 UNMAP_AFTER_INIT void PageDirectory::allocate_kernel_directory()
 {
     dmesgln("MM: boot_pdpt @ {}", boot_pdpt);
@@ -103,6 +112,13 @@ UNMAP_AFTER_INIT void PageDirectory::allocate_kernel_directory()
     m_directory_table = PhysicalPage::create(boot_pdpt, MayReturnToFreeList::No);
     m_directory_pages[0] = PhysicalPage::create(boot_pd0, MayReturnToFreeList::No);
     m_directory_pages[(kernel_mapping_base >> VPN_2_OFFSET) & PAGE_TABLE_INDEX_MASK] = PhysicalPage::create(boot_pd_kernel, MayReturnToFreeList::No);
+}
+
+PageDirectory::~PageDirectory()
+{
+    if (is_root_table_initialized()) {
+        deregister_page_directory(this);
+    }
 }
 
 }

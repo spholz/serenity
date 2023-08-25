@@ -60,7 +60,7 @@ bool validate_elf_header(ElfW(Ehdr) const& elf_header, size_t file_size, bool ve
     }
 
     auto expected_machines = Array { EM_X86_64, EM_AARCH64, EM_RISCV };
-    auto expected_machine_names = Array { "x86-64"sv, "aarch64"sv };
+    auto expected_machine_names = Array { "x86-64"sv, "aarch64"sv, "riscv"sv };
 
     if (!expected_machines.span().contains_slow(elf_header.e_machine)) {
         if (verbose)

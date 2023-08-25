@@ -293,7 +293,7 @@ FlatPtr Processor::init_context(Thread& thread, bool leave_crit)
         frame.x[0] = FlatPtr(&exit_kernel_thread);
     }
     frame.pc = thread_regs.pc;
-    frame.user_sp = thread_regs.sp();
+    frame.set_userspace_sp(thread_regs.sp());
     frame.sstatus = thread_regs.sstatus;
 
     // Push a TrapFrame onto the stack
@@ -414,7 +414,7 @@ NAKED void thread_context_first_enter(void)
         "ld a1, 8(sp) \n"
         "addi sp, sp, 32 \n"
         "call context_first_init \n"
-        "tail restore_context \n");
+        "tail restore_context_and_sret \n");
 }
 
 void exit_kernel_thread(void)
@@ -424,7 +424,6 @@ void exit_kernel_thread(void)
 
 extern "C" void context_first_init(Thread* from_thread, Thread* to_thread)
 {
-    dbgln("last Processor::enable_interrupts(): {}:{} {}", Processor::current().last_interrupt_enable_file, Processor::current().last_interrupt_enable_line, Processor::current().last_interrupt_enable_function);
     VERIFY_INTERRUPTS_DISABLED();
     dbgln_if(CONTEXT_SWITCH_DEBUG, "switch_context <-- from {} {} to {} {} (context_first_init)", VirtualAddress(from_thread), *from_thread, VirtualAddress(to_thread), *to_thread);
 

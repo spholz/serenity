@@ -541,13 +541,16 @@ extern "C" inline u16 __atomic_exchange_2(void volatile* ptr, u16 val, int memor
 
 extern "C" inline bool __atomic_compare_exchange_1(void volatile* ptr, void* expected, u8 desired, bool weak, int success_memorder, int failure_memorder)
 {
-    (void)ptr;
-    (void)expected;
-    (void)desired;
     (void)weak;
     (void)success_memorder;
     (void)failure_memorder;
-    TODO_RISCV64();
+
+    if (*(reinterpret_cast<u8 volatile*>(ptr)) == *(reinterpret_cast<u8 volatile*>(expected)))
+        *(reinterpret_cast<u8 volatile*>(ptr)) = desired;
+    else
+        *(reinterpret_cast<u8 volatile*>(expected)) = *(reinterpret_cast<u8 volatile*>(ptr));
+
+    return true;
 }
 
 extern "C" inline bool __atomic_compare_exchange_2(void volatile* ptr, void* expected, u16 desired, bool weak, int success_memorder, int failure_memorder)

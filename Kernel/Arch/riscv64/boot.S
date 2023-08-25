@@ -1,6 +1,28 @@
 // In a specially-named text section so that the linker script can put it first in .text.
 .section ".text.first"
 
+// Make the kernel bootable using U-Boot's booti command
+linux_header:
+.option push
+.option norvc
+  j start                          // u32 code0
+  j start                          // u32 code1
+  .dword 1 * 1024 * 1024           // u64 text_offset
+
+  // u64 image_size
+  .dword end_of_kernel_image - start_of_kernel_image
+
+  .dword 0                         // u64 flags
+  .word 2                          // u32 version
+  .word 0                          // u32 res1
+  .dword 0                         // u64 res2
+  .dword 0                         // u64 res3
+  .ascii "RSC\x5"                  // u32 magic
+  .word 0                          // u32 res4
+.option pop
+
+.section ".text.first"
+
 .global start
 .type start, @function
 start:

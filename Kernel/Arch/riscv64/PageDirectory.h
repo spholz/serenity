@@ -115,7 +115,7 @@ public:
         m_raw |= (value >> PADDR_PPN_OFFSET) << PTE_PPN_OFFSET;
     }
 
-    // bool is_present() const { TODO_RISCV64(); }
+    bool is_present() const { return (m_raw & to_underlying(PageTableEntryFlags::Valid)) != 0; }
     void set_present(bool b)
     {
         set_bit(PageTableEntryFlags::Valid, b);
@@ -125,19 +125,10 @@ public:
     }
 
     // bool is_user_allowed() const { TODO_RISCV64(); }
-    void set_user_allowed(bool b)
-    {
-        set_bit(PageTableEntryFlags::UserAllowed, b);
-    }
+    void set_user_allowed(bool b) { set_bit(PageTableEntryFlags::UserAllowed, b); }
 
-    bool is_writable() const
-    {
-        return (m_raw & to_underlying(PageTableEntryFlags::Writeable)) != 0;
-    }
-    void set_writable(bool b)
-    {
-        set_bit(PageTableEntryFlags::Writeable, b);
-    }
+    bool is_writable() const { return (m_raw & to_underlying(PageTableEntryFlags::Writeable)) != 0; }
+    void set_writable(bool b) { set_bit(PageTableEntryFlags::Writeable, b); }
 
     // bool is_cache_disabled() const { TODO_RISCV64(); }
     void set_cache_disabled(bool)
@@ -197,6 +188,8 @@ public:
     static NonnullLockRefPtr<PageDirectory> must_create_kernel_page_directory();
     static LockRefPtr<PageDirectory> find_current();
 
+    ~PageDirectory();
+
     void allocate_kernel_directory();
 
     FlatPtr satp() const
@@ -210,6 +203,11 @@ public:
         return bit_cast<FlatPtr>(satp);
     }
 
+    bool is_root_table_initialized() const
+    {
+        return m_directory_table != nullptr;
+    }
+
     Process* process() { return m_process; }
 
     RecursiveSpinlock<LockRank::None>& get_lock() { return m_lock; }
@@ -218,6 +216,7 @@ public:
     IntrusiveRedBlackTreeNode<FlatPtr, PageDirectory, RawPtr<PageDirectory>> m_tree_node;
 
 private:
+    PageDirectory();
     static void register_page_directory(PageDirectory* directory);
     static void deregister_page_directory(PageDirectory* directory);
 

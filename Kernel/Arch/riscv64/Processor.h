@@ -229,11 +229,8 @@ public:
         return RISCV64::Sstatus::read().SIE == 1;
     }
 
-    ALWAYS_INLINE static void enable_interrupts(char const* const file = __builtin_FILE(), u32 line = __builtin_LINE(), char const* const function = __builtin_FUNCTION())
+    ALWAYS_INLINE static void enable_interrupts()
     {
-        current().last_interrupt_enable_file = file;
-        current().last_interrupt_enable_line = line;
-        current().last_interrupt_enable_function = function;
         asm volatile("csrsi sstatus, 1 << 1 /* sie */");
     }
 
@@ -281,10 +278,6 @@ public:
     static void set_thread_specific_data(VirtualAddress thread_specific_data);
 
     static void flush_entire_tlb_local();
-
-    char const* last_interrupt_enable_file;
-    char const* last_interrupt_enable_function;
-    u32 last_interrupt_enable_line;
 
 private:
     Processor(Processor const&) = delete;
