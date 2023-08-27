@@ -23,6 +23,8 @@
 
 namespace Kernel {
 
+extern "C" void syscall_handler(TrapFrame const*);
+
 static Array<GenericInterruptHandler*, 64> s_interrupt_handlers;
 
 GenericInterruptHandler& get_interrupt_handler(u8)
@@ -176,6 +178,9 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
                 fault.set_type(PageFault::Type::ProtectionViolation);
 
             fault.handle(*trap_frame.regs);
+        } else if (scause == 8) {
+            syscall_handler(&trap_frame);
+            trap_frame.regs->pc += 4;
         } else {
             handle_crash(*trap_frame.regs, "Unexpected exception", SIGSEGV, false);
         }

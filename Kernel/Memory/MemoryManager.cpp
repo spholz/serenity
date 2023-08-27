@@ -589,6 +589,9 @@ PageTableEntry* MemoryManager::pte(PageDirectory& page_directory, VirtualAddress
     u32 page_table_index = (vaddr.get() >> 12) & 0x1ff;
 
     auto* pd = quickmap_pd(const_cast<PageDirectory&>(page_directory), page_directory_table_index);
+    if (pd == nullptr)
+        return nullptr;
+
     PageDirectoryEntry const& pde = pd[page_directory_index];
     if (!pde.is_present())
         return nullptr;
@@ -1111,7 +1114,11 @@ PageDirectoryEntry* MemoryManager::quickmap_pd(PageDirectory& directory, size_t 
     size_t pte_index = (vaddr.get() - KERNEL_PT1024_BASE) / PAGE_SIZE;
 
     auto& pte = boot_pd_kernel_pt1023[pte_index];
-    auto pd_paddr = directory.m_directory_pages[pdpt_index]->paddr();
+    auto pd = directory.m_directory_pages[pdpt_index];
+    if (pd == nullptr)
+        return nullptr;
+
+    auto pd_paddr = pd->paddr();
     if (pte.physical_page_base() != pd_paddr.get()) {
         pte.set_physical_page_base(pd_paddr.get());
         pte.set_present(true);

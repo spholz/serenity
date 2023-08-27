@@ -228,7 +228,8 @@ void DynamicLoader::do_main_relocations()
 
     // If the object is position-independent, the pointer to the PLT trampoline needs to be relocated.
     auto fixup_trampoline_pointer = [&](DynamicObject::Relocation const& relocation) {
-        VERIFY(relocation.type() == R_X86_64_JUMP_SLOT || relocation.type() == R_AARCH64_JUMP_SLOT);
+        VERIFY(relocation.type() == R_X86_64_JUMP_SLOT || relocation.type() == R_AARCH64_JUMP_SLOT
+            || relocation.type() == R_RISCV_JUMP_SLOT);
         if (image().is_dynamic())
             *((FlatPtr*)relocation.address().as_ptr()) += m_dynamic_object->base_address().get();
     };
@@ -573,6 +574,7 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         // Seems if the 'link editor' generates one something is funky with your code
         break;
     case R_AARCH64_ABS64:
+    case R_RISCV_64:
     case R_X86_64_64: {
         auto symbol = relocation.symbol();
         auto res = lookup_symbol(symbol);
@@ -626,6 +628,7 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         break;
     }
     case R_AARCH64_RELATIVE:
+    case R_RISCV_RELATIVE:
     case R_X86_64_RELATIVE: {
         if (!image().is_dynamic())
             break;
@@ -639,6 +642,7 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         break;
     }
     case R_AARCH64_TLS_TPREL:
+    case R_RISCV_TLS_TPREL64:
     case R_X86_64_TPOFF64: {
         auto maybe_resolution = resolve_tls_symbol(relocation);
         if (!maybe_resolution.has_value())
@@ -705,6 +709,7 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
     }
     case R_AARCH64_JUMP_SLOT:
     case R_X86_64_JUMP_SLOT:
+    case R_RISCV_JUMP_SLOT:
         VERIFY_NOT_REACHED(); // PLT relocations are handled by do_plt_relocation.
     default:
         // Raise the alarm! Someone needs to implement this relocation type
@@ -716,7 +721,8 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
 
 DynamicLoader::RelocationResult DynamicLoader::do_plt_relocation(DynamicObject::Relocation const& relocation, ShouldCallIfuncResolver should_call_ifunc_resolver)
 {
-    VERIFY(relocation.type() == R_X86_64_JUMP_SLOT || relocation.type() == R_AARCH64_JUMP_SLOT);
+    VERIFY(relocation.type() == R_X86_64_JUMP_SLOT || relocation.type() == R_AARCH64_JUMP_SLOT
+        || relocation.type() == R_RISCV_JUMP_SLOT);
     auto symbol = relocation.symbol();
     auto* relocation_address = (FlatPtr*)relocation.address().as_ptr();
 

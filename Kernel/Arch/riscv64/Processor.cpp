@@ -34,6 +34,31 @@ READONLY_AFTER_INIT FPUState Processor::s_clean_fpu_state;
 //     // TODO
 // }
 
+void Processor::early_initialize(u32 cpu)
+{
+    (void)cpu;
+    VERIFY(g_current_processor == nullptr);
+    // m_cpu = cpu;
+    // m_features = detect_cpu_features();
+    // m_physical_address_bit_width = detect_physical_address_bit_width();
+    // m_virtual_address_bit_width = detect_virtual_address_bit_width();
+
+    g_current_processor = this;
+}
+
+void Processor::initialize(u32)
+{
+    m_deferred_call_pool.init();
+
+    // dmesgln("CPU[{}]: Supports {}", m_cpu, build_cpu_feature_names(m_features));
+    // dmesgln("CPU[{}]: Physical address bit width: {}", m_cpu, m_physical_address_bit_width);
+    // dmesgln("CPU[{}]: Virtual address bit width: {}", m_cpu, m_virtual_address_bit_width);
+    // if (!has_feature(CPUFeature::RNG))
+    //     dmesgln("CPU[{}]: {} not detected, randomness will be poor", m_cpu, cpu_feature_to_description(CPUFeature::RNG));
+
+    // store_fpu_state(&s_clean_fpu_state);
+}
+
 u32 Processor::smp_wake_n_idle_processors(u32 wake_count)
 {
     (void)wake_count;
@@ -86,6 +111,11 @@ u32 Processor::clear_critical()
     if (proc.m_in_irq == 0)
         proc.check_invoke_scheduler();
     return prev_critical;
+}
+
+u64 Processor::time_spent_idle() const
+{
+    return m_idle_thread->time_in_user() + m_idle_thread->time_in_kernel();
 }
 
 void Processor::initialize_context_switching(Thread& initial_thread)
@@ -483,6 +513,19 @@ void Processor::set_thread_specific_data(VirtualAddress thread_specific_data)
 {
     register uintptr_t tp asm("tp") = thread_specific_data.get();
     (void)tp;
+}
+
+void Processor::deferred_call_queue(Function<void()> callback)
+{
+    // NOTE: If we are called outside of a critical section and outside
+    // of an irq handler, the function will be executed before we return!
+    ScopedCritical critical;
+    auto& cur_proc = Processor::current();
+
+    auto* entry = cur_proc.m_deferred_call_pool.get_free();
+    entry->handler_value() = move(callback);
+
+    cur_proc.m_deferred_call_pool.queue_entry(entry);
 }
 
 }

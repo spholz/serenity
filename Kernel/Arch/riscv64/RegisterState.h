@@ -44,10 +44,14 @@ struct RegisterState {
         }
     }
 
-    void set_return_reg([[maybe_unused]] FlatPtr value) { TODO_RISCV64(); }
-    void capture_syscall_params([[maybe_unused]] FlatPtr& function, [[maybe_unused]] FlatPtr& arg1, [[maybe_unused]] FlatPtr& arg2, [[maybe_unused]] FlatPtr& arg3, [[maybe_unused]] FlatPtr& arg4) const
+    void set_return_reg(FlatPtr value) { x[9] = value; }
+    void capture_syscall_params(FlatPtr& function, FlatPtr& arg1, FlatPtr& arg2, FlatPtr& arg3, FlatPtr& arg4) const
     {
-        TODO_RISCV64();
+        function = x[16];
+        arg1 = x[9];
+        arg2 = x[10];
+        arg3 = x[11];
+        arg4 = x[12];
     }
 };
 

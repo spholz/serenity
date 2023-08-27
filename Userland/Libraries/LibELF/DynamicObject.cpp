@@ -23,7 +23,11 @@ DynamicObject::DynamicObject(DeprecatedString const& filepath, VirtualAddress ba
 {
     auto* header = (ElfW(Ehdr)*)base_address.as_ptr();
     auto* pheader = (ElfW(Phdr)*)(base_address.as_ptr() + header->e_phoff);
-    m_elf_base_address = VirtualAddress(pheader->p_vaddr - pheader->p_offset);
+    if (pheader->p_type == PT_PHDR)
+        m_elf_base_address = VirtualAddress(pheader->p_vaddr - pheader->p_offset);
+    else
+        m_elf_base_address = VirtualAddress(nullptr);
+
     if (header->e_type == ET_DYN)
         m_is_elf_dynamic = true;
     else

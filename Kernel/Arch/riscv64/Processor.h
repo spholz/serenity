@@ -41,16 +41,8 @@ class Processor {
 public:
     Processor() = default;
 
-    void early_initialize([[maybe_unused]] u32 cpu)
-    {
-        VERIFY(g_current_processor == nullptr);
-        g_current_processor = this;
-    }
-
-    void initialize([[maybe_unused]] u32 cpu)
-    {
-        dbgln("FIXME: implement Processor::initialize() for riscv64");
-    }
+    void early_initialize([[maybe_unused]] u32 cpu);
+    void initialize([[maybe_unused]] u32 cpu);
 
     template<typename T>
     T* get_specific()
@@ -159,7 +151,7 @@ public:
 
     ALWAYS_INLINE static void verify_no_spinlocks_held()
     {
-        TODO_RISCV64();
+        VERIFY(!Processor::in_critical());
     }
 
     ALWAYS_INLINE static bool is_initialized()
@@ -250,15 +242,9 @@ public:
         // FIXME: Process SMP messages once we support SMP on riscv64; cf. x86_64
     }
 
-    static void deferred_call_queue(Function<void()>)
-    {
-        TODO_RISCV64();
-    }
+    static void deferred_call_queue(Function<void()>);
 
-    u64 time_spent_idle() const
-    {
-        TODO_RISCV64();
-    }
+    u64 time_spent_idle() const;
 
     static u32 smp_wake_n_idle_processors(u32 wake_count);
 
