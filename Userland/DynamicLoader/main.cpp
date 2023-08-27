@@ -70,7 +70,12 @@ NAKED void _start(int, char**, char**)
         "mov x30, 0\n"
         "bl _entry\n");
 #elif ARCH(RISCV64)
-    // TODO
+    // Make sure backtrace computation stops here by setting fp and ra to 0.
+    // FIXME: The kernel should ensure that registers are zeroed on program start
+    asm(
+        "li fp, 0\n"
+        "li ra, 0\n"
+        "tail _entry\n");
 #else
     asm(
         "push $0\n"

@@ -56,6 +56,8 @@ Lclear_bss_done:
   // Let stack start before .text for now.
   lla sp, start
 
+  csrw sscratch, zero
+
   // lla t0, end_of_kernel_image
   // li t1, 512 * 1024
   // add sp, t0, t1

@@ -94,7 +94,7 @@ class DumpPageTable(gdb.Command):
         if len(args) > 0:
             args.pop(0)
 
-        search_for_vaddr = None if len(args) == 0 else int(args[0], 16)
+        search_for_vaddr = None if len(args) == 0 else int(gdb.parse_and_eval(args[0]))
 
         port = int(gdb.selected_inferior().connection.details.split(':')[1])
         conn_name = get_proc_owning_port(port).name()
@@ -200,6 +200,13 @@ class Scause(IntEnum):
     StorePageFault = 15
 
 
+class PrivilegeLevel(IntEnum):
+    User = 0
+    Supervisor = 1
+    Reserved = 2
+    Machine = 3
+
+
 class PrintMcause(gdb.Command):
     def __init__(self) -> None:
         super().__init__('mcause', gdb.COMMAND_USER)
@@ -211,9 +218,12 @@ class PrintMcause(gdb.Command):
 
         frame = gdb.selected_frame()
         mcause = Mcause(int(frame.read_register('mcause').cast(uint64_t)))
+        mstatus = int(frame.read_register('mstatus').cast(uint64_t))
+        mpp = PrivilegeLevel((mstatus >> 11) & 0b11)
         print(f'mcause: {mcause.name} ({mcause.value:#x})')
         print(f'mepc: {frame.read_register("mepc").cast(uint64_t_ptr).format_string(symbols=True, styling=True)}')
         print(f'mtval: {frame.read_register("mtval").cast(uint64_t_ptr).format_string(symbols=True, styling=True)}')
+        print(f'mstatus.MPP: {mpp.name}')
 
 
 class PrintScause(gdb.Command):
@@ -227,9 +237,12 @@ class PrintScause(gdb.Command):
 
         frame = gdb.selected_frame()
         scause = Scause(int(frame.read_register('scause').cast(uint64_t)))
+        sstatus = int(frame.read_register('sstatus').cast(uint64_t))
+        spp = PrivilegeLevel((sstatus >> 8) & 0b1)
         print(f'scause: {scause.name} ({scause.value:#x})')
         print(f'sepc: {frame.read_register("sepc").cast(uint64_t_ptr).format_string(symbols=True, styling=True)}')
         print(f'stval: {frame.read_register("stval").cast(uint64_t_ptr).format_string(symbols=True, styling=True)}')
+        print(f'sstatus.SPP: {spp.name}')
 
 
 class TranslateVAddr(gdb.Command):
@@ -247,7 +260,7 @@ class TranslateVAddr(gdb.Command):
         if len(args) < 1 or len(args) > 2:
             raise gdb.GdbError('invalid arguments')
 
-        vaddr = int(args[0], 16)
+        vaddr = int(gdb.parse_and_eval(args[0]))
         args.pop(0)
 
         if len(args) == 1:

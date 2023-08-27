@@ -17,6 +17,22 @@
 .global asm_trap_handler
 asm_trap_handler:
     .cfi_startproc
+    // Switch to kernel stack
+
+    // Swap contents of sscratch and sp
+    csrrw sp, sscratch, sp
+
+    beqz sp, 1f
+
+    // Trap is from userspace
+    j 2f
+1:
+    // Trap is from kernel
+    csrrw sp, sscratch, zero
+2:
+    // sscratch now contains the user sp or zero if trap is from kernel
+    // and sp is the kernel stack pointer
+
     // Save all register states to the current stack
     // and enter the C++ trap handler
 
@@ -62,6 +78,8 @@ asm_trap_handler:
     sd t0, SSTATUS_SLOT(sp)
     csrr t0, sepc
     sd t0, PC_SLOT(sp)
+    csrrw t0, sscratch, zero
+    sd t0, USERSPACE_SP_SLOT(sp)
 
     // Set up TrapFrame struct on the stack
     mv t0, sp
@@ -119,12 +137,29 @@ asm_trap_handler:
     ld x30, 29*XLEN(sp)
     ld x31, 30*XLEN(sp)
 
-    // Restore sp last
+    // FIXME: don't clobber t0 and t1
+
+    csrr gp, sstatus
+    srl gp, gp, 8
+    andi gp, gp, 1
+    beqz gp, 1f
+
+    // Kernel
     ld x2, 1*XLEN(sp)
-
     addi sp, sp, REGISTER_STATE_SIZE
-    .cfi_adjust_cfa_offset -REGISTER_STATE_SIZE
+    csrw sscratch, zero
+    j 2f
 
+1:
+    // User
+    ld gp, USERSPACE_SP_SLOT(sp)
+    ld x2, 1*XLEN(sp)
+    addi sp, sp, REGISTER_STATE_SIZE
+    csrw sscratch, sp
+    mv sp, gp
+
+2:
+    .cfi_adjust_cfa_offset -REGISTER_STATE_SIZE
     sret
     .cfi_endproc
 
@@ -174,12 +209,23 @@ restore_context_and_sret:
     ld x30, 29*XLEN(sp)
     ld x31, 30*XLEN(sp)
 
-    // FIXME: don't use t0
+    // FIXME: don't clobber t0 and t1
     ld t0, USERSPACE_SP_SLOT(sp)
-
     addi sp, sp, REGISTER_STATE_SIZE
 
-    // Restore sp last
-    mv sp, t0
+    csrr t1, sstatus
+    srl t1, t1, 8
+    andi t1, t1, 1
+    beqz t1, 1f
 
+    // Kernel
+    csrw sscratch, zero
+    j 2f
+
+1:
+    // User
+    csrw sscratch, sp
+
+2:
+    mv sp, t0
     sret
