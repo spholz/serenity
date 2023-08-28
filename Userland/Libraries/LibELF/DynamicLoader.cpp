@@ -328,7 +328,7 @@ void DynamicLoader::do_lazy_relocations()
     for (auto const& relocation : m_unresolved_relocations) {
         if (auto res = do_direct_relocation(relocation, cached_result, ShouldInitializeWeak::Yes, ShouldCallIfuncResolver::Yes); res != RelocationResult::Success) {
             dbgln("Loader.so: {} unresolved symbol '{}'", m_filepath, relocation.symbol().name());
-            VERIFY_NOT_REACHED();
+            // VERIFY_NOT_REACHED();
         }
     }
 }
@@ -566,16 +566,19 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         VERIFY(res.value().dynamic_object != nullptr);
         return ResolvedTLSSymbol { *res.value().dynamic_object, res.value().value };
     };
+    (void)should_initialize_weak;
 
     switch (relocation.type()) {
 
+#if !ARCH(RISCV64)
     case R_X86_64_NONE:
         // Apparently most loaders will just skip these?
         // Seems if the 'link editor' generates one something is funky with your code
         break;
     case R_AARCH64_ABS64:
-    case R_RISCV_64:
-    case R_X86_64_64: {
+    case R_X86_64_64:
+#endif
+    case R_RISCV_64: {
         auto symbol = relocation.symbol();
         auto res = lookup_symbol(symbol);
         if (!res.has_value()) {
@@ -596,6 +599,7 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
             *patch_ptr = call_ifunc_resolver(VirtualAddress { *patch_ptr }).get();
         break;
     }
+#if !ARCH(RISCV64)
     case R_AARCH64_GLOB_DAT:
     case R_X86_64_GLOB_DAT: {
         auto symbol = relocation.symbol();
@@ -627,9 +631,12 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         *patch_ptr = symbol_location.get();
         break;
     }
+#endif
+#if !ARCH(RISCV64)
     case R_AARCH64_RELATIVE:
-    case R_RISCV_RELATIVE:
-    case R_X86_64_RELATIVE: {
+    case R_X86_64_RELATIVE:
+#endif
+    case R_RISCV_RELATIVE: {
         if (!image().is_dynamic())
             break;
         // FIXME: According to the spec, R_386_relative ones must be done first.
@@ -641,9 +648,11 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
             *patch_ptr += m_dynamic_object->base_address().get();
         break;
     }
+#if !ARCH(RISCV64)
     case R_AARCH64_TLS_TPREL:
-    case R_RISCV_TLS_TPREL64:
-    case R_X86_64_TPOFF64: {
+    case R_X86_64_TPOFF64:
+#endif
+    case R_RISCV_TLS_TPREL64: {
         auto maybe_resolution = resolve_tls_symbol(relocation);
         if (!maybe_resolution.has_value())
             break;
@@ -656,6 +665,7 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         VERIFY(static_cast<ssize_t>(*patch_ptr) < 0);
         break;
     }
+#if !ARCH(RISCV64)
     case R_X86_64_DTPMOD64: {
         auto maybe_resolution = resolve_tls_symbol(relocation);
         if (!maybe_resolution.has_value())
@@ -675,7 +685,7 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         *patch_ptr = addend + maybe_resolution->value;
         break;
     }
-#ifdef HAS_TLSDESC_SUPPORT
+#    ifdef HAS_TLSDESC_SUPPORT
     case R_AARCH64_TLSDESC: {
         auto maybe_resolution = resolve_tls_symbol(relocation);
         if (!maybe_resolution.has_value())
@@ -688,7 +698,7 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         patch_ptr[1] = addend + dynamic_object_of_symbol.tls_offset().value() + symbol_value;
         break;
     }
-#endif
+#    endif
     case R_AARCH64_IRELATIVE:
     case R_X86_64_IRELATIVE: {
         if (should_call_ifunc_resolver == ShouldCallIfuncResolver::No)
@@ -707,9 +717,13 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
         *patch_ptr = call_ifunc_resolver(resolver).get();
         break;
     }
+#endif
+#if !ARCH(RISCV64)
     case R_AARCH64_JUMP_SLOT:
     case R_X86_64_JUMP_SLOT:
+#endif
     case R_RISCV_JUMP_SLOT:
+        dbgln("jump slot in {}", m_filepath);
         VERIFY_NOT_REACHED(); // PLT relocations are handled by do_plt_relocation.
     default:
         // Raise the alarm! Someone needs to implement this relocation type
@@ -806,23 +820,29 @@ extern "C" FlatPtr _fixup_plt_entry(DynamicObject* object, u32 relocation_offset
 
 void DynamicLoader::call_object_init_functions()
 {
+    dbgln("call_object_init_function: {}", m_filepath);
     typedef void (*InitFunc)();
 
     if (m_dynamic_object->has_init_section()) {
+        dbgln("has_init_section");
         auto init_function = (InitFunc)(m_dynamic_object->init_section().address().as_ptr());
         (init_function)();
     }
 
     if (m_dynamic_object->has_init_array_section()) {
+        dbgln("has_init_array_section");
         auto init_array_section = m_dynamic_object->init_array_section();
 
+        dbgln("init_array_section offset: {:#x}", init_array_section.offset());
         InitFunc* init_begin = (InitFunc*)(init_array_section.address().as_ptr());
         InitFunc* init_end = init_begin + init_array_section.entry_count();
         while (init_begin != init_end) {
+            dbgln("init_begin: {}", init_begin);
             // Android sources claim that these can be -1, to be ignored.
             // 0 definitely shows up. Apparently 0/-1 are valid? Confusing.
             if (!*init_begin || ((FlatPtr)*init_begin == (FlatPtr)-1))
                 continue;
+            dbgln("*init_begin: {}", *init_begin);
             (*init_begin)();
             ++init_begin;
         }

@@ -264,6 +264,8 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
         "sd t0, %[from_thread] \n"
         "sd t1, %[to_thread] \n"
 
+        "ld tp, %[to_tp] \n"
+
         "addi sp, sp, (34 * 8) + (4 * 8) \n"
         :
         [from_ip] "=m"(from_thread->regs().pc),
@@ -273,6 +275,7 @@ void Processor::switch_context(Thread*& from_thread, Thread*& to_thread)
 
         : [to_ip] "m"(to_thread->regs().pc),
         [to_sp] "m"(to_thread->regs().x[1]),
+        [to_tp] "m"(to_thread->regs().x[3]),
         [from_thread] "m"(from_thread),
         [to_thread] "m"(to_thread)
         : "memory", "t0", "t1", "t2", "a0", "a1");
@@ -511,8 +514,7 @@ StringView Processor::platform_string()
 
 void Processor::set_thread_specific_data(VirtualAddress thread_specific_data)
 {
-    register uintptr_t tp asm("tp") = thread_specific_data.get();
-    (void)tp;
+    current_thread()->regs().x[3] = thread_specific_data.get();
 }
 
 void Processor::deferred_call_queue(Function<void()> callback)

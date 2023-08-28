@@ -181,6 +181,7 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
         } else if (scause == 8) {
             syscall_handler(&trap_frame);
             trap_frame.regs->pc += 4;
+            trap_frame.regs->x[3] = Processor::current_thread()->thread_specific_data().get();
         } else {
             handle_crash(*trap_frame.regs, "Unexpected exception", SIGSEGV, false);
         }
