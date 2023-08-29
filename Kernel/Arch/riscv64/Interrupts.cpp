@@ -90,7 +90,7 @@ void dump_registers(RegisterState const& regs)
     dbgln("scause:  {} ({:p})", RISCV64::scause_to_string(scause), scause);
     dbgln("sepc:    {:p}", regs.pc);
     dbgln("stval:   {:p}", stval);
-    dbgln("sstatus: {:p}", bit_cast<RISCV64::Sstatus>(regs.sstatus));
+    dbgln("sstatus: {}", bit_cast<RISCV64::Sstatus>(regs.sstatus));
     dbgln("satp:    {:p}", satp);
 
     dbgln(" ra( x1)={:p}  sp( x2)={:p}  gp( x3)={:p}  tp( x4)={:p}  t0( x5)={:p}", regs.x[0], regs.x[1], regs.x[2], regs.x[3], regs.x[4]);

@@ -820,29 +820,23 @@ extern "C" FlatPtr _fixup_plt_entry(DynamicObject* object, u32 relocation_offset
 
 void DynamicLoader::call_object_init_functions()
 {
-    dbgln("call_object_init_function: {}", m_filepath);
     typedef void (*InitFunc)();
 
     if (m_dynamic_object->has_init_section()) {
-        dbgln("has_init_section");
         auto init_function = (InitFunc)(m_dynamic_object->init_section().address().as_ptr());
         (init_function)();
     }
 
     if (m_dynamic_object->has_init_array_section()) {
-        dbgln("has_init_array_section");
         auto init_array_section = m_dynamic_object->init_array_section();
 
-        dbgln("init_array_section offset: {:#x}", init_array_section.offset());
         InitFunc* init_begin = (InitFunc*)(init_array_section.address().as_ptr());
         InitFunc* init_end = init_begin + init_array_section.entry_count();
         while (init_begin != init_end) {
-            dbgln("init_begin: {}", init_begin);
             // Android sources claim that these can be -1, to be ignored.
             // 0 definitely shows up. Apparently 0/-1 are valid? Confusing.
             if (!*init_begin || ((FlatPtr)*init_begin == (FlatPtr)-1))
                 continue;
-            dbgln("*init_begin: {}", *init_begin);
             (*init_begin)();
             ++init_begin;
         }

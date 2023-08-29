@@ -36,6 +36,7 @@
 #include <Kernel/FileSystem/VirtualFileSystem.h>
 #include <Kernel/Firmware/ACPI/Initialize.h>
 #include <Kernel/Firmware/ACPI/Parser.h>
+#include <Kernel/Firmware/QEMUFwCfg.h>
 #include <Kernel/Heap/kmalloc.h>
 #include <Kernel/KSyms.h>
 #include <Kernel/Library/Panic.h>
@@ -216,8 +217,15 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
         {
             sizeof(struct multiboot_mmap_entry) - sizeof(u32),
             (u64)0x81000000,
-            (u64)100 * MiB,
+            (u64)2 * GiB,
             MULTIBOOT_MEMORY_AVAILABLE,
+        },
+        {
+            // Framebuffer
+            sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+            (u64)0x82000000,
+            (u64)640 * 480 * 32,
+            MULTIBOOT_MEMORY_RESERVED,
         },
     };
     multiboot_memory_map_count = 1;
@@ -259,8 +267,8 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
 
     // QEMU Placeholder
     multiboot_framebuffer_addr = PhysicalAddress { 0x8200'0000 };
-    multiboot_framebuffer_width = 16;
-    multiboot_framebuffer_height = 16;
+    multiboot_framebuffer_width = 640;
+    multiboot_framebuffer_height = 480;
 
     // VisionFive 2 U-Boot Framebuffer
     // multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 };
@@ -313,6 +321,8 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     dmesgln("RPi: Firmware version: {}", firmware_version);
 
     RPi::Framebuffer::initialize();
+#elif ARCH(RISCV64)
+    QEMUFWCfg::must_initialize(PhysicalAddress { 0x1010'0000 }, 0x08, 0x00, 0x10);
 #endif
 
     // NOTE: If the bootloader provided a framebuffer, then set up an initial console.

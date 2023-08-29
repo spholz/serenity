@@ -125,10 +125,11 @@ UNMAP_AFTER_INIT ErrorOr<void> Device::initialize_virtio_resources()
                 dbgln("{}: Unexpected capability bar value: {}", m_class_name, config.bar);
                 break;
             }
-            // {
-            //     SpinlockLocker locker(device_identifier().operation_lock());
-            //     PCI::write32_locked(device_identifier(), static_cast<PCI::RegisterOffset>(to_underlying(PCI::RegisterOffset::BAR0) + config.bar * 4), 0x4100'0000);
-            // }
+            {
+                SpinlockLocker locker(device_identifier().operation_lock());
+                PCI::write32_locked(device_identifier(), static_cast<PCI::RegisterOffset>(to_underlying(PCI::RegisterOffset::BAR0) + config.bar * 4), 0x4100'0000);
+                PCI::write32_locked(device_identifier(), PCI::RegisterOffset::COMMAND, 0x6);
+            }
 
             config.offset = capability.read32(0x8);
             config.length = capability.read32(0xc);

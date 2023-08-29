@@ -60,12 +60,20 @@ static_assert(AssertSize<RegisterState, REGISTER_STATE_SIZE>());
 
 inline void copy_kernel_registers_into_ptrace_registers([[maybe_unused]] PtraceRegisters& ptrace_regs, [[maybe_unused]] RegisterState const& kernel_regs)
 {
-    TODO_RISCV64();
+    for (auto i = 0; i < 31; i++)
+        ptrace_regs.x[i] = kernel_regs.x[i];
+
+    ptrace_regs.sp = kernel_regs.userspace_sp();
+    ptrace_regs.pc = kernel_regs.ip();
 }
 
 inline void copy_ptrace_registers_into_kernel_registers([[maybe_unused]] RegisterState& kernel_regs, [[maybe_unused]] PtraceRegisters const& ptrace_regs)
 {
-    TODO_RISCV64();
+    for (auto i = 0; i < 31; i++)
+        kernel_regs.x[i] = ptrace_regs.x[i];
+
+    kernel_regs.set_userspace_sp(ptrace_regs.sp);
+    kernel_regs.set_ip(ptrace_regs.pc);
 }
 
 struct DebugRegisterState {

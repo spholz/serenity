@@ -251,7 +251,7 @@ fi
 if [ "$SERENITY_ARCH" = 'aarch64' ]; then
     SERENITY_BOOT_DRIVE="-drive file=${SERENITY_DISK_IMAGE},if=sd,format=raw"
 elif [ "$SERENITY_ARCH" = 'riscv64' ]; then
-    SERENITY_BOOT_DRIVE= # "-drive file=${SERENITY_DISK_IMAGE},if=sd,format=raw"
+    SERENITY_BOOT_DRIVE=" -drive file=${SERENITY_DISK_IMAGE},if=none,id=disk,format=raw -device sdhci-pci -device sd-card,drive=disk"
 elif [ -z "${SERENITY_NVME_ENABLE}" ] || [ "${SERENITY_NVME_ENABLE}" -eq 1 ]; then
     # NVME is enabled by default; disable by setting SERENITY_NVME_ENABLE=0
     SERENITY_BOOT_DRIVE="-drive file=${SERENITY_DISK_IMAGE},format=raw,index=0,media=disk,if=none,id=disk"
@@ -313,6 +313,7 @@ if [ -z "$SERENITY_MACHINE" ]; then
     elif [ "$SERENITY_ARCH" = "riscv64" ]; then
         SERENITY_MACHINE="
         -M virt
+        -device ramfb
         -serial mon:stdio
         "
     else
