@@ -16,7 +16,7 @@ if (ENABLE_USERSPACE_COVERAGE_COLLECTION)
     endif()
 endif()
 
-# add_subdirectory(Applications)
+add_subdirectory(Applications)
 add_subdirectory(Demos)
 add_subdirectory(DevTools)
 add_subdirectory(DynamicLoader)

@@ -127,10 +127,6 @@ is_valid_target() {
         CMAKE_ARGS+=("-DSERENITY_ARCH=aarch64")
         return 0
     fi
-    if [ "$TARGET" = "riscv64" ]; then
-        CMAKE_ARGS+=("-DSERENITY_ARCH=riscv64")
-        return 0
-    fi
     if [ "$TARGET" = "x86_64" ]; then
         CMAKE_ARGS+=("-DSERENITY_ARCH=x86_64")
         return 0

@@ -54,6 +54,7 @@ class QEMUFWCfg {
 public:
     static void must_initialize(PhysicalAddress, FlatPtr ctl_offset, FlatPtr data_offset, FlatPtr dma_offset);
     static QEMUFWCfg& the();
+    static StringView query_kernel_command_line(Bytes buffer);
     ErrorOr<void> initialize_ramfb(RAMFBCfg const&);
 
     template<IteratorFunction<FWCfgFile> Callback>

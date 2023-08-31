@@ -3,6 +3,7 @@
 _setjmp:
 setjmp:
     # FIXME: Possibly incomplete.
+    ebreak
     ret
 
 .global _longjmp
@@ -10,6 +11,7 @@ setjmp:
 _longjmp:
 longjmp:
     # FIXME: Possibly incomplete.
+    ebreak
     ret
 
 .global _sigsetjmp
@@ -17,4 +19,5 @@ longjmp:
 _sigsetjmp:
 sigsetjmp:
     # FIXME: Possibly incomplete.
+    ebreak
     ret

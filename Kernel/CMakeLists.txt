@@ -212,7 +212,8 @@ set(KERNEL_SOURCES
     Firmware/ACPI/Initialize.cpp
     Firmware/ACPI/Parser.cpp
     Firmware/ACPI/StaticParsing.cpp
-    Firmware/QEMUFwCfg.cpp
+    Firmware/QEMUFWCfg/QEMUFWCfg.cpp
+    Firmware/QEMUFWCfg/RAMFB.cpp
     Interrupts/GenericInterruptHandler.cpp
     Interrupts/IRQHandler.cpp
     Interrupts/PCIIRQHandler.cpp
@@ -751,7 +752,7 @@ if("${SERENITY_ARCH}" STREQUAL "aarch64")
     target_link_options(Kernel PRIVATE LINKER:-T ${CMAKE_CURRENT_SOURCE_DIR}/Arch/aarch64/linker.ld -nostdlib LINKER:--no-pie)
     set_target_properties(Kernel PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Arch/aarch64/linker.ld)
 elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
-    target_link_options(Kernel PRIVATE LINKER:-T ${CMAKE_CURRENT_SOURCE_DIR}/Arch/riscv64/linker.ld -nostdlib LINKER:--no-pie)
+    target_link_options(Kernel PRIVATE LINKER:-T ${CMAKE_CURRENT_SOURCE_DIR}/Arch/riscv64/linker.ld -nostdlib LINKER:--no-pie LINKER:-x)
     set_target_properties(Kernel PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Arch/riscv64/linker.ld)
 elseif ("${SERENITY_ARCH}" STREQUAL "x86_64")
     add_custom_command(

@@ -193,6 +193,9 @@ static void setup_kernel_page_directory(u64* root_table)
 
 void init_page_tables()
 {
+    if (RISCV64::Satp::read().MODE != RISCV64::Satp::Mode::Bare)
+        panic_without_mmu("Kernel booted with MMU enabled"sv);
+
     // TODO: verify satp.MODE == Bare
     *adjust_by_mapping_base(&physical_to_virtual_offset) = calculate_physical_to_link_time_address_offset();
     *adjust_by_mapping_base(&kernel_mapping_base) = KERNEL_MAPPING_BASE;
@@ -205,6 +208,11 @@ void init_page_tables()
     setup_kernel_page_directory(root_table);
 
     activate_mmu(root_table);
+}
+
+void unmap_identity_map()
+{
+    // TODO
 }
 
 }

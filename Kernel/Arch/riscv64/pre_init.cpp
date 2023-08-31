@@ -13,6 +13,10 @@
 
 namespace Kernel {
 
+namespace Memory {
+void unmap_identity_map();
+}
+
 extern "C" [[noreturn]] void init();
 
 extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, FlatPtr fdt_phys_addr);
@@ -52,7 +56,7 @@ extern "C" [[noreturn]] void pre_init(FlatPtr mhartid, PhysicalPtr fdt_phys_addr
         : "t0");
 
     // We can now unmap the identity map as everything is running in high virtual memory at this point.
-    // Memory::unmap_identity_map();
+    Memory::unmap_identity_map();
 
     // Set the Supervisor Trap Vector Base Address Register (stvec) to the trap handler function
     asm volatile(

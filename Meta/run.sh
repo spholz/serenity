@@ -312,6 +312,7 @@ if [ -z "$SERENITY_MACHINE" ]; then
         "
     elif [ "$SERENITY_ARCH" = "riscv64" ]; then
         SERENITY_MACHINE="
+        -m $SERENITY_RAM_SIZE
         -M virt
         -device ramfb
         -serial mon:stdio

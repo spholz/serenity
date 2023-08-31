@@ -2,14 +2,16 @@
 
 #define XLEN 8
 
-#define REGISTER_STATE_SIZE (34 * XLEN)
+#define REGISTER_STATE_SIZE (36 * XLEN)
 #if REGISTER_STATE_SIZE % 16 != 0
 #    error "REGISTER_STATE_SIZE is not a multiple of 16 bytes!"
 #endif
 
 #define SSTATUS_SLOT        (31 * XLEN)
-#define PC_SLOT             (32 * XLEN)
-#define USERSPACE_SP_SLOT   (33 * XLEN)
+#define SEPC_SLOT           (32 * XLEN)
+#define SCAUSE_SLOT         (33 * XLEN)
+#define STVAL_SLOT          (34 * XLEN)
+#define USERSPACE_SP_SLOT   (35 * XLEN)
 
 .extern trap_handler
 
@@ -77,9 +79,18 @@ asm_trap_handler:
     csrr t0, sstatus
     sd t0, SSTATUS_SLOT(sp)
     csrr t0, sepc
-    sd t0, PC_SLOT(sp)
+    sd t0, SEPC_SLOT(sp)
+
+    // We also have to those registers as interrupts are enabled during the page fault handling code.
+    // A page fault exception may be reported as an interrupt in the register dump, if we wouldn't do that.
+    csrr t0, scause
+    sd t0, SCAUSE_SLOT(sp)
+    csrr t0, stval
+    sd t0, STVAL_SLOT(sp)
+
     csrrw t0, sscratch, zero
     sd t0, USERSPACE_SP_SLOT(sp)
+
 
     // Set up TrapFrame struct on the stack
     mv t0, sp
@@ -101,7 +112,7 @@ asm_trap_handler:
     // Restore special registers first
     ld t0, SSTATUS_SLOT(sp)
     csrw sstatus, t0
-    ld t0, PC_SLOT(sp)
+    ld t0, SEPC_SLOT(sp)
     csrw sepc, t0
 
     ld x1, 0*XLEN(sp)
@@ -174,7 +185,7 @@ restore_context_and_sret:
     // Restore special registers first
     ld t0, SSTATUS_SLOT(sp)
     csrw sstatus, t0
-    ld t0, PC_SLOT(sp)
+    ld t0, SEPC_SLOT(sp)
     csrw sepc, t0
 
     ld x1, 0*XLEN(sp)

@@ -19,9 +19,7 @@ Timer::Timer()
     // QEMU/RVVM
     m_frequency = 10'000'000;
     // VisionFive 2
-    // m_frequency = 4000000; ?
-
-    m_frequency = 1'000'000'000;
+    // m_frequency = 4'000'000;
 
     set_interrupt_interval_usec(m_frequency / OPTIMAL_TICKS_PER_SECOND_RATE);
     enable_interrupt_mode();

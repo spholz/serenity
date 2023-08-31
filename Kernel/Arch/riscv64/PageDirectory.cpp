@@ -26,8 +26,6 @@ static Singleton<SatpMap> s_satp_map;
 
 void PageDirectory::register_page_directory(PageDirectory* directory)
 {
-    dbgln("XXX PageDirectory::register_page_directory({:p}): directory->satp(): {:p}", directory, directory->satp());
-
     s_satp_map->map.with([&](auto& map) {
         map.insert(directory->satp(), *directory);
     });
@@ -80,8 +78,6 @@ LockRefPtr<PageDirectory> PageDirectory::find_current()
 
 void activate_kernel_page_directory(PageDirectory const& page_directory)
 {
-    dbgln("XXX activate_kernel_page_directory({:p}): page_directory.satp(): {:p}", &page_directory, page_directory.satp());
-
     FlatPtr const satp_val = page_directory.satp();
     RISCV64::Asm::set_satp(satp_val);
     Processor::flush_entire_tlb_local();
@@ -89,8 +85,6 @@ void activate_kernel_page_directory(PageDirectory const& page_directory)
 
 void activate_page_directory(PageDirectory const& page_directory, Thread* current_thread)
 {
-    dbgln("XXX activate_page_directory({:p}, {}): page_directory.satp(): {:p}", &page_directory, *current_thread, page_directory.satp());
-
     FlatPtr const satp_val = page_directory.satp();
     current_thread->regs().satp = satp_val;
     RISCV64::Asm::set_satp(satp_val);

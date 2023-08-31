@@ -60,7 +60,7 @@ struct ThreadRegisters {
         sstatus.SPP = is_kernel_process ? RISCV64::Sstatus::PrivilegeMode::Supervisor : RISCV64::Sstatus::PrivilegeMode::User;
         sstatus.UXL = RISCV64::Sstatus::XLEN::Bits64;
 
-        memcpy(&this->sstatus, &sstatus, sizeof(u64));
+        memcpy(&this->sstatus, &sstatus, sizeof(RISCV64::Sstatus));
     }
 };
 

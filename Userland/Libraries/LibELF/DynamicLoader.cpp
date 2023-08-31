@@ -237,7 +237,7 @@ void DynamicLoader::do_main_relocations()
     // FIXME: Or LD_BIND_NOW is set?
     if (m_dynamic_object->must_bind_now()) {
         m_dynamic_object->plt_relocation_section().for_each_relocation([&](DynamicObject::Relocation const& relocation) {
-            if (relocation.type() == R_X86_64_IRELATIVE || relocation.type() == R_AARCH64_IRELATIVE) {
+            if (relocation.type() == R_X86_64_IRELATIVE || relocation.type() == R_AARCH64_IRELATIVE || relocation.type() == R_RISCV_RELATIVE) {
                 m_direct_ifunc_relocations.append(relocation);
                 return;
             }
@@ -259,7 +259,8 @@ void DynamicLoader::do_main_relocations()
         });
     } else {
         m_dynamic_object->plt_relocation_section().for_each_relocation([&](DynamicObject::Relocation const& relocation) {
-            if (relocation.type() == R_X86_64_IRELATIVE || relocation.type() == R_AARCH64_IRELATIVE) {
+            if (relocation.type() == R_X86_64_IRELATIVE || relocation.type() == R_AARCH64_IRELATIVE
+                || relocation.type() == R_RISCV_RELATIVE) {
                 m_direct_ifunc_relocations.append(relocation);
                 return;
             }
@@ -723,7 +724,6 @@ DynamicLoader::RelocationResult DynamicLoader::do_direct_relocation(DynamicObjec
     case R_X86_64_JUMP_SLOT:
 #endif
     case R_RISCV_JUMP_SLOT:
-        dbgln("jump slot in {}", m_filepath);
         VERIFY_NOT_REACHED(); // PLT relocations are handled by do_plt_relocation.
     default:
         // Raise the alarm! Someone needs to implement this relocation type
@@ -802,8 +802,13 @@ void DynamicLoader::setup_plt_trampoline()
     VirtualAddress got_address = m_dynamic_object->plt_got_base_address();
 
     auto* got_ptr = (FlatPtr*)got_address.as_ptr();
+#if ARCH(RISCV64)
+    got_ptr[0] = (FlatPtr)&_plt_trampoline;
+    got_ptr[1] = (FlatPtr)m_dynamic_object.ptr();
+#else
     got_ptr[1] = (FlatPtr)m_dynamic_object.ptr();
     got_ptr[2] = (FlatPtr)&_plt_trampoline;
+#endif
 }
 
 // Called from our ASM routine _plt_trampoline.

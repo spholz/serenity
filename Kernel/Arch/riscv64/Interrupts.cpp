@@ -83,13 +83,11 @@ ErrorOr<u8> reserve_interrupt_handlers([[maybe_unused]] u8 number_of_irqs)
 void dump_registers(RegisterState const& regs);
 void dump_registers(RegisterState const& regs)
 {
-    auto scause = RISCV64::Asm::get_scause();
-    auto stval = RISCV64::Asm::get_stval();
     auto satp = RISCV64::Asm::get_satp();
 
-    dbgln("scause:  {} ({:p})", RISCV64::scause_to_string(scause), scause);
-    dbgln("sepc:    {:p}", regs.pc);
-    dbgln("stval:   {:p}", stval);
+    dbgln("scause:  {} ({:p})", RISCV64::scause_to_string(regs.scause), regs.scause);
+    dbgln("sepc:    {:p}", regs.sepc);
+    dbgln("stval:   {:p}", regs.stval);
     dbgln("sstatus: {}", bit_cast<RISCV64::Sstatus>(regs.sstatus));
     dbgln("satp:    {:p}", satp);
 
@@ -111,47 +109,41 @@ extern "C" [[noreturn]] [[gnu::aligned(4)]] void trap_handler_nommu()
 extern "C" void trap_handler(TrapFrame& trap_frame);
 extern "C" void trap_handler(TrapFrame& trap_frame)
 {
-    auto scause = RISCV64::Asm::get_scause();
+    auto scause = trap_frame.regs->scause;
 
     if ((scause >> 63) == 1) {
         // Interrupt
         Processor::current().enter_trap(trap_frame, true);
 
-        auto* handler = s_interrupt_handlers[5];
-        VERIFY(handler);
-        handler->increment_call_count();
-        handler->handle_interrupt(*trap_frame.regs);
-        handler->eoi();
+        for (auto& interrupt_controller : InterruptManagement::the().controllers()) {
+            auto pending_interrupts = interrupt_controller->pending_interrupts();
 
-        // for (auto& interrupt_controller : InterruptManagement::the().controllers()) {
-        //     auto pending_interrupts = interrupt_controller->pending_interrupts();
+            // TODO: Add these interrupts as a source of entropy for randomness.
+            u8 irq = 0;
+            while (pending_interrupts) {
+                if ((pending_interrupts & 0b1) != 0b1) {
+                    irq += 1;
+                    pending_interrupts >>= 1;
+                    continue;
+                }
 
-        //     // TODO: Add these interrupts as a source of entropy for randomness.
-        //     u8 irq = 0;
-        //     while (pending_interrupts) {
-        //         if ((pending_interrupts & 0b1) != 0b1) {
-        //             irq += 1;
-        //             pending_interrupts >>= 1;
-        //             continue;
-        //         }
+                auto* handler = s_interrupt_handlers[irq];
+                VERIFY(handler);
+                handler->increment_call_count();
+                handler->handle_interrupt(*trap_frame.regs);
+                handler->eoi();
 
-        //         auto* handler = s_interrupt_handlers[irq];
-        //         VERIFY(handler);
-        //         handler->increment_call_count();
-        //         handler->handle_interrupt(*trap_frame.regs);
-        //         handler->eoi();
-
-        //         irq += 1;
-        //         pending_interrupts >>= 1;
-        //     }
-        // }
+                irq += 1;
+                pending_interrupts >>= 1;
+            }
+        }
 
         Processor::current().exit_trap(trap_frame);
     } else {
         // Exception
         Processor::current().enter_trap(trap_frame, false);
 
-        auto const stval = RISCV64::Asm::get_stval();
+        auto const stval = trap_frame.regs->stval;
         Processor::enable_interrupts();
 
         if (RISCV64::scause_is_page_fault(scause)) {
@@ -180,7 +172,7 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
             fault.handle(*trap_frame.regs);
         } else if (scause == 8) {
             syscall_handler(&trap_frame);
-            trap_frame.regs->pc += 4;
+            trap_frame.regs->sepc += 4;
             trap_frame.regs->x[3] = Processor::current_thread()->thread_specific_data().get();
         } else {
             handle_crash(*trap_frame.regs, "Unexpected exception", SIGSEGV, false);

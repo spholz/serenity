@@ -16,8 +16,7 @@ linux_header:
   .dword 1 * 1024 * 1024           // u64 text_offset
 
   // u64 image_size
-  // .dword end_of_kernel_image - start_of_kernel_image
-  .dword 0
+  .dword end_of_kernel_image - linux_header
 
   .dword 0                         // u64 flags
   .word 2                          // u32 version

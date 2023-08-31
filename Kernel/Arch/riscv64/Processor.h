@@ -16,7 +16,10 @@
 #include <Kernel/Arch/riscv64/Registers.h>
 #include <Kernel/Memory/VirtualAddress.h>
 
-struct FPUState {
+// FIXME This needs to go behind some sort of platform abstraction
+//       it is used between Thread and Processor.
+struct [[gnu::aligned(16)]] FPUState {
+    u8 buffer[512];
 };
 
 namespace Kernel {

@@ -129,8 +129,6 @@ void Processor::initialize_context_switching(Thread& initial_thread)
     // FIXME: Figure out if we need to call {pre_,post_,}init_finished once riscv64 supports SMP
     Processor::set_current_in_scheduler(true);
 
-    m_in_critical = 0; // FIXME
-
     auto& regs = initial_thread.regs();
     // clang-format off
     asm volatile(
@@ -291,9 +289,9 @@ extern "C" FlatPtr do_init_context(Thread* thread, u32 new_interrupts_state)
     VERIFY_INTERRUPTS_DISABLED();
 
     RISCV64::Sstatus sstatus = {};
-    memcpy(&sstatus, (u8 const*)&thread->regs().sstatus, sizeof(u64));
+    memcpy(&sstatus, &thread->regs().sstatus, sizeof(RISCV64::Sstatus));
     sstatus.SPIE = (new_interrupts_state == to_underlying(InterruptsState::Enabled));
-    memcpy((void*)&thread->regs().sstatus, &sstatus, sizeof(u64));
+    memcpy(&thread->regs().sstatus, &sstatus, sizeof(RISCV64::Sstatus));
 
     return Processor::current().init_context(*thread, true);
 }
@@ -329,10 +327,8 @@ FlatPtr Processor::init_context(Thread& thread, bool leave_crit)
     kernel_stack_top -= round_up_to_power_of_two(get_fast_random<u8>(), 16);
 
     u64 stack_top = kernel_stack_top;
-    dbgln("kernel_stack_top: {:p}", kernel_stack_top);
 
     auto& thread_regs = thread.regs();
-    dbgln("thread_regs.satp: {:p}", thread_regs.satp);
 
     // Push a RegisterState and TrapFrame onto the stack, which will be popped of the stack and restored into the
     // state of the processor by restore_previous_context.
@@ -347,7 +343,7 @@ FlatPtr Processor::init_context(Thread& thread, bool leave_crit)
         // x1 is the return address register for the riscv64 ABI, so this will return to exit_kernel_thread when main thread function returns.
         frame.x[0] = FlatPtr(&exit_kernel_thread);
     }
-    frame.pc = thread_regs.pc;
+    frame.sepc = thread_regs.pc;
     frame.set_userspace_sp(thread_regs.sp());
     frame.sstatus = thread_regs.sstatus;
 
@@ -370,8 +366,6 @@ FlatPtr Processor::init_context(Thread& thread, bool leave_crit)
     // which restores the context set up above.
     thread_regs.set_sp(stack_top);
     thread_regs.set_ip(FlatPtr(&thread_context_first_enter));
-
-    dbgln("sstatus: {}", bit_cast<RISCV64::Sstatus>(frame.sstatus));
 
     return stack_top;
 }
@@ -519,8 +513,6 @@ extern "C" void context_first_init(Thread* from_thread, Thread* to_thread)
     // as we're still in the middle of a context switch. Doing so could
     // trigger a context switch within a context switch, leading to a crash.
     Scheduler::leave_on_first_switch(InterruptsState::Disabled);
-
-    dbgln("sstatus: {}", bit_cast<RISCV64::Sstatus>(to_thread->regs().sstatus));
 }
 
 extern "C" [[gnu::used]] void enter_thread_context(Thread* from_thread, Thread* to_thread);

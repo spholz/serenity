@@ -72,35 +72,21 @@ void QEMUFWCfg::must_initialize(PhysicalAddress fw_cfg_addr, FlatPtr ctl_offset,
         return IterationDecision::Continue;
     });
 
-    size_t width = 640;
-    size_t height = 480;
-    size_t bpp = 32;
-    size_t stride = width * (bpp / 8);
-
-#define fourcc_code(a, b, c, d) ((uint32_t)(a) | ((uint32_t)(b) << 8) | ((uint32_t)(c) << 16) | ((uint32_t)(d) << 24))
-
-    // auto framebuffer_region_size = Memory::page_round_up(height * stride).release_value_but_fixme_should_propagate_errors();
-    // auto framebuffer_region = MM.allocate_kernel_region(framebuffer_region_size, "QEMU ramfb Framebuffer"sv, Memory::Region::Access::ReadWrite, AllocationStrategy::Reserve, Memory::Region::Cacheable::No).release_value();
-    // framebuffer_data = framebuffer_region->vaddr().as_ptr();
-    // auto framebuffer_paddr = framebuffer_region->physical_page(0)->paddr();
-
-    auto framebuffer_paddr = PhysicalAddress { 0x8200'0000 };
-
     MUST(fw_cfg.initialize_ramfb({
-        .addr = framebuffer_paddr.get(),
-        .fourcc = fourcc_code('X', 'R', '2', '4'),
+        .addr = multiboot_framebuffer_addr.get(),
+        .fourcc = 0x34325258,
         .flags = 0,
-        .width = width,
-        .height = height,
-        .stride = stride,
+        .width = multiboot_framebuffer_width,
+        .height = multiboot_framebuffer_height,
+        .stride = multiboot_framebuffer_pitch,
     }));
+}
 
-    multiboot_framebuffer_addr = framebuffer_paddr;
-    multiboot_framebuffer_width = width;
-    multiboot_framebuffer_height = height;
-    multiboot_framebuffer_pitch = stride;
-
-    multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
+StringView query_kernel_command_line(Bytes buffer)
+{
+    (void)buffer;
+    // TODO
+    return {};
 }
 
 ErrorOr<void> QEMUFWCfg::initialize_ramfb(RAMFBCfg const& cfg)

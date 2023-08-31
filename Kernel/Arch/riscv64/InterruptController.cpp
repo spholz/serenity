@@ -39,7 +39,7 @@ u64 InterruptController::pending_interrupts() const
     asm volatile("csrr %0, sip"
                  : "=r"(sip));
 
-    return popcount(sip);
+    return sip;
 }
 
 }

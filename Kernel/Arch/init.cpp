@@ -216,19 +216,32 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     static multiboot_memory_map_t mmap[] = {
         {
             sizeof(struct multiboot_mmap_entry) - sizeof(u32),
-            (u64)0x81000000,
-            (u64)2 * GiB,
+            (u64)0x8004'0000,
+            (u64)(1 * GiB) - 0x0004'0000,
             MULTIBOOT_MEMORY_AVAILABLE,
+        },
+        {
+            // OpenSBI
+            sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+            (u64)0x8000'0000,
+            (u64)0x0002'0000,
+            MULTIBOOT_MEMORY_RESERVED,
+        },
+        {
+            // U-Boot
+            sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+            (u64)0x8002'0000,
+            (u64)0x0002'0000,
+            MULTIBOOT_MEMORY_RESERVED,
         },
         {
             // Framebuffer
             sizeof(struct multiboot_mmap_entry) - sizeof(u32),
-            (u64)0x82000000,
-            (u64)640 * 480 * 32,
+            (u64)0x8200'0000,
+            (u64)1280 * 720 * 32,
             MULTIBOOT_MEMORY_RESERVED,
         },
     };
-    multiboot_memory_map_count = 1;
 
     // VisonFive 2
     // static multiboot_memory_map_t mmap[] = {
@@ -236,7 +249,6 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     //         sizeof(struct multiboot_mmap_entry) - sizeof(u32),
     //         (u64)0x45000000,
     //         (u64)4 * GiB,
-
     //         MULTIBOOT_MEMORY_AVAILABLE,
     //     },
     //     {
@@ -254,9 +266,9 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     //         MULTIBOOT_MEMORY_RESERVED,
     //     },
     // };
-    // multiboot_memory_map_count = 3;
 
     multiboot_memory_map = mmap;
+    multiboot_memory_map_count = array_size(mmap);
     multiboot_modules = nullptr;
     multiboot_modules_count = 0;
 
@@ -267,8 +279,8 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
 
     // QEMU Placeholder
     multiboot_framebuffer_addr = PhysicalAddress { 0x8200'0000 };
-    multiboot_framebuffer_width = 640;
-    multiboot_framebuffer_height = 480;
+    multiboot_framebuffer_width = 1280;
+    multiboot_framebuffer_height = 720;
 
     // VisionFive 2 U-Boot Framebuffer
     // multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 };
@@ -285,7 +297,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
 
     kernel_mapping_base = KERNEL_MAPPING_BASE;
-    kernel_cmdline = "serial_debug nvme_poll"sv;
+    kernel_cmdline = "serial_debug nvme_poll system_mode=graphical switch_to_tty=2"sv;
 #endif
 
     setup_serial_debug();
@@ -307,9 +319,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
         (*ctor)();
     kmalloc_init();
 
-#if !(defined(AK_COMPILER_CLANG) && ARCH(RISCV64))
     load_kernel_symbol_table();
-#endif
 
     bsp_processor().initialize(0);
 

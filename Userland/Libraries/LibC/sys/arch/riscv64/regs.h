@@ -31,14 +31,12 @@ struct [[gnu::packed]] PtraceRegisters : public __mcontext {
 
     FlatPtr bp() const
     {
-        return 0; // TODO
-        // return x[29];
+        return x[7];
     }
 
-    void set_bp([[maybe_unused]] FlatPtr bp)
+    void set_bp(FlatPtr bp)
     {
-        // TODO
-        // x[29] = bp;
+        x[7] = bp;
     }
 #    endif
 };
