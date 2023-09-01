@@ -458,11 +458,16 @@ void signal_trampoline_dummy()
         "asm_signal_trampoline_end: \n" ::[sigreturn_syscall_number] "i"(Syscall::SC_sigreturn),
         [offset_to_first_register_slot] "i"(offset_to_first_register_slot));
 #elif ARCH(RISCV64)
-    constexpr static auto offset_to_first_register_slot = align_up_to(sizeof(__ucontext) + sizeof(siginfo) + sizeof(FPUState) + 3 * sizeof(FlatPtr), 16);
+    constexpr static auto offset_to_a0_slot = align_up_to(sizeof(__ucontext) + sizeof(siginfo) + sizeof(FPUState) + 3 * sizeof(FlatPtr), 16);
     asm(
         ".global asm_signal_trampoline\n"
         "asm_signal_trampoline:\n"
         // stack state: 0, ucontext, signal_info (alignment = 16), fpu_state (alignment = 16), ucontext*, siginfo*, signal, handler
+
+        // FIXME: remove these NOPs once we decide when to add 4 to sepc
+        //        as currently this code will be entered at offset 4 due to us always incrementing sepc by 4 after handling a syscall
+        "nop\n"
+        "nop\n"
 
         // Load the handler address into t0.
         "ld t0, 0(sp)\n"
@@ -487,7 +492,7 @@ void signal_trampoline_dummy()
         "\n"
         ".global asm_signal_trampoline_end\n"
         "asm_signal_trampoline_end: \n" ::[sigreturn_syscall_number] "i"(Syscall::SC_sigreturn),
-        [offset_to_first_register_slot] "i"(offset_to_first_register_slot));
+        [offset_to_first_register_slot] "i"(offset_to_a0_slot));
 #else
 #    error Unknown architecture
 #endif
