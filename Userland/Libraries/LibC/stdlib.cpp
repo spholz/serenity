@@ -352,8 +352,13 @@ void exit(int status)
     if (secure_getenv("LIBC_DUMP_MALLOC_STATS"))
         serenity_dump_malloc_stats();
 
+#if !ARCH(RISCV64)
+    // RISC-V does not require DT_FINI to be supported
+    // See RISC-V ABIs Specification (https://github.com/riscv-non-isa/riscv-elf-psabi-doc), 8.9 Dynamic Section
     extern void _fini();
     _fini();
+#endif
+
     fflush(nullptr);
 
 #ifndef _DYNAMIC_LOADER

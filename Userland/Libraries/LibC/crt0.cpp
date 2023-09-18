@@ -30,10 +30,17 @@ NAKED void _start(int, char**, char**)
         "mov x29, 0\n"
         "mov x30, 0\n"
         "bl _entry\n");
-#    else
+#    elif ARCH(RISCV64)
+    asm(
+        "li fp, 0\n"
+        "li ra, 0\n"
+        "jal _entry\n");
+#    elif ARCH(X86_64)
     asm(
         "push $0\n"
         "jmp _entry@plt\n");
+#    else
+#        error "Unknown architecture"
 #    endif
 }
 
@@ -45,7 +52,11 @@ int _entry(int argc, char** argv, char** env)
 
     s_global_initializers_ran = true;
 
+#    if !ARCH(RISCV64)
+    // RISC-V does not require DT_INIT to be supported
+    // See RISC-V ABIs Specification (https://github.com/riscv-non-isa/riscv-elf-psabi-doc), 8.9 Dynamic Section
     _init();
+#    endif
 
     int status = main(argc, argv, environ);
 

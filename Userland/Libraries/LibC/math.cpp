@@ -10,7 +10,7 @@
 #include <AK/BuiltinWrappers.h>
 #include <AK/ExtraMathConstants.h>
 #include <AK/FloatingPoint.h>
-#if !ARCH(AARCH64)
+#if ARCH(X86_64)
 #    include <AK/FPControl.h>
 #endif
 #include <AK/Math.h>
@@ -364,7 +364,7 @@ MAKE_AK_BACKED2(remainder);
 
 long double truncl(long double x) NOEXCEPT
 {
-#if !ARCH(AARCH64)
+#if ARCH(X86_64)
     if (fabsl(x) < LONG_LONG_MAX) {
         // This is 1.6 times faster than the implementation using the "internal_to_integer"
         // helper (on x86_64)
@@ -384,7 +384,7 @@ long double truncl(long double x) NOEXCEPT
 
 double trunc(double x) NOEXCEPT
 {
-#if !ARCH(AARCH64)
+#if ARCH(X86_64)
     if (fabs(x) < LONG_LONG_MAX) {
         u64 temp;
         asm(
@@ -401,7 +401,7 @@ double trunc(double x) NOEXCEPT
 
 float truncf(float x) NOEXCEPT
 {
-#if !ARCH(AARCH64)
+#if ARCH(X86_64)
     if (fabsf(x) < LONG_LONG_MAX) {
         u64 temp;
         asm(
@@ -421,13 +421,18 @@ long double rintl(long double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     long double res;
     asm(
         "frndint\n"
         : "=t"(res)
         : "0"(value));
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 double rint(double value)
@@ -435,13 +440,18 @@ double rint(double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     double res;
     asm(
         "frndint\n"
         : "=t"(res)
         : "0"(value));
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 float rintf(float value)
@@ -449,13 +459,18 @@ float rintf(float value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     float res;
     asm(
         "frndint\n"
         : "=t"(res)
         : "0"(value));
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 
@@ -464,7 +479,10 @@ long lrintl(long double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     long res;
     asm(
         "fistpl %0\n"
@@ -472,6 +490,8 @@ long lrintl(long double value)
         : "t"(value)
         : "st");
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 long lrint(double value)
@@ -479,7 +499,10 @@ long lrint(double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     long res;
     asm(
         "fistpl %0\n"
@@ -487,6 +510,8 @@ long lrint(double value)
         : "t"(value)
         : "st");
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 long lrintf(float value)
@@ -494,7 +519,10 @@ long lrintf(float value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     long res;
     asm(
         "fistpl %0\n"
@@ -502,6 +530,8 @@ long lrintf(float value)
         : "t"(value)
         : "st");
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 
@@ -510,7 +540,10 @@ long long llrintl(long double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     long long res;
     asm(
         "fistpq %0\n"
@@ -518,6 +551,8 @@ long long llrintl(long double value)
         : "t"(value)
         : "st");
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 long long llrint(double value)
@@ -525,7 +560,10 @@ long long llrint(double value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     long long res;
     asm(
         "fistpq %0\n"
@@ -533,6 +571,8 @@ long long llrint(double value)
         : "t"(value)
         : "st");
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 long long llrintf(float value)
@@ -540,7 +580,10 @@ long long llrintf(float value)
 #if ARCH(AARCH64)
     (void)value;
     TODO_AARCH64();
-#else
+#elif ARCH(RISCV64)
+    (void)value;
+    TODO_RISCV64();
+#elif ARCH(X86_64)
     long long res;
     asm(
         "fistpq %0\n"
@@ -548,6 +591,8 @@ long long llrintf(float value)
         : "t"(value)
         : "st");
     return res;
+#else
+#    error "Unknown architecture"
 #endif
 }
 
