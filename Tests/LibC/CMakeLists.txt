@@ -3,6 +3,7 @@ set(TEST_SOURCES
     TestAssert.cpp
     TestCType.cpp
     TestEnvironment.cpp
+    TestFenv.cpp
     TestIo.cpp
     TestLibCExec.cpp
     TestLibCDirEnt.cpp
@@ -39,6 +40,8 @@ set(TEST_SOURCES
 
 set_source_files_properties(TestMath.cpp PROPERTIES COMPILE_FLAGS "-fno-builtin")
 set_source_files_properties(TestStrtodAccuracy.cpp PROPERTIES COMPILE_FLAGS "-fno-builtin-strtod")
+# Prevent floating-point calculations from being constant folded.
+set_source_files_properties(TestFenv.cpp PROPERTIES COMPILE_FLAGS "-O0")
 
 foreach(source IN LISTS TEST_SOURCES)
     serenity_test("${source}" LibC)
