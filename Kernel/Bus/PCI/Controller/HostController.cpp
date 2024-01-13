@@ -100,7 +100,7 @@ UNMAP_AFTER_INIT void HostController::enumerate_device(Function<IterationDecisio
 UNMAP_AFTER_INIT void HostController::enumerate_bus(Function<IterationDecision(EnumerableDeviceIdentifier)> const& callback, BusNumber bus, bool recursive_search_into_bridges)
 {
     dbgln_if(PCI_DEBUG, "PCI: Enumerating bus {}", bus);
-    for (u8 device = 0; device < 32; ++device)
+    for (u8 device = 0; device < 1; ++device)
         enumerate_device(callback, bus, device, recursive_search_into_bridges);
 }
 

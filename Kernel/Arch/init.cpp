@@ -224,19 +224,68 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT void init([[maybe_unused]] BootInfo con
     // FIXME: Read the /chosen/bootargs property.
     kernel_cmdline = RPi::Mailbox::the().query_kernel_command_line(s_command_line_buffer);
 #elif ARCH(RISCV64)
+    // QEMU
+    // static multiboot_memory_map_t mmap[] = {
+    //     {
+    //         sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+    //         (u64)0x8020'0000,
+    //         (u64)1 * GiB - 0x20'0000,
+    //         MULTIBOOT_MEMORY_AVAILABLE,
+    //     }
+    // };
+
+    // VF2
     static multiboot_memory_map_t mmap[] = {
         {
+            // Memory before framebuffer
             sizeof(struct multiboot_mmap_entry) - sizeof(u32),
-            (u64)0x8020'0000,
-            (u64)1 * GiB - 0x20'0000,
+            (u64)0x4500'0000,
+            (u64)0xb900'0000,
             MULTIBOOT_MEMORY_AVAILABLE,
-        }
+        },
+        {
+            // Memory after framebuffer
+            sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+            (u64)0x1'0000'0000,
+            (u64)0x4000'0000,
+            MULTIBOOT_MEMORY_AVAILABLE,
+        },
+        {
+            // OpenSBI
+            sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+            (u64)0x4000'0000,
+            (u64)0x0008'0000,
+            MULTIBOOT_MEMORY_RESERVED,
+        },
+        {
+            // Framebuffer
+            sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+            (u64)0xfe00'0000,
+            (u64)1920 * 1080 * 4,
+            MULTIBOOT_MEMORY_RESERVED,
+        },
+        {
+            // PCIe ECAM space
+            sizeof(struct multiboot_mmap_entry) - sizeof(u32),
+            (u64)0x9'c000'0000,
+            (u64)0x1000'0000,
+            MULTIBOOT_MEMORY_RESERVED,
+        },
     };
 
     multiboot_memory_map = mmap;
     multiboot_memory_map_count = array_size(mmap);
     multiboot_modules = nullptr;
     multiboot_modules_count = 0;
+
+    // VF2 U-Boot Framebuffer
+    multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 };
+    multiboot_framebuffer_width = 1920;
+    multiboot_framebuffer_height = 1080;
+    multiboot_framebuffer_bpp = 32;
+    multiboot_framebuffer_pitch = multiboot_framebuffer_width * (multiboot_framebuffer_bpp / 8);
+    multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
+    multiboot_flags = MULTIBOOT_INFO_FRAMEBUFFER_INFO;
 
     kernel_cmdline = "serial_debug nvme_poll root=nvme:0:1:0"sv;
 #endif

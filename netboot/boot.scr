@@ -1,0 +1,6 @@
+pci enum
+nvme scan
+setenv serverip 192.168.178.30
+if tftpboot ${kernel_addr_r} ${serverip}:Kernel.bin; then go ${kernel_addr_r} -1 ${fdtcontroladdr}; fi
+#if tftpboot ${kernel_addr_r} ${serverip}:kernel.bin; then go ${kernel_addr_r} -1 ${fdtcontroladdr}; fi
+if dhcp ${kernel_addr_r} ${serverip}:EFI/BOOT/BOOTRISCV64.EFI; then bootefi ${kernel_addr_r} ${fdtcontroladdr}; fi

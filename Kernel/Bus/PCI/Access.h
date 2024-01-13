@@ -19,12 +19,12 @@ namespace Kernel::PCI {
 
 class Access {
 public:
-    static bool initialize_for_multiple_pci_domains(PhysicalAddress mcfg_table);
-
 #if ARCH(X86_64)
     static bool initialize_for_one_pci_domain();
+    static bool initialize_for_multiple_pci_domains(PhysicalAddress mcfg_table);
 #elif ARCH(RISCV64)
     static bool initialize_for_one_pci_domain(PhysicalAddress ecam_addr);
+    static bool initialize_for_multiple_pci_domains(Span<PhysicalAddress> ecam_addrs);
 #endif
 
     ErrorOr<void> fast_enumerate(Function<void(DeviceIdentifier const&)>&) const;

@@ -27,6 +27,8 @@ GenericDisplayConnector::GenericDisplayConnector(PhysicalAddress framebuffer_add
     m_current_mode_setting.horizontal_active = width;
     m_current_mode_setting.vertical_active = height;
     m_current_mode_setting.horizontal_stride = pitch;
+
+    m_l2_cache_mmio_region = MM.allocate_kernel_region(PhysicalAddress { 0x0201'0000 }, 0x4000, "SiFive L2 Cache Controller"sv, Memory::Region::Access::ReadWrite, Memory::Region::Cacheable::No).release_value_but_fixme_should_propagate_errors();
 }
 
 ErrorOr<void> GenericDisplayConnector::create_attached_framebuffer_console()
@@ -56,7 +58,22 @@ void GenericDisplayConnector::disable_console()
 
 ErrorOr<void> GenericDisplayConnector::flush_first_surface()
 {
-    return Error::from_errno(ENOTSUP);
+    asm volatile("fence" ::
+                     : "memory");
+
+    auto* flush64 = reinterpret_cast<u64 volatile*>(m_l2_cache_mmio_region->vaddr().offset(0x0200).as_ptr());
+    for (FlatPtr line = m_framebuffer_address.value().get(); line < m_framebuffer_address.value().get() + m_framebuffer_resource_size; line += 64) {
+        *flush64 = line;
+        asm volatile("fence" ::
+                         : "memory");
+    }
+
+    return {};
+}
+
+ErrorOr<void> GenericDisplayConnector::flush_rectangle(size_t, FBRect const&)
+{
+    return flush_first_surface();
 }
 
 }

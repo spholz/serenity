@@ -17,7 +17,12 @@ Timer::Timer()
     // FIXME: Actually query the frequency of the timer from the device tree.
 
     // Based on the "/cpus/timebase-frequency" device tree node for the QEMU virt machine
-    m_frequency = 10'000'000; // in Hz
+
+    // QEMU
+    // m_frequency = 10'000'000; // in Hz
+
+    // VF2
+    m_frequency = 4'000'000; // in Hz
 
     m_interrupt_interval = m_frequency / OPTIMAL_TICKS_PER_SECOND_RATE;
 

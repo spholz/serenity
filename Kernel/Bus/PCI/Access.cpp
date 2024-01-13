@@ -98,17 +98,6 @@ UNMAP_AFTER_INIT bool Access::find_and_register_pci_host_bridges_from_acpi_mcfg_
     return true;
 }
 
-UNMAP_AFTER_INIT bool Access::initialize_for_multiple_pci_domains(PhysicalAddress mcfg_table)
-{
-    VERIFY(!Access::is_initialized());
-    auto* access = new Access();
-    if (!access->find_and_register_pci_host_bridges_from_acpi_mcfg_table(mcfg_table))
-        return false;
-    access->rescan_hardware();
-    dbgln_if(PCI_DEBUG, "PCI: access for multiple PCI domain initialised.");
-    return true;
-}
-
 #if ARCH(X86_64)
 UNMAP_AFTER_INIT bool Access::initialize_for_one_pci_domain()
 {
@@ -118,6 +107,16 @@ UNMAP_AFTER_INIT bool Access::initialize_for_one_pci_domain()
     access->add_host_controller(move(host_bridge));
     access->rescan_hardware();
     dbgln_if(PCI_DEBUG, "PCI: access for one PCI domain initialised.");
+    return true;
+}
+UNMAP_AFTER_INIT bool Access::initialize_for_multiple_pci_domains(PhysicalAddress mcfg_table)
+{
+    VERIFY(!Access::is_initialized());
+    auto* access = new Access();
+    if (!access->find_and_register_pci_host_bridges_from_acpi_mcfg_table(mcfg_table))
+        return false;
+    access->rescan_hardware();
+    dbgln_if(PCI_DEBUG, "PCI: access for multiple PCI domain initialised.");
     return true;
 }
 #elif ARCH(RISCV64)
@@ -132,6 +131,25 @@ UNMAP_AFTER_INIT bool Access::initialize_for_one_pci_domain(PhysicalAddress ecam
     access->add_host_controller(move(host_bridge));
     access->rescan_hardware();
     dbgln_if(PCI_DEBUG, "PCI: access for one PCI domain initialised.");
+    return true;
+}
+
+UNMAP_AFTER_INIT bool Access::initialize_for_multiple_pci_domains(Span<PhysicalAddress> ecam_addrs)
+{
+    VERIFY(!Access::is_initialized());
+    auto* access = new Access();
+
+    u32 index = 0;
+    for (PhysicalAddress ecam_addr : ecam_addrs) {
+        dmesgln("PCI: New PCI domain @ {}", PhysicalAddress { ecam_addr });
+        Domain pci_domain { index, 0, 0xff };
+        auto host_bridge = MemoryBackedHostBridge::must_create(pci_domain, PhysicalAddress { ecam_addr });
+        access->add_host_controller(move(host_bridge));
+        index++;
+    }
+
+    access->rescan_hardware();
+    dbgln_if(PCI_DEBUG, "PCI: access for multiple PCI domains initialised.");
     return true;
 }
 #endif

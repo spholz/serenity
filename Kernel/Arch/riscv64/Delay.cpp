@@ -14,11 +14,13 @@ void microseconds_delay(u32 microseconds)
 {
     // FIXME: actually delay in micoseconds
 
-    u64 const start = RISCV64::CSR::read(RISCV64::CSR::Address::TIME);
+    // u64 const start = RISCV64::CSR::read(RISCV64::CSR::Address::TIME);
 
-    while ((RISCV64::CSR::read(RISCV64::CSR::Address::TIME) - start) < static_cast<u64>(microseconds) * 100) {
-        // Processor::pause();
-    }
+    // while ((RISCV64::CSR::read(RISCV64::CSR::Address::TIME) - start) < static_cast<u64>(microseconds) * 1) {
+    //     // Processor::pause();
+    // }
+
+    (void)microseconds;
 }
 
 }

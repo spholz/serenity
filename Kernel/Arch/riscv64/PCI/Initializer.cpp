@@ -22,13 +22,21 @@ UNMAP_AFTER_INIT void initialize()
 {
     g_pci_access_is_disabled_from_commandline = kernel_command_line().is_pci_disabled();
 
-    if (g_pci_access_is_disabled_from_commandline) {
+    if (g_pci_access_is_disabled_from_commandline)
         return;
-    }
 
-    auto const qemu_ecam_addr = PhysicalAddress { 0x3000'0000 };
+    // QEMU Virt
+    // auto const qemu_ecam_addr = PhysicalAddress { 0x3000'0000 };
+    // Access::initialize_for_one_pci_domain(qemu_ecam_addr);
 
-    Access::initialize_for_one_pci_domain(qemu_ecam_addr);
+    // VF2
+    // pcie0 (xHCI)
+    auto const pcie0_ecam_addr = PhysicalAddress { 0x9'4000'0000 };
+    // pcie1 (NVMe)
+    auto const pcie1_ecam_addr = PhysicalAddress { 0x9'c000'0000 };
+
+    Array ecam_addrs = { pcie0_ecam_addr, pcie1_ecam_addr };
+    Access::initialize_for_multiple_pci_domains(ecam_addrs);
 
     PCIBusSysFSDirectory::initialize();
 
