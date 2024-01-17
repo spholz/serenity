@@ -26,6 +26,9 @@ enum class Address : u16 {
     SIE = 0x104,
     STVEC = 0x105,
 
+    // Supervisor Trap Handling
+    SIP = 0x144,
+
     // Supervisor Protection and Translation
     SATP = 0x180,
 
