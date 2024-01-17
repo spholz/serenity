@@ -162,9 +162,11 @@ extern "C" void trap_handler(TrapFrame& trap_frame)
 
 // FIXME: Share the code below with Arch/x86_64/Interrupts.cpp
 //        While refactoring, the interrupt handlers can also be moved into the InterruptManagement class.
-GenericInterruptHandler& get_interrupt_handler(u8)
+GenericInterruptHandler& get_interrupt_handler(u8 interrupt_number)
 {
-    TODO_RISCV64();
+    auto*& handler_slot = s_interrupt_handlers[interrupt_number];
+    VERIFY(handler_slot != nullptr);
+    return *handler_slot;
 }
 
 // Sets the reserved flag on `number_of_irqs` if it finds unused interrupt handler on
