@@ -74,8 +74,8 @@ echo SYSROOT is "$SYSROOT"
 
 mkdir -p "$DIR/Tarballs"
 
-BINUTILS_VERSION="2.41"
-BINUTILS_MD5SUM="256d7e0ad998e423030c84483a7c1e30"
+BINUTILS_VERSION="2.42"
+BINUTILS_MD5SUM="a075178a9646551379bfb64040487715"
 BINUTILS_NAME="binutils-$BINUTILS_VERSION"
 BINUTILS_PKG="${BINUTILS_NAME}.tar.xz"
 BINUTILS_BASE_URL="https://ftpmirror.gnu.org/gnu/binutils"
@@ -244,6 +244,7 @@ pushd "$DIR/Build/$ARCH"
                                                  --target="$TARGET" \
                                                  --with-sysroot="$SYSROOT" \
                                                  --enable-shared \
+                                                 --enable-targets="$ARCH"-pep \
                                                  --disable-nls \
                                                  ${CI:+"--quiet"} || exit 1
         if [ "$SYSTEM_NAME" = "Darwin" ]; then
