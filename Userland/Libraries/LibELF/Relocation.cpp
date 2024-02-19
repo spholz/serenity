@@ -10,20 +10,8 @@
 
 namespace ELF {
 
-bool perform_relative_relocations(FlatPtr base_address)
+bool perform_relative_relocations(FlatPtr base_address, FlatPtr dynamic_section_addr)
 {
-
-    Elf_Ehdr* header = (Elf_Ehdr*)(base_address);
-    Elf_Phdr* pheader = (Elf_Phdr*)(base_address + header->e_phoff);
-    FlatPtr dynamic_section_addr = 0;
-    for (size_t i = 0; i < (size_t)header->e_phnum; ++i, ++pheader) {
-        if (pheader->p_type != PT_DYNAMIC)
-            continue;
-        dynamic_section_addr = pheader->p_vaddr + base_address;
-    }
-    if (!dynamic_section_addr)
-        return false;
-
     FlatPtr relocation_section_addr = 0;
     size_t relocation_table_size = 0;
     size_t relocation_count = 0;
@@ -98,4 +86,21 @@ bool perform_relative_relocations(FlatPtr base_address)
     }
     return true;
 }
+
+bool perform_relative_relocations(FlatPtr base_address)
+{
+    Elf_Ehdr* header = (Elf_Ehdr*)(base_address);
+    Elf_Phdr* pheader = (Elf_Phdr*)(base_address + header->e_phoff);
+    FlatPtr dynamic_section_addr = 0;
+    for (size_t i = 0; i < (size_t)header->e_phnum; ++i, ++pheader) {
+        if (pheader->p_type != PT_DYNAMIC)
+            continue;
+        dynamic_section_addr = pheader->p_vaddr + base_address;
+    }
+    if (!dynamic_section_addr)
+        return false;
+
+    return perform_relative_relocations(base_address, dynamic_section_addr);
+}
+
 }
