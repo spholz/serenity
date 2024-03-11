@@ -245,11 +245,60 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
     CommandLine::initialize();
     Memory::MemoryManager::initialize(0);
 
+#if ARCH(AARCH64) || ARCH(RISCV64)
+    MUST(DeviceTree::unflatten_fdt());
+
+    if (kernel_command_line().contains("dump_fdt"sv))
+        DeviceTree::dump_fdt();
+#endif
+
+#if ARCH(RISCV64)
+    init_delay_loop();
+#endif
+
 #if ARCH(AARCH64)
     auto firmware_version = RPi::Mailbox::the().query_firmware_version();
     dmesgln("RPi: Firmware version: {}", firmware_version);
 
     RPi::Framebuffer::initialize();
+#elif ARCH(RISCV64)
+    if (!is_vf2()) {
+        auto const& maybe_soc = DeviceTree::get().get_child("soc"sv);
+        if (maybe_soc.has_value()) {
+            auto const& soc = maybe_soc.value();
+            auto soc_address_cells = soc.get_property("#address-cells"sv).value().as<u32>();
+
+            for (auto const& [node_name, node] : soc.children()) {
+                if (node_name.find_first_split_view('@') != "framebuffer"sv)
+                    continue;
+
+                if (!node.get_property("compatible"sv).value().as_strings().contains_slow("simple-framebuffer"sv))
+                    continue;
+
+                if (node.get_property("format"sv).value().as_string() != "a8r8g8b8"sv)
+                    continue;
+
+                auto reg_stream = node.get_property("reg"sv).value().as_stream();
+
+                FlatPtr paddr;
+                if (soc_address_cells == 1)
+                    paddr = MUST(reg_stream.read_value<BigEndian<u32>>());
+                else
+                    paddr = MUST(reg_stream.read_value<BigEndian<u64>>());
+
+                // We don't use the size part of the reg property
+
+                multiboot_framebuffer_addr = PhysicalAddress { paddr };
+                multiboot_framebuffer_width = node.get_property("width"sv).value().as<u32>();
+                multiboot_framebuffer_height = node.get_property("height"sv).value().as<u32>();
+                multiboot_framebuffer_bpp = 32;
+                multiboot_framebuffer_pitch = node.get_property("stride"sv).value().as<u32>();
+                multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
+                multiboot_flags = MULTIBOOT_INFO_FRAMEBUFFER_INFO;
+                break;
+            }
+        }
+    }
 #endif
 
     // NOTE: If the bootloader provided a framebuffer, then set up an initial console.
@@ -277,17 +326,6 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
     // Note that we want to do this as early as possible.
     for (ctor_func_t* ctor = start_ctors; ctor < end_ctors; ctor++)
         (*ctor)();
-
-#if ARCH(AARCH64) || ARCH(RISCV64)
-    MUST(DeviceTree::unflatten_fdt());
-
-    if (kernel_command_line().contains("dump_fdt"sv))
-        DeviceTree::dump_fdt();
-#endif
-
-#if ARCH(RISCV64)
-    init_delay_loop();
-#endif
 
     InterruptManagement::initialize();
     ACPI::initialize();
