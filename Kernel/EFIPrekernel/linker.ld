@@ -1,17 +1,30 @@
-ENTRY(start)
+ENTRY(init)
 
 SECTIONS
 {
+    /* TODO: Improve the comments */
+
+    /* This is symbol is used to tell the PrekernelPEImageGenerator that the PE base address is 0 */
+    pe_image_base = .;
+
+    /* PE doesn't have segments, so PE sections behave similary to ELF segments.
+       The virtual addresses of PE sections also have to start after the headers. */
+
+    /* PE sections have to be aligned by the section alignment specified in the windows-specific fields. We define it to be 4K.
+       So all output sections that won't be discard by PrekernelPEImageGenerator have to be properly aligned. */
+
+    /* Skip over the PE headers. */
     . = 0x1000;
 
-    start_of_prekernel_image = .;
+    /* NOTE: The output sections are named after https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#special-sections.
+             PrekernelPEImageGenerator will also add the PE .reloc section. */
 
     .text ALIGN(4K) :
     {
         *(.text*)
     }
 
-    .rodata ALIGN(4K) :
+    .rdata ALIGN(4K) :
     {
         *(.rodata* .srodata*)
     }
@@ -21,21 +34,14 @@ SECTIONS
         *(.data* .sdata*)
     }
 
+    .got ALIGN(4K) :
+    {
+        *(.got*)
+    }
+
     .bss ALIGN(4K) (NOLOAD) :
     {
-        start_of_bss = .;
         *(COMMON)
         *(.bss* .sbss*)
-        end_of_bss = .;
     }
-
-    .reloc :
-    {
-        *(.reloc)
-    }
-
-    end_of_prekernel_image = .;
 }
-
-/* Needed by aarch64's boot.S. */
-size_of_bss_divided_by_8 = (end_of_bss - start_of_bss + 7) / 8;
