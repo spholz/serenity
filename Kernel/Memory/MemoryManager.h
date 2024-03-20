@@ -19,6 +19,7 @@
 #include <Kernel/Memory/Region.h>
 #include <Kernel/Memory/RegionTree.h>
 #include <Kernel/Memory/VMObject.h>
+#include <Kernel/Prekernel/Prekernel.h>
 
 struct KmallocGlobalData;
 
@@ -267,6 +268,7 @@ private:
 
     void protect_kernel_image();
     void parse_memory_map();
+    void parse_memory_map_efi(GlobalData&);
     void parse_memory_map_fdt(GlobalData&, u8 const* fdt_addr);
     void parse_memory_map_multiboot(GlobalData&);
     static void flush_tlb_local(VirtualAddress, size_t page_count = 1);

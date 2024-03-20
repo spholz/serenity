@@ -6,16 +6,8 @@
 
 #pragma once
 
-#include <AK/Types.h>
-
-#include <AK/Platform.h>
-VALIDATE_IS_X86()
-
 namespace Kernel {
 
-struct ArchSpecificBootInfo {
-    u32 gdt64ptr;
-    u16 code64_sel;
-};
+void ucs2_dbgln(char16_t const* message);
 
 }

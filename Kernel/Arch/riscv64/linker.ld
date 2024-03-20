@@ -4,24 +4,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-ENTRY(start)
+ENTRY(init)
 
 KERNEL_MAPPING_BASE = 0x2000000000;
 
-/* TODO: Add FLAGS to the program headers */
 PHDRS
 {
-    text PT_LOAD ;
-    data PT_LOAD ;
-    ksyms PT_LOAD ;
-    bss PT_LOAD ;
+    elf_headers PT_LOAD FILEHDR PHDRS FLAGS(0x4);
+    text PT_LOAD FLAGS(0x5);
+    data PT_LOAD FLAGS(0x6);
+    ksyms PT_LOAD FLAGS(0x4);
+    bss PT_LOAD FLAGS(0x6);
+    dynamic_segment PT_LOAD FLAGS(0x4);
+    dynamic PT_DYNAMIC FLAGS(0x4);
 }
 
 SECTIONS
 {
-    . = KERNEL_MAPPING_BASE;
+    /* . = KERNEL_MAPPING_BASE + 0x200000; */
+    . = 0;
 
     start_of_kernel_image = .;
+
+    .elf_headers (SIZEOF_HEADERS) : AT (ADDR(.elf_headers) + SIZEOF_HEADERS)
+    {
+        start_of_elf_headers = .;
+    } :elf_headers
 
     .text ALIGN(4K) :
     {
@@ -88,6 +96,7 @@ SECTIONS
         end_of_kernel_ksyms = .;
     } :ksyms
 
+    /* The bss has to be in its own program header so the prekernel doesn't have to copy segments */
     .bss ALIGN(4K) (NOLOAD) :
     {
         start_of_bss = .;
@@ -97,6 +106,11 @@ SECTIONS
         . = ALIGN(4K);
         *(.heap)
     } :bss
+
+    .dynamic ALIGN(4K) :
+    {
+        *(.dynamic)
+    } :dynamic_segment :dynamic
 
     . = ALIGN(4K);
     start_of_initial_stack = .;

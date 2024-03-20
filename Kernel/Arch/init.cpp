@@ -148,13 +148,18 @@ READONLY_AFTER_INIT constinit BootInfo g_boot_info;
 READONLY_AFTER_INIT static u8 s_command_line_buffer[512];
 #endif
 
-extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_unused]] BootInfo const& boot_info)
+extern "C" [[gnu::no_stack_protector]] [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_unused]] BootInfo const& boot_info)
 {
 #if ARCH(X86_64)
     g_boot_info = boot_info;
     gdt64ptr = boot_info.arch_specific.gdt64ptr;
     code64_sel = boot_info.arch_specific.code64_sel;
     s_kernel_cmdline = boot_info.cmdline;
+
+    // TODO
+    if (boot_info.boot_method == BootMethod::EFI)
+        s_kernel_cmdline = "serial_debug root=nvme:0:1:0 nvme_poll"sv;
+
 #elif ARCH(AARCH64)
     // FIXME: For the aarch64 platforms, we should get the information by parsing a device tree instead of using multiboot.
     auto [ram_base, ram_size] = RPi::Mailbox::the().query_lower_arm_memory_range();
@@ -181,11 +186,20 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
     // FIXME: Read the /chosen/bootargs property.
     s_kernel_cmdline = RPi::Mailbox::the().query_kernel_command_line(s_command_line_buffer);
 #elif ARCH(RISCV64)
-    auto maybe_command_line = get_command_line_from_fdt();
-    if (maybe_command_line.is_error())
-        s_kernel_cmdline = "serial_debug"sv;
-    else
-        s_kernel_cmdline = maybe_command_line.value();
+    if (boot_info.boot_method == BootMethod::EFI) {
+        g_boot_info = boot_info;
+        s_kernel_cmdline = "serial_debug root=nvme:0:1:0 nvme_poll"sv;
+        asm volatile(R"(
+            la t0, asm_trap_handler
+            csrw stvec, t0
+        )");
+    } else {
+        auto maybe_command_line = get_command_line_from_fdt();
+        if (maybe_command_line.is_error())
+            s_kernel_cmdline = "serial_debug"sv;
+        else
+            s_kernel_cmdline = maybe_command_line.value();
+    }
 #endif
 
     setup_serial_debug();
@@ -196,14 +210,6 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
 
     new (&bsp_processor()) Processor();
     bsp_processor().early_initialize(0);
-
-#if ARCH(X86_64) || ARCH(AARCH64)
-    VERIFY(g_boot_info.boot_method == BootMethod::Multiboot1);
-#elif ARCH(RISCV64)
-    VERIFY(g_boot_info.boot_method == BootMethod::PreInit);
-#else
-#    error Unknown architecture
-#endif
 
 #if ARCH(RISCV64)
     // We implicitly assume the boot hart is hart 0 above and below
@@ -218,6 +224,14 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
     load_kernel_symbol_table();
 
     bsp_processor().initialize(0);
+
+    dmesgln("physical_to_virtual_offset: {:p}", g_boot_info.physical_to_virtual_offset);
+    dmesgln("kernel_mapping_base: {:p}", g_boot_info.kernel_mapping_base);
+    dmesgln("kernel_load_base: {:p}", g_boot_info.kernel_load_base);
+    dmesgln("boot_pml4t @ {}", g_boot_info.boot_pml4t);
+    dmesgln("boot_pdpt @ {}", g_boot_info.boot_pdpt);
+    dmesgln("boot_pd_kernel @ {}", g_boot_info.boot_pd_kernel);
+    dmesgln("boot_pd_kernel_pt1023 @ {}", g_boot_info.boot_pd_kernel_pt1023);
 
     CommandLine::initialize();
     Memory::MemoryManager::initialize(0);
@@ -245,9 +259,9 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
     }
     dmesgln("Starting SerenityOS...");
 
-#if ARCH(X86_64)
     MM.unmap_prekernel();
 
+#if ARCH(X86_64)
     // Ensure that the safemem sections are not empty. This could happen if the linker accidentally discards the sections.
     VERIFY(+start_of_safemem_text != +end_of_safemem_text);
     VERIFY(+start_of_safemem_atomic_text != +end_of_safemem_atomic_text);

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Format.h>
 #include <AK/NumericLimits.h>
 #include <AK/StdLibExtraDetails.h>
 #include <AK/Types.h>
@@ -18,6 +19,11 @@
 #endif
 
 namespace Kernel::EFI {
+
+// The UEFI spec requires 4K pages to be used for all its current architectures.
+// All function arguments and struct members that refer to "pages" also assume 4K pages.
+// e.g. the AllocatePages() "Pages" argument: https://uefi.org/specs/UEFI/2.10/07_Services_Boot_Services.html#efi-boot-services-allocatepages
+static constexpr size_t EFI_PAGE_SIZE = 4 * KiB;
 
 // EFI Data Types: https://uefi.org/specs/UEFI/2.10/02_Overview.html#data-types
 
@@ -125,3 +131,84 @@ using PhysicalAddress = u64;
 using VirtualAddress = u64;
 
 }
+
+template<>
+struct AK::Formatter<Kernel::EFI::Status> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Kernel::EFI::Status status)
+    {
+        using enum Kernel::EFI::Status;
+        switch (status) {
+        case Success:
+            return builder.put_literal("The operation completed successfully."sv);
+        case LoadError:
+            return builder.put_literal("The image failed to load."sv);
+        case InvalidParameter:
+            return builder.put_literal("A parameter was incorrect."sv);
+        case Unsupported:
+            return builder.put_literal("The operation is not supported."sv);
+        case BadBufferSize:
+            return builder.put_literal("The buffer was not the proper size for the request."sv);
+        case BufferTooSmall:
+            return builder.put_literal("The buffer is not large enough to hold the requested data. The required buffer size is returned in the appropriate parameter when this error occurs."sv);
+        case NotReady:
+            return builder.put_literal("There is no data pending upon return."sv);
+        case DeviceError:
+            return builder.put_literal("The physical device reported an error while attempting the operation."sv);
+        case WriteProtected:
+            return builder.put_literal("The device cannot be written to."sv);
+        case OutOfResources:
+            return builder.put_literal("A resource has run out."sv);
+        case VolumeCorrupted:
+            return builder.put_literal("An inconstancy was detected on the file system causing the operating to fail."sv);
+        case VolumeFull:
+            return builder.put_literal("There is no more space on the file system."sv);
+        case NoMedia:
+            return builder.put_literal("The device does not contain any medium to perform the operation."sv);
+        case MediaChanged:
+            return builder.put_literal("The medium in the device has changed since the last access."sv);
+        case NotFound:
+            return builder.put_literal("The item was not found."sv);
+        case AccessDenied:
+            return builder.put_literal("Access was denied."sv);
+        case NoResponse:
+            return builder.put_literal("The server was not found or did not respond to the request."sv);
+        case NoMapping:
+            return builder.put_literal("A mapping to a device does not exist."sv);
+        case Timeout:
+            return builder.put_literal("The timeout time expired."sv);
+        case NotStarted:
+            return builder.put_literal("The protocol has not been started."sv);
+        case AlreadyStarted:
+            return builder.put_literal("The protocol has already been started."sv);
+        case Aborted:
+            return builder.put_literal("The operation was aborted."sv);
+        case ICMPError:
+            return builder.put_literal("An ICMP error occurred during the network operation."sv);
+        case TFTPError:
+            return builder.put_literal("A TFTP error occurred during the network operation."sv);
+        case ProtocolError:
+            return builder.put_literal("A protocol error occurred during the network operation."sv);
+        case IncompatibleVersion:
+            return builder.put_literal("The function encountered an internal version that was incompatible with a version requested by the caller."sv);
+        case SecurityViolation:
+            return builder.put_literal("The function was not performed due to a security violation."sv);
+        case CRCError:
+            return builder.put_literal("A CRC error was detected."sv);
+        case EndOfMedia:
+            return builder.put_literal("Beginning or end of media was reached"sv);
+        case EndOfFile:
+            return builder.put_literal("The end of the file was reached."sv);
+        case InvalidLanguage:
+            return builder.put_literal("The language specified was invalid."sv);
+        case CompromisedData:
+            return builder.put_literal("The security status of the data is unknown or compromised and the data must be updated or replaced to restore a valid security status."sv);
+        case IPAddressConflict:
+            return builder.put_literal("There is an address conflict address allocation"sv);
+        case HTTPError:
+            return builder.put_literal("A HTTP error occurred during the network operation."sv);
+        default:
+            TRY(builder.put_literal("(EFI::Status)"sv));
+            return builder.put_u64(to_underlying(status), 16, true);
+        }
+    }
+};

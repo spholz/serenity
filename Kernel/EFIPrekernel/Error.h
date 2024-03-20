@@ -6,16 +6,13 @@
 
 #pragma once
 
-#include <AK/Types.h>
+#include <AK/Error.h>
 
-#include <AK/Platform.h>
-VALIDATE_IS_X86()
+#include <Kernel/Firmware/EFI/EFI.h>
 
 namespace Kernel {
 
-struct ArchSpecificBootInfo {
-    u32 gdt64ptr;
-    u16 code64_sel;
-};
+template<typename T>
+using EFIErrorOr = ErrorOr<T, EFI::Status>;
 
 }

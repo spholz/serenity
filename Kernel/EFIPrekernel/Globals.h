@@ -6,16 +6,11 @@
 
 #pragma once
 
-#include <AK/Types.h>
-
-#include <AK/Platform.h>
-VALIDATE_IS_X86()
+#include <Kernel/Firmware/EFI/SystemTable.h>
 
 namespace Kernel {
 
-struct ArchSpecificBootInfo {
-    u32 gdt64ptr;
-    u16 code64_sel;
-};
+extern EFI::Handle g_efi_image_handle;
+extern EFI::SystemTable* g_efi_system_table;
 
 }

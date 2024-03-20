@@ -598,6 +598,8 @@ set(EDID_SOURCES
 set(ELF_SOURCES
     ../Userland/Libraries/LibELF/Image.cpp
     ../Userland/Libraries/LibELF/Validation.cpp
+
+    ../Userland/Libraries/LibELF/Relocation.cpp
 )
 
 add_custom_command(
@@ -681,10 +683,10 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_source_files_properties(Library/MiniStdLib.cpp
         PROPERTIES COMPILE_FLAGS "-fno-tree-loop-distribution -fno-tree-loop-distribute-patterns")
 
-    if ("${SERENITY_ARCH}" STREQUAL "x86_64")
+    # if ("${SERENITY_ARCH}" STREQUAL "x86_64")
         # The BFD linker only supports RELR relocations on x86 and POWER.
         add_link_options(LINKER:-z,pack-relative-relocs)
-    endif()
+        # endif()
 else() # Assume Clang
     add_compile_options(-Waddress-of-packed-member)
     add_compile_options(-faligned-allocation)
@@ -808,7 +810,7 @@ if("${SERENITY_ARCH}" STREQUAL "aarch64")
 elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
     # The final kernel binary for some reason includes temporary local symbols on riscv64 clang, which causes kernel.map to be too big to fit in its section in the kernel.
     # Explicitly pass -X to the linker to remove them.
-    target_link_options(Kernel PRIVATE LINKER:-T ${CMAKE_CURRENT_SOURCE_DIR}/Arch/riscv64/linker.ld -nostdlib LINKER:--no-pie LINKER:-X)
+    target_link_options(Kernel PRIVATE LINKER:-T ${CMAKE_CURRENT_SOURCE_DIR}/Arch/riscv64/linker.ld -nostdlib -nodefaultlibs LINKER:-X)
 
     set_target_properties(Kernel PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Arch/riscv64/linker.ld)
 elseif ("${SERENITY_ARCH}" STREQUAL "x86_64")
@@ -846,57 +848,48 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
     target_link_libraries(Kernel PRIVATE kernel_heap clang_rt.builtins)
 endif()
 
-if ("${SERENITY_ARCH}" STREQUAL "x86_64")
+if ("${SERENITY_ARCH}" STREQUAL "aarch64")
+    set(KERNEL_ELF_OBJCOPY_TARGET "elf64-littleaarch64")
+elseif ("${SERENITY_ARCH}" STREQUAL "riscv64")
+    set(KERNEL_ELF_OBJCOPY_TARGET "elf64-littleriscv")
+elseif ("${SERENITY_ARCH}" STREQUAL "x86_64")
     set(KERNEL_ELF_OBJCOPY_TARGET "elf64-x86-64")
 endif()
 
-# In x86_64 the Kernel is linked to the Pre-kernel binary.
-if ("${SERENITY_ARCH}" STREQUAL "x86_64")
-    add_custom_command(
-        TARGET Kernel POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E env NM=${CMAKE_NM} sh ${CMAKE_CURRENT_SOURCE_DIR}/mkmap.sh
-        COMMAND ${CMAKE_COMMAND} -E env OBJCOPY=${CMAKE_OBJCOPY} sh ${CMAKE_CURRENT_SOURCE_DIR}/embedmap.sh
-        COMMAND ${CMAKE_OBJCOPY} --only-keep-debug Kernel Kernel.debug
-        COMMAND ${CMAKE_OBJCOPY} --strip-debug Kernel
-        COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=Kernel.debug Kernel
-        COMMAND ${CMAKE_OBJCOPY} --set-section-flags .heap=load Kernel Kernel_shared_object
-        COMMAND ${CMAKE_OBJCOPY} -I binary -O ${KERNEL_ELF_OBJCOPY_TARGET} --rename-section .data=.Kernel_image --set-section-alignment .Kernel_image=4096 Kernel_shared_object Kernel.o
-        BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/Kernel.o ${CMAKE_CURRENT_BINARY_DIR}/kernel.map
-    )
-elseif ("${SERENITY_ARCH}" STREQUAL "aarch64" OR "${SERENITY_ARCH}" STREQUAL "riscv64")
-    add_custom_command(
-        TARGET Kernel POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E env NM=${CMAKE_NM} sh ${CMAKE_CURRENT_SOURCE_DIR}/mkmap.sh
-        COMMAND "${CMAKE_COMMAND}" -E env OBJCOPY=${CMAKE_OBJCOPY} sh ${CMAKE_CURRENT_SOURCE_DIR}/embedmap.sh
-        COMMAND ${CMAKE_OBJCOPY} --only-keep-debug Kernel Kernel.debug
-        COMMAND ${CMAKE_OBJCOPY} --strip-debug Kernel
-        COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=Kernel.debug Kernel
-        BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/kernel.map
-    )
-endif()
+# The Kernel.o file is linked to the Prekernel binary.
+add_custom_command(
+    TARGET Kernel POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E env NM=${CMAKE_NM} sh ${CMAKE_CURRENT_SOURCE_DIR}/mkmap.sh
+    COMMAND ${CMAKE_COMMAND} -E env OBJCOPY=${CMAKE_OBJCOPY} sh ${CMAKE_CURRENT_SOURCE_DIR}/embedmap.sh
+    COMMAND ${CMAKE_OBJCOPY} --only-keep-debug Kernel Kernel.debug
+    COMMAND ${CMAKE_OBJCOPY} --strip-debug Kernel
+    COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=Kernel.debug Kernel
+    COMMAND ${CMAKE_OBJCOPY} --set-section-flags .heap=load Kernel Kernel_shared_object
+    COMMAND ${CMAKE_OBJCOPY} -I binary -O ${KERNEL_ELF_OBJCOPY_TARGET} --rename-section .data=.Kernel_image --set-section-alignment .Kernel_image=4096 Kernel_shared_object Kernel.o
+    BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/Kernel.o ${CMAKE_CURRENT_BINARY_DIR}/kernel.map
+)
 
 # Architectures (x86_64, aarch64, riscv64) share the same location in their respective architecture build folder.
-# In x86_64 the Kernel is linked to the Pre-kernel binary and then generates the result Kernel binary.
-# In aarch64 and riscv64 there's no Pre-kernel stage yet, so we immediately get a Kernel binary.
+# The Kernel is linked to the Pre-kernel binary and then generates the result Kernel binary.
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel" DESTINATION boot)
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel.debug" DESTINATION boot)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/kernel.map" DESTINATION res)
 
-if ("${SERENITY_ARCH}" STREQUAL "aarch64")
-    add_custom_command(
-        TARGET Kernel POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O binary Kernel kernel8.img
-        BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/kernel8.img
-    )
-elseif ("${SERENITY_ARCH}" STREQUAL "riscv64")
-    add_custom_command(
-        TARGET Kernel POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O binary Kernel Kernel.bin
-        BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/Kernel.bin
-    )
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel.bin" DESTINATION boot)
-endif()
+# if ("${SERENITY_ARCH}" STREQUAL "aarch64")
+#     add_custom_command(
+#         TARGET Kernel POST_BUILD
+#         COMMAND ${CMAKE_OBJCOPY} -O binary Kernel kernel8.img
+#         BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/kernel8.img
+#     )
+# elseif ("${SERENITY_ARCH}" STREQUAL "riscv64")
+#     add_custom_command(
+#         TARGET Kernel POST_BUILD
+#         COMMAND ${CMAKE_OBJCOPY} -O binary Kernel Kernel.bin
+#         BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/Kernel.bin
+#     )
+#     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/Kernel.bin" DESTINATION boot)
+# endif()
 
 serenity_install_headers(Kernel)
 serenity_install_sources(Kernel)
@@ -905,3 +898,5 @@ serenity_install_sources(Kernel)
 if ("${SERENITY_ARCH}" STREQUAL "x86_64")
     add_subdirectory(Prekernel)
 endif()
+
+add_subdirectory(EFIPrekernel)

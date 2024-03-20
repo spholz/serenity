@@ -84,7 +84,7 @@ UNMAP_AFTER_INIT bool APICTimer::calibrate(HardwareTimerBase& calibration_source
     // tick count from the APIC timer
     auto original_callback = set_callback([&](RegisterState const&) {
         // TODO: How should we handle this?
-        PANIC("APICTimer: Timer fired during calibration!");
+        // PANIC("APICTimer: Timer fired during calibration!");
     });
     state.apic.setup_local_timer(0xffffffff, APIC::TimerMode::Periodic, true);
 

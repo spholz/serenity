@@ -6,16 +6,10 @@
 
 #pragma once
 
-#include <AK/Types.h>
-
-#include <AK/Platform.h>
-VALIDATE_IS_X86()
+#include <LibELF/Image.h>
 
 namespace Kernel {
 
-struct ArchSpecificBootInfo {
-    u32 gdt64ptr;
-    u16 code64_sel;
-};
+void perform_kernel_relocations(ELF::Image const& kernel_elf_image, Bytes kernel_elf_image_data, FlatPtr base_address);
 
 }

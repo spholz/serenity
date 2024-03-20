@@ -143,6 +143,7 @@ private:
 
     u64 m_raw;
 };
+AK_ENUM_BITWISE_OPERATORS(PageTableEntry::Flags);
 
 static_assert(AssertSize<PageDirectoryEntry, 8>());
 static_assert(AssertSize<PageTableEntry, 8>());

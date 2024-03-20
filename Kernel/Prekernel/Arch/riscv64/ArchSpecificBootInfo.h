@@ -8,6 +8,9 @@
 
 #include <AK/Types.h>
 
+#include <AK/Platform.h>
+VALIDATE_IS_RISCV64()
+
 namespace Kernel {
 
 struct ArchSpecificBootInfo {

@@ -6,16 +6,10 @@
 
 #pragma once
 
-#include <AK/Types.h>
-
-#include <AK/Platform.h>
-VALIDATE_IS_X86()
+#include <Kernel/Prekernel/Prekernel.h>
 
 namespace Kernel {
 
-struct ArchSpecificBootInfo {
-    u32 gdt64ptr;
-    u16 code64_sel;
-};
+void init_gop_and_fill_framebuffer_boot_info(BootInfo* boot_info);
 
 }

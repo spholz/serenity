@@ -5,10 +5,10 @@ KERNEL_MAPPING_BASE = 0x2000000000;
 /* TODO: Add FLAGS to the program headers */
 PHDRS
 {
-  text PT_LOAD ;
-  data PT_LOAD ;
-  ksyms PT_LOAD ;
-  bss PT_LOAD ;
+  text PT_LOAD FLAGS(0x5);
+  data PT_LOAD FLAGS(0x6);
+  ksyms PT_LOAD FLAGS(0x4);
+  bss PT_LOAD FLAGS(0x6);
 }
 
 SECTIONS
