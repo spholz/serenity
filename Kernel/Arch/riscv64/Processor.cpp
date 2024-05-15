@@ -105,7 +105,20 @@ template<typename T>
 void ProcessorBase<T>::early_initialize(u32 cpu)
 {
     VERIFY(g_current_processor == nullptr);
+    m_self = static_cast<Processor*>(this);
     m_cpu = cpu;
+    m_in_irq = 0;
+    m_in_critical = 0;
+
+    m_invoke_scheduler_async = false;
+    m_in_scheduler = true;
+
+    m_idle_thread = nullptr;
+    m_current_thread = nullptr;
+
+    m_halt_requested = false;
+
+    // x86 does m_deferred_call_pool.init() here?
 
     g_current_processor = static_cast<Processor*>(this);
 }
@@ -421,6 +434,7 @@ FlatPtr ProcessorBase<T>::init_context(Thread& thread, bool leave_crit)
     stack_top -= sizeof(TrapFrame);
     TrapFrame& trap = *reinterpret_cast<TrapFrame*>(stack_top);
     trap.regs = &frame;
+    trap.prev_irq_level = 0;
     trap.next_trap = nullptr;
 
     if constexpr (CONTEXT_SWITCH_DEBUG) {
@@ -454,8 +468,8 @@ void ProcessorBase<T>::exit_trap(TrapFrame& trap)
     // ScopedCritical here.
     m_in_critical = m_in_critical + 1;
 
-    // FIXME: Figure out if we need prev_irq_level, see duplicated code in Kernel/Arch/x86/common/Processor.cpp
-    m_in_irq = 0;
+    VERIFY(m_in_irq >= trap.prev_irq_level);
+    m_in_irq = trap.prev_irq_level;
 
     // Process the deferred call queue. Among other things, this ensures
     // that any pending thread unblocks happen before we enter the scheduler.

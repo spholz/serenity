@@ -53,7 +53,7 @@ void ProcessorBase<T>::enter_trap(TrapFrame& trap, bool raise_irq)
 {
     VERIFY_INTERRUPTS_DISABLED();
     VERIFY(&Processor::current() == this);
-#if ARCH(X86_64)
+#if ARCH(X86_64) || ARCH(RISCV64)
     // FIXME: Figure out if we need prev_irq_level
     trap.prev_irq_level = m_in_irq;
 #endif

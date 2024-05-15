@@ -16,8 +16,10 @@ VALIDATE_IS_RISCV64()
 namespace Kernel {
 
 struct TrapFrame {
+    FlatPtr prev_irq_level;
     TrapFrame* next_trap;
     RegisterState* regs;
+    FlatPtr pad;
 
     TrapFrame() = delete;
     TrapFrame(TrapFrame const&) = delete;
@@ -26,7 +28,7 @@ struct TrapFrame {
     TrapFrame& operator=(TrapFrame&&) = delete;
 };
 
-#define TRAP_FRAME_SIZE (2 * 8)
+#define TRAP_FRAME_SIZE (4 * 8)
 static_assert(AssertSize<TrapFrame, TRAP_FRAME_SIZE>());
 
 extern "C" void exit_trap(TrapFrame*) __attribute__((used));

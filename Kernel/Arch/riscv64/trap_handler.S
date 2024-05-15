@@ -142,9 +142,10 @@ asm_trap_handler:
 
     // Set up a TrapFrame struct on the stack.
     mv t0, sp
-    addi sp, sp, -16
+    addi sp, sp, -32
     sd zero, 0*8(sp)
-    sd t0, 1*8(sp)
+    sd zero, 1*8(sp)
+    sd t0, 2*8(sp)
 
     // Move the stack pointer into the first argument register
     // and jump to the C++ trap handler.
@@ -156,7 +157,7 @@ asm_trap_handler:
 restore_context_and_sret:
 
     // Remove the TrapFrame from the stack.
-    addi sp, sp, 16
+    addi sp, sp, 32
 
     // Restore some CSRs first.
     ld t0, SSTATUS_SLOT(sp)
