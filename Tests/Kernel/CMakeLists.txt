@@ -74,6 +74,10 @@ if (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
     list(APPEND LIBTEST_BASED_SOURCES TestEFault.cpp)
 endif()
 
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    list(APPEND TEST_SOURCES TestMemoryDeviceMmap.cpp)
+endif()
+
 foreach(libtest_source IN LISTS LIBTEST_BASED_SOURCES)
     serenity_test("${libtest_source}" Kernel LIBS LibSystem)
 endforeach()
