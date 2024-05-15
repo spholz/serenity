@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StackUnwinder.h>
 #include <Kernel/Arch/Interrupts.h>
 #include <Kernel/Arch/Processor.h>
 #include <Kernel/Arch/TrapFrame.h>
 #include <Kernel/Interrupts/InterruptDisabler.h>
+#include <Kernel/Memory/ScopedAddressSpaceSwitcher.h>
 #include <Kernel/Sections.h>
 #include <Kernel/Security/Random.h>
 #include <Kernel/Tasks/Process.h>
