@@ -130,11 +130,11 @@ ErrorOr<size_t> xHCIRootHub::handle_control_transfer(Transfer& transfer)
 
     if constexpr (XHCI_DEBUG) {
         dbgln("xHCIRootHub: Received control transfer.");
-        dbgln("xHCIRootHub: Request Type: {:#02x}", request.request_type);
-        dbgln("xHCIRootHub: Request: {:#02x}", request.request);
-        dbgln("xHCIRootHub: Value: {:#04x}", request.value);
-        dbgln("xHCIRootHub: Index: {:#04x}", request.index);
-        dbgln("xHCIRootHub: Length: {:#04x}", request.length);
+        dbgln("xHCIRootHub:     Request Type: {:#02x}", request.request_type);
+        dbgln("xHCIRootHub:     Request: {:#02x}", request.request);
+        dbgln("xHCIRootHub:     Value: {:#04x}", request.value);
+        dbgln("xHCIRootHub:     Index: {:#04x}", request.index);
+        dbgln("xHCIRootHub:     Length: {:#04x}", request.length);
     }
 
     size_t length = 0;
@@ -253,6 +253,7 @@ ErrorOr<size_t> xHCIRootHub::handle_control_transfer(Transfer& transfer)
         break;
     }
     default:
+        dbgln("xHCIRootHub: Unknown request");
         return EINVAL;
     }
 
