@@ -47,12 +47,11 @@ ErrorOr<void> KeyboardDriver::probe(USB::Device& device)
     // FIXME: Are we guaranteed to have one USB configuration for a keyboard device?
     if (device.configurations().size() != 1)
         return ENOTSUP;
-    // FIXME: If we have multiple USB configurations for a keyboard device, find the appropriate one
-    // and handle multiple interfaces for it.
-    if (device.configurations()[0].interfaces().size() != 1)
-        return ENOTSUP;
 
-    TRY(checkout_interface(device, device.configurations()[0].interfaces()[0]));
+    for (auto const& interface : device.configurations()[0].interfaces()) {
+        if (!checkout_interface(device, interface).is_error())
+            return {};
+    }
 
     return ENOTSUP;
 }
@@ -67,8 +66,16 @@ ErrorOr<void> KeyboardDriver::initialize_device(USB::Device& device, USBInterfac
         USB_REQUEST_RECIPIENT_DEVICE | USB_REQUEST_TYPE_STANDARD | USB_REQUEST_TRANSFER_DIRECTION_HOST_TO_DEVICE,
         USB_REQUEST_SET_CONFIGURATION, configuration.configuration_id(), 0, 0, nullptr));
 
+    TRY(device.control_transfer(
+        USB_REQUEST_RECIPIENT_INTERFACE | USB_REQUEST_TYPE_CLASS | USB_REQUEST_TRANSFER_DIRECTION_HOST_TO_DEVICE,
+        0x0b, 0, interface.descriptor().interface_id, 0, nullptr));
+
     auto const& endpoint_descriptor = interface.endpoints()[0];
-    auto interrupt_in_pipe = TRY(USB::InterruptInPipe::create(device.controller(), device, endpoint_descriptor.endpoint_address, endpoint_descriptor.max_packet_size, device.address(), 10));
+
+    dbgln("keyboard: config id: {}, interface id: {}, endpoint addr: {:#x}, max packet size: {}", configuration.configuration_id(), interface.descriptor().interface_id, endpoint_descriptor.endpoint_address, endpoint_descriptor.max_packet_size);
+
+    auto interrupt_in_pipe = TRY(USB::InterruptInPipe::create(device.controller(), device, endpoint_descriptor.endpoint_address & 0xf, endpoint_descriptor.max_packet_size, device.address(), 10));
+
     auto keyboard_device = TRY(USBKeyboardDevice::try_create_instance(device, endpoint_descriptor.max_packet_size, move(interrupt_in_pipe)));
     HIDManagement::the().attach_standalone_hid_device(*keyboard_device);
     m_interfaces.append(keyboard_device);
