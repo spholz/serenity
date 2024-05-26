@@ -172,6 +172,8 @@ void initialize()
                         bus_range[1],
                     },
                     PhysicalAddress { paddr }));
+
+            dbgln("PCI: {}: domain number: {}", name, domain);
             break;
         }
         case ControllerCompatible::Unknown:
