@@ -37,62 +37,119 @@ void InterruptManagement::initialize()
 void InterruptManagement::find_controllers()
 {
     auto const& device_tree = DeviceTree::get();
-    auto maybe_soc = device_tree.get_child("soc"sv);
-    if (!maybe_soc.has_value()) {
-        dmesgln("Interrupts: No `soc` node found in the device tree, Interrupts initialization will be skipped");
+    auto const maybe_soc_node = DeviceTree::get().get_child("soc"sv);
+    if (!maybe_soc_node.has_value()) {
         return;
     }
-    auto const& soc = maybe_soc.value();
-    auto soc_address_cells = soc.get_property("#address-cells"sv).value().as<u32>();
-    auto soc_size_cells = soc.get_property("#size-cells"sv).value().as<u32>();
-    auto interrupt_controllers_seen = 0;
-    for (auto const& [node_name, node] : soc.children()) {
+    auto const& soc_node = maybe_soc_node.value();
+    auto soc_address_cells = soc_node.get_property("#address-cells"sv).value().as<u32>();
+    auto soc_size_cells = soc_node.get_property("#size-cells"sv).value().as<u32>();
+
+    enum class ControllerCompatible {
+        Unknown,
+        SiFive_PLIC_1p0p0, // sifive,plic-1.0.0
+        RISCV_PLIC0,       // riscv,plic0
+    };
+
+    bool plic_found_and_initialized = false;
+
+    for (auto const& [node_name, node] : soc_node.children()) {
         if (!node.has_property("interrupt-controller"sv))
             continue;
 
-        interrupt_controllers_seen++;
-
         auto maybe_compatible = node.get_property("compatible"sv);
-        if (!maybe_compatible.has_value()) {
-            dmesgln("Interrupts: Devicetree node for {} does not have a 'compatible' string, rejecting", node_name);
+        if (!maybe_compatible.has_value())
             continue;
-        }
 
-        // Reject non sifive-compatible interrupt controllers
-        auto sifive_plic = false;
-        maybe_compatible->for_each_string([&sifive_plic](StringView compatible_string) -> IterationDecision {
+        auto controller_compatibility = ControllerCompatible::Unknown;
+        maybe_compatible.value().for_each_string([&controller_compatibility](StringView compatible_string) -> IterationDecision {
             if (compatible_string == "sifive,plic-1.0.0"sv) {
-                sifive_plic = true;
+                controller_compatibility = ControllerCompatible::SiFive_PLIC_1p0p0;
                 return IterationDecision::Break;
             }
+            if (compatible_string == "riscv,plic0"sv) {
+                controller_compatibility = ControllerCompatible::RISCV_PLIC0;
+                return IterationDecision::Break;
+            }
+
             return IterationDecision::Continue;
         });
-        if (!sifive_plic)
+
+        if (controller_compatibility == ControllerCompatible::Unknown)
             continue;
 
-        auto maybe_reg = node.get_property("reg"sv);
-        if (!maybe_reg.has_value()) {
-            dmesgln("Interrupts: Devicetree node for {} does not have a physical address assigned to it, rejecting", node_name);
+        if (plic_found_and_initialized) {
+            dbgln("InterruptManagement: Ignoring PLIC \"{}\". Only one PLIC is currently supported.", node_name);
             continue;
         }
-        auto reg = maybe_reg.value();
-        auto stream = reg.as_stream();
-        FlatPtr paddr;
+
+        u32 interrupt_cells = node.get_property("#interrupt-cells"sv).value().as<u32>();
+        u32 riscv_ndev = node.get_property("riscv,ndev"sv).value().as<u32>();
+        auto maybe_address_cells = node.get_property("#address-cells"sv);
+        if (maybe_address_cells.has_value()) {
+            if (maybe_address_cells.value().as<u32>() != 0)
+                dbgln("InterruptManagement: PLIC \"{}\" has an invalid #address-cells value: {}", node_name, maybe_address_cells.value().as<u32>());
+        } else {
+            dbgln("InterruptManagement: PLIC \"{}\" is missing the #address-cells property", node_name);
+        }
+
+        (void)interrupt_cells;
+
+        auto reg_stream = node.get_property("reg"sv).value().as_stream();
+
+        PhysicalAddress paddr;
         if (soc_address_cells == 1)
-            paddr = MUST(stream.read_value<BigEndian<u32>>());
+            paddr = PhysicalAddress { MUST(reg_stream.read_value<BigEndian<u32>>()) };
+        else if (soc_address_cells == 2)
+            paddr = PhysicalAddress { MUST(reg_stream.read_value<BigEndian<u64>>()) };
         else
-            paddr = MUST(stream.read_value<BigEndian<u64>>());
+            VERIFY_NOT_REACHED();
+
         size_t size;
         if (soc_size_cells == 1)
-            size = MUST(stream.read_value<BigEndian<u32>>());
+            size = MUST(reg_stream.read_value<BigEndian<u32>>());
+        else if (soc_size_cells == 2)
+            size = MUST(reg_stream.read_value<BigEndian<u64>>());
         else
-            size = MUST(stream.read_value<BigEndian<u64>>());
-        auto max_interrupt_id = node.get_property("riscv,ndev"sv).value().as<u32>();
-        m_interrupt_controllers.append(adopt_lock_ref(*new (nothrow) PLIC(PhysicalAddress(paddr), size, max_interrupt_id + 1)));
-    }
+            VERIFY_NOT_REACHED();
 
-    if (interrupt_controllers_seen > 0 && m_interrupt_controllers.is_empty()) {
-        dmesgln("Interrupts: {} interrupt controllers seen, but none are compatible", interrupt_controllers_seen);
+        // Get the context ID for the supervisor mode context of the boot hart.
+        // FIXME: Support multiple contexts when we support SMP on riscv64.
+        size_t boot_hart_supervisor_mode_context_id;
+        FlatPtr boot_hart_id = s_boot_info.mhartid;
+
+        auto interrupts_extended_stream = node.get_property("interrupts-extended"sv).value().as_stream();
+
+        for (size_t context_id = 0;; context_id++) {
+            u32 cpu_intc_phandle = MUST(interrupts_extended_stream.read_value<BigEndian<u32>>());
+            auto const* cpu_intc = device_tree.phandle(cpu_intc_phandle);
+            VERIFY(cpu_intc != nullptr);
+
+            VERIFY(cpu_intc->has_property("interrupt-controller"sv));
+            VERIFY(cpu_intc->get_property("compatible"sv).value().as_strings().contains_slow("riscv,cpu-intc"sv));
+
+            VERIFY(cpu_intc->get_property("#interrupt-cells"sv).value().as<u32>() == 1);
+
+            auto const* cpu = cpu_intc->parent();
+            VERIFY(cpu != nullptr);
+            VERIFY(cpu->get_property("compatible"sv).value().as_strings().contains_slow("riscv"sv));
+
+            auto const* cpus = cpu->parent();
+            VERIFY(cpus != nullptr);
+            VERIFY(device_tree.get_child("cpus"sv).value().get_property("#address-cells"sv).value().as<u32>() == 1);
+            VERIFY(cpus->get_property("#address-cells"sv).value().as<u32>() == 1);
+            VERIFY(cpus->get_property("#size-cells"sv).value().as<u32>() == 0);
+
+            auto cpu_hart_id = cpu->get_property("reg"sv).value().as<u32>();
+            u32 interrupt_specifier = MUST(interrupts_extended_stream.read_value<BigEndian<u32>>());
+            if (cpu_hart_id == boot_hart_id && interrupt_specifier == (to_underlying(RISCV64::CSR::SCAUSE::SupervisorExternalInterrupt) & ~RISCV64::CSR::SCAUSE_INTERRUPT_MASK)) {
+                boot_hart_supervisor_mode_context_id = context_id;
+                break;
+            }
+        }
+
+        // m_interrupt_controllers.append(RISCV64::PLIC::try_to_initialize(paddr, riscv_ndev, boot_hart_supervisor_mode_context_id).release_value_but_fixme_should_propagate_errors());
+        m_interrupt_controllers.append(adopt_lock_ref(*new (nothrow) PLIC(PhysicalAddress(paddr), size, riscv_ndev + 1, boot_hart_supervisor_mode_context_id)));
     }
 }
 
