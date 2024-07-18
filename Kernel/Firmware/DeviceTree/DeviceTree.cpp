@@ -17,9 +17,27 @@ namespace Kernel::DeviceTree {
 
 alignas(PAGE_SIZE) __attribute__((section(".bss.fdt"))) u8 s_fdt_storage[fdt_storage_size];
 
+static Singleton<OwnPtr<Memory::Region>> s_fdt_region;
+static VirtualAddress s_fdt_addr { nullptr };
+
 ErrorOr<void> unflatten_fdt()
 {
-    *s_device_tree = TRY(::DeviceTree::DeviceTree::parse({ s_fdt_storage, g_boot_info.flattened_devicetree_size }));
+    if (g_boot_info.boot_method == BootMethod::EFI) {
+        auto fdt_region_size = TRY(Memory::page_round_up(g_boot_info.flattened_devicetree_size + g_boot_info.flattened_devicetree_paddr.offset_in_page()));
+        *s_fdt_region = TRY(MM.allocate_mmio_kernel_region(g_boot_info.flattened_devicetree_paddr.page_base(), fdt_region_size, {}, Memory::Region::Access::Read));
+
+        s_fdt_addr = (*s_fdt_region)->vaddr().offset(g_boot_info.flattened_devicetree_paddr.offset_in_page());
+
+        // We don't verify the FDT at the start of init() if booted via EFI, so do it now.
+        auto& header = *bit_cast<::DeviceTree::FlattenedDeviceTreeHeader*>(s_fdt_addr.as_ptr());
+        auto fdt = ReadonlyBytes(s_fdt_storage, g_boot_info.flattened_devicetree_size);
+        VERIFY(::DeviceTree::validate_flattened_device_tree(header, fdt, ::DeviceTree::Verbose::Yes));
+    } else {
+        s_fdt_addr = VirtualAddress { &s_fdt_storage };
+    }
+
+    *s_device_tree = TRY(::DeviceTree::DeviceTree::parse({ s_fdt_addr.as_ptr(), g_boot_info.flattened_devicetree_size }));
+
     return {};
 }
 
@@ -42,7 +60,7 @@ bool verify_fdt()
 
 void dump_fdt()
 {
-    auto& header = *bit_cast<::DeviceTree::FlattenedDeviceTreeHeader*>(&s_fdt_storage[0]);
+    auto& header = *bit_cast<::DeviceTree::FlattenedDeviceTreeHeader*>(s_fdt_addr.as_ptr());
     auto fdt = ReadonlyBytes(s_fdt_storage, g_boot_info.flattened_devicetree_size);
     MUST(::DeviceTree::dump(header, fdt));
 }

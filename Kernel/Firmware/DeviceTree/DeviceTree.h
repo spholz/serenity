@@ -12,6 +12,8 @@
 namespace Kernel::DeviceTree {
 
 constexpr size_t fdt_storage_size = 2 * MiB;
+
+// Unused when booting via EFI
 extern u8 s_fdt_storage[fdt_storage_size];
 
 ErrorOr<void> unflatten_fdt();
