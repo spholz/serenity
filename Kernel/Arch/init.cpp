@@ -71,6 +71,7 @@
 #    include <Kernel/Arch/x86_64/Interrupts/APIC.h>
 #    include <Kernel/Arch/x86_64/Interrupts/PIC.h>
 #elif ARCH(AARCH64)
+#    include <Kernel/Arch/aarch64/ASM_wrapper.h>
 #    include <Kernel/Arch/aarch64/RPi/Framebuffer.h>
 #    include <Kernel/Arch/aarch64/RPi/Mailbox.h>
 #    include <Kernel/Arch/aarch64/RPi/MiniUART.h>
@@ -140,6 +141,8 @@ Atomic<Graphics::Console*> g_boot_console;
 #if ARCH(X86_64)
 extern "C" u32 gdt64ptr;
 extern "C" u16 code64_sel;
+#elif ARCH(AARCH64)
+extern "C" uintptr_t vector_table_el1;
 #endif
 
 READONLY_AFTER_INIT static StringView s_kernel_cmdline;
@@ -157,6 +160,17 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
     if (boot_info.boot_method == BootMethod::EFI) {
         g_boot_info = boot_info;
         s_kernel_cmdline = "serial_debug root=nvme:0:1:0 nvme_poll"sv;
+
+        // XXX: Move trap setup to initialize_interrupts() just like for x86?
+#    if ARCH(AARCH64)
+        Aarch64::Asm::load_el1_vector_table(&vector_table_el1);
+#    elif ARCH(RISCV64)
+        asm volatile(R"(
+            la t0, asm_trap_handler
+            csrw stvec, t0
+        )");
+#    endif
+
     } else {
         if (!DeviceTree::verify_fdt())
             // We are too early in the boot process to print anything, so just hang if the FDT is invalid.
