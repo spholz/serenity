@@ -156,6 +156,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
 #elif ARCH(AARCH64) || ARCH(RISCV64)
     if (boot_info.boot_method == BootMethod::EFI) {
         g_boot_info = boot_info;
+        s_kernel_cmdline = "serial_debug root=nvme:0:1:0 nvme_poll"sv;
     } else {
         if (!DeviceTree::verify_fdt())
             // We are too early in the boot process to print anything, so just hang if the FDT is invalid.
