@@ -156,6 +156,8 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
     gdt64ptr = boot_info.arch_specific.gdt64ptr;
     code64_sel = boot_info.arch_specific.code64_sel;
     s_kernel_cmdline = boot_info.cmdline;
+    if (boot_info.boot_method == BootMethod::EFI)
+        s_kernel_cmdline = "serial_debug root=nvme:0:1:0"sv;
 #elif ARCH(AARCH64)
     // FIXME: For the aarch64 platforms, we should get the information by parsing a device tree instead of using multiboot.
     auto [ram_base, ram_size] = RPi::Mailbox::the().query_lower_arm_memory_range();
