@@ -1219,6 +1219,14 @@ UNMAP_AFTER_INIT void Processor::gdt_init()
 
     MSR gs_base(MSR_GS_BASE);
     gs_base.set((u64)this);
+
+    asm(R"(
+            pushq $8
+            leaq 1f(%rip), %rax
+            pushq %rax
+            lretq
+        1:
+    )");
 }
 
 extern "C" void context_first_init(Thread* from_thread, Thread* to_thread, [[maybe_unused]] TrapFrame* trap)
