@@ -7,6 +7,7 @@
 #include <AK/Format.h>
 #include <Kernel/Arch/Processor.h>
 #if ARCH(X86_64)
+#    include <Kernel/Arch/x86_64/IO.h>
 #    include <Kernel/Arch/x86_64/Shutdown.h>
 #elif ARCH(AARCH64)
 #    include <Kernel/Arch/aarch64/RPi/Watchdog.h>
@@ -55,6 +56,17 @@ void __panic(char const* file, unsigned int line, char const* function)
     case PanicMode::Halt:
         [[fallthrough]];
     default:
+#if ARCH(X86_64)
+        auto send_i8042 = [](u8 port, u8 byte) {
+            while ((IO::in8(0x64) & 0b10) != 0)
+                Processor::wait_check();
+
+            IO::out8(port, byte);
+        };
+
+        send_i8042(0x60, 0xed);
+        send_i8042(0x60, 0b111);
+#endif
         Processor::halt();
     }
 }
