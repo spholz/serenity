@@ -485,7 +485,6 @@ ErrorOr<NonnullRefPtr<VFSRootContext>> StorageManagement::create_first_vfs_root_
 
 UNMAP_AFTER_INIT void StorageManagement::initialize(bool poll)
 {
-    VERIFY(s_storage_device_minor_number == 0);
     if (!PCI::Access::is_disabled()) {
         enumerate_pci_controllers(poll);
     }
