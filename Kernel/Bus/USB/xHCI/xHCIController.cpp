@@ -1560,10 +1560,10 @@ void xHCIController::event_handling_thread()
 void xHCIController::hot_plug_thread()
 {
     while (!Process::current().is_dying()) {
+        (void)Thread::current()->sleep(Duration::from_seconds(1));
+
         if (m_root_hub)
             m_root_hub->check_for_port_updates();
-
-        (void)Thread::current()->sleep(Duration::from_seconds(1));
     }
     Thread::current()->exit();
     VERIFY_NOT_REACHED();

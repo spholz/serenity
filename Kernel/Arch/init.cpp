@@ -8,6 +8,7 @@
 #include <AK/SetOnce.h>
 #include <AK/Types.h>
 #include <Kernel/Arch/CPU.h>
+#include <Kernel/Arch/Delay.h>
 #include <Kernel/Arch/InterruptManagement.h>
 #include <Kernel/Arch/Processor.h>
 #include <Kernel/Boot/BootInfo.h>
@@ -422,6 +423,7 @@ void init_stage2(void*)
     for (auto* init_function = driver_init_table_start; init_function != driver_init_table_end; init_function++)
         (*init_function)();
 
+    microseconds_delay(2'000'000);
     StorageManagement::the().initialize(kernel_command_line().is_nvme_polling_enabled());
     for (int i = 0; i < 5; ++i) {
         if (StorageManagement::the().determine_boot_device(kernel_command_line().root_device()))
