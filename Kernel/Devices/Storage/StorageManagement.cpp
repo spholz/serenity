@@ -487,7 +487,7 @@ UNMAP_AFTER_INIT void StorageManagement::initialize(bool poll)
         enumerate_pci_controllers(poll);
     }
 
-#if ARCH(AARCH64)
+#if ARCH(AARCH64) && !defined(AARCH64_MACHINE_VIRT)
     auto& rpi_sdhc = RPi::SDHostController::the();
     if (auto maybe_error = rpi_sdhc.initialize(); maybe_error.is_error()) {
         dmesgln("Unable to initialize RaspberryPi's SD Host Controller: {}", maybe_error.error());

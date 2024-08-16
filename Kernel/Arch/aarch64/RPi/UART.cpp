@@ -91,7 +91,11 @@ enum ControlBits {
 };
 
 UART::UART()
+#ifdef AARCH64_MACHINE_VIRT
+    : m_registers(Memory::map_typed_writable<UARTRegisters volatile>(PhysicalAddress { 0x0900'0000 }).release_value_but_fixme_should_propagate_errors())
+#else
     : m_registers(MMIO::the().peripheral<UARTRegisters>(0x20'1000).release_value_but_fixme_should_propagate_errors())
+#endif
 {
     // Disable UART while changing configuration.
     m_registers->control = 0;
@@ -100,6 +104,10 @@ UART::UART()
 
     constexpr int baud_rate = 115'200;
 
+#ifdef AARCH64_MACHINE_VIRT
+    // FIXME: Set baud rate
+    (void)baud_rate;
+#else
     // Set UART clock so that the baud rate divisor ends up as 1.0.
     // FIXME: Not sure if this is a good UART clock rate.
     u32 rate_in_hz = Timer::set_clock_rate(Timer::ClockID::UART, 16 * baud_rate);
@@ -112,6 +120,8 @@ UART::UART()
 
     // Clock and pins are configured. Turn UART on.
     set_baud_rate(baud_rate, rate_in_hz);
+#endif
+
     m_registers->line_control = EnableFIFOs | WordLength8Bits;
 
     m_registers->control = UARTEnable | TransmitEnable | ReceiveEnable;

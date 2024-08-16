@@ -228,7 +228,7 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
     CommandLine::initialize();
     Memory::MemoryManager::initialize(0);
 
-#if ARCH(AARCH64)
+#if ARCH(AARCH64) && !defined(AARCH64_MACHINE_VIRT)
     auto firmware_version = RPi::Mailbox::the().query_firmware_version();
     dmesgln("RPi: Firmware version: {}", firmware_version);
 
@@ -375,7 +375,7 @@ void init_stage2(void*)
     (void)SerialDevice::must_create(1).leak_ref();
     (void)SerialDevice::must_create(2).leak_ref();
     (void)SerialDevice::must_create(3).leak_ref();
-#elif ARCH(AARCH64)
+#elif ARCH(AARCH64) && !defined(AARCH64_MACHINE_VIRT)
     (void)MUST(RPi::MiniUART::create()).leak_ref();
 #endif
 

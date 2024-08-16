@@ -36,6 +36,10 @@ void InterruptManagement::initialize()
 
 void InterruptManagement::find_controllers()
 {
+#ifdef AARCH64_MACHINE_VIRT
+    // XXX: HACK
+    auto const& soc_node = DeviceTree::get();
+#else
     auto const maybe_soc_node = DeviceTree::get().get_child("soc"sv);
     if (!maybe_soc_node.has_value()) {
         dmesgln("Interrupts: No `soc` node found in the device tree, Interrupts initialization will be skipped");
@@ -43,6 +47,7 @@ void InterruptManagement::find_controllers()
     }
 
     auto const& soc_node = maybe_soc_node.value();
+#endif
 
     enum class ControllerCompatible {
         Unknown,

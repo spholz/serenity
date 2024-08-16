@@ -68,9 +68,11 @@ UNMAP_AFTER_INIT ErrorOr<NonnullLockRefPtr<GIC>> GIC::try_to_initialize(DeviceTr
     if (cpu_interface_registers_size < sizeof(CPUInterfaceRegisters))
         return EINVAL;
 
+#ifndef AARCH64_MACHINE_VIRT
     // XXX: ranges
     distributor_registers_paddr = distributor_registers_paddr.offset(0xff80'0000 - 0x4000'0000);
     cpu_interface_registers_paddr = cpu_interface_registers_paddr.offset(0xff80'0000 - 0x4000'0000);
+#endif
 
     dbgln("GIC distributor registers @ {}", distributor_registers_paddr);
     dbgln("GIC CPU interface registers @ {}", cpu_interface_registers_paddr);

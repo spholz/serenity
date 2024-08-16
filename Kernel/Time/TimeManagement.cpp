@@ -461,6 +461,10 @@ void TimeManagement::increment_time_since_boot_hpet()
 #elif ARCH(AARCH64)
 UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_aarch64_hardware_timers()
 {
+#    ifdef AARCH64_MACHINE_VIRT
+    // XXX: HACK
+    auto const& soc_node = DeviceTree::get();
+#    else
     auto const maybe_soc_node = DeviceTree::get().get_child("soc"sv);
     if (!maybe_soc_node.has_value()) {
         dmesgln("TimeMangement: No `soc` node found in the device tree, Timer initialization will be skipped");
@@ -468,6 +472,7 @@ UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_aarch64_hardware_timers()
     }
 
     auto const& soc_node = maybe_soc_node.value();
+#    endif
 
     enum class ControllerCompatible {
         Unknown,
@@ -485,10 +490,12 @@ UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_aarch64_hardware_timers()
 
         auto controller_compatibility = ControllerCompatible::Unknown;
         compatible.for_each_string([&controller_compatibility](StringView compatible_string) -> IterationDecision {
+#    ifndef AARCH64_MACHINE_VIRT
             if (compatible_string == "brcm,bcm2835-system-timer"sv) {
                 controller_compatibility = ControllerCompatible::BRCM_BCM2835_SystemTimer;
                 return IterationDecision::Break;
             }
+#    endif
             if (compatible_string == "arm,armv8-timer"sv) {
                 controller_compatibility = ControllerCompatible::ARM_ARMv8_Timer;
                 return IterationDecision::Break;
