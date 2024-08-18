@@ -723,14 +723,14 @@ void PS2KeyboardDevice::handle_byte_read_from_serial_input(u8 byte)
     }
 }
 
-UNMAP_AFTER_INIT ErrorOr<NonnullOwnPtr<PS2KeyboardDevice>> PS2KeyboardDevice::try_to_initialize(SerialIOController const& serial_io_controller, SerialIOController::PortIndex port_index, ScanCodeSet scan_code_set, KeyboardDevice const& keyboard_device)
+ErrorOr<NonnullOwnPtr<PS2KeyboardDevice>> PS2KeyboardDevice::try_to_initialize(SerialIOController const& serial_io_controller, SerialIOController::PortIndex port_index, ScanCodeSet scan_code_set, KeyboardDevice const& keyboard_device)
 {
     auto device = TRY(adopt_nonnull_own_or_enomem(new (nothrow) PS2KeyboardDevice(serial_io_controller, port_index, scan_code_set, keyboard_device)));
     TRY(device->initialize());
     return device;
 }
 
-UNMAP_AFTER_INIT ErrorOr<void> PS2KeyboardDevice::initialize()
+ErrorOr<void> PS2KeyboardDevice::initialize()
 {
     ErrorOr<void> err = attached_controller().reset_device(attached_port_index());
 
@@ -757,17 +757,13 @@ UNMAP_AFTER_INIT ErrorOr<void> PS2KeyboardDevice::initialize()
     return err;
 }
 
-// FIXME: UNMAP_AFTER_INIT might not be correct, because in practice PS/2 devices
-// are hot pluggable.
-UNMAP_AFTER_INIT PS2KeyboardDevice::PS2KeyboardDevice(SerialIOController const& serial_io_controller, SerialIOController::PortIndex port_index, ScanCodeSet scan_code_set, KeyboardDevice const& keyboard_device)
+PS2KeyboardDevice::PS2KeyboardDevice(SerialIOController const& serial_io_controller, SerialIOController::PortIndex port_index, ScanCodeSet scan_code_set, KeyboardDevice const& keyboard_device)
     : SerialIODevice(serial_io_controller, port_index)
     , m_keyboard_device(keyboard_device)
     , m_scan_code_set(scan_code_set)
 {
 }
 
-// FIXME: UNMAP_AFTER_INIT might not be correct, because in practice PS/2 devices
-// are hot pluggable.
-UNMAP_AFTER_INIT PS2KeyboardDevice::~PS2KeyboardDevice() = default;
+PS2KeyboardDevice::~PS2KeyboardDevice() = default;
 
 }
