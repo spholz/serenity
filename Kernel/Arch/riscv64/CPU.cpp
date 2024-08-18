@@ -5,6 +5,7 @@
  */
 
 #include <Kernel/Arch/riscv64/CPU.h>
+#include <LibDeviceTree/FlattenedDeviceTree.h>
 
 namespace Kernel {
 

@@ -203,9 +203,20 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
 
     auto maybe_command_line = DeviceTree::get_command_line_from_fdt();
     if (maybe_command_line.is_error())
-        kernel_cmdline = "serial_debug"sv;
+        kernel_cmdline = "serial_debug nvme_poll root=nvme0:1:0"sv;
     else
         kernel_cmdline = maybe_command_line.value();
+
+    if (is_vf2()) {
+        // VF2 U-Boot Framebuffer
+        multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 };
+        multiboot_framebuffer_width = 1920;
+        multiboot_framebuffer_height = 1080;
+        multiboot_framebuffer_bpp = 32;
+        multiboot_framebuffer_pitch = multiboot_framebuffer_width * (multiboot_framebuffer_bpp / 8);
+        multiboot_framebuffer_type = MULTIBOOT_FRAMEBUFFER_TYPE_RGB;
+        multiboot_flags = MULTIBOOT_INFO_FRAMEBUFFER_INFO;
+    }
 #endif
 
     setup_serial_debug();

@@ -11,6 +11,10 @@
 #include <Userland/Libraries/LibDeviceTree/FlattenedDeviceTree.h>
 #include <Userland/Libraries/LibDeviceTree/Validation.h>
 
+#if ARCH(RISCV64)
+#    include <Kernel/Arch/riscv64/CPU.h>
+#endif
+
 static Singleton<OwnPtr<DeviceTree::DeviceTree>> s_device_tree;
 
 namespace Kernel::DeviceTree {
@@ -61,3 +65,27 @@ ErrorOr<StringView> get_command_line_from_fdt()
 }
 
 }
+
+#if ARCH(RISCV64)
+namespace Kernel {
+
+bool is_vf2()
+{
+    static TriState is_vf2 = TriState::Unknown;
+
+    if (is_vf2 == TriState::Unknown) {
+        auto& fdt_header = *bit_cast<::DeviceTree::FlattenedDeviceTreeHeader*>(&DeviceTree::s_fdt_storage[0]);
+        auto fdt = ReadonlyBytes(DeviceTree::s_fdt_storage, fdt_header.totalsize);
+        auto compatible = MUST(::DeviceTree::slow_get_property("/compatible"sv, fdt_header, fdt)).as_string();
+
+        is_vf2 = compatible.starts_with("starfive,jh7110"sv) ? TriState::True : TriState::False;
+    }
+
+    if (is_vf2 == TriState::True)
+        return true;
+
+    return false;
+}
+
+}
+#endif
