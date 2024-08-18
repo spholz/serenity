@@ -210,7 +210,8 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
 
     if (is_vf2()) {
         // VF2 U-Boot Framebuffer
-        multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 };
+        // The `| 0x4'0000'0000` is a quirk needed to avoid having the framebuffer cached.
+        multiboot_framebuffer_addr = PhysicalAddress { 0xfe00'0000 | 0x4'0000'0000 };
         multiboot_framebuffer_width = 1920;
         multiboot_framebuffer_height = 1080;
         multiboot_framebuffer_bpp = 32;
