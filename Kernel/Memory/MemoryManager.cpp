@@ -691,7 +691,7 @@ UNMAP_AFTER_INIT void MemoryManager::parse_memory_map_fdt(MemoryManager::GlobalD
         // U-Boot framebuffer
         size_t const vf2_framebuffer_size = 1920ull * 1080 * 4;
         global_data.physical_memory_ranges.append(PhysicalMemoryRange { PhysicalMemoryRangeType::Reserved, PhysicalAddress { 0xfe00'0000 }, vf2_framebuffer_size });
-        global_data.used_memory_ranges.append(UsedMemoryRange { UsedMemoryRangeType::BootModule, PhysicalAddress { 0xfe00'0000 }, PhysicalAddress { 0xfe00'0000 + vf2_framebuffer_size } });
+        global_data.used_memory_ranges.append(UsedMemoryRange { UsedMemoryRangeType::BootModule, PhysicalAddress { 0xfe00'0000 | 0x4'0000'0000 }, PhysicalAddress { (0xfe00'0000 | 0x4'0000'0000) + vf2_framebuffer_size } });
     }
 #endif
 

@@ -168,7 +168,8 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
 
     if (is_vf2()) {
         // VF2 U-Boot Framebuffer
-        g_boot_info.boot_framebuffer.paddr = PhysicalAddress { 0xfe00'0000 };
+        // The `| 0x4'0000'0000` is a quirk needed to avoid having the framebuffer cached.
+        g_boot_info.boot_framebuffer.paddr = PhysicalAddress { 0xfe00'0000 | 0x4'0000'0000 };
         g_boot_info.boot_framebuffer.width = 1920;
         g_boot_info.boot_framebuffer.height = 1080;
         g_boot_info.boot_framebuffer.bpp = 32;
