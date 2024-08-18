@@ -15,4 +15,6 @@ namespace Kernel {
 
 extern BootInfo s_boot_info;
 
+bool is_vf2();
+
 }
