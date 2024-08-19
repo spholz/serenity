@@ -8,6 +8,7 @@
 
 #include <AK/Types.h>
 #include <Kernel/Memory/PhysicalAddress.h>
+#include <Kernel/Memory/TypedMapping.h>
 #include <Kernel/Sections.h>
 
 namespace Kernel::RPi {
@@ -27,8 +28,12 @@ public:
     //        but the code should be changed to use the MemoryManager to map the physical memory instead
     //        of pre-mapping the whole MMIO region.
     u32 volatile* peripheral_address(FlatPtr offset) { return (u32 volatile*)(kernel_mapping_base + m_base_address.get() + offset); }
-    template<class T>
-    T volatile* peripheral(FlatPtr offset) { return (T volatile*)peripheral_address(offset); }
+
+    template<typename T>
+    ErrorOr<Memory::TypedMapping<T volatile>> peripheral(FlatPtr offset)
+    {
+        return Memory::map_typed_writable<T volatile>(PhysicalAddress { m_base_address.offset(offset) });
+    }
 
     PhysicalAddress peripheral_base_address() const { return m_base_address; }
     PhysicalAddress peripheral_end_address() const { return m_base_address.offset(0x00FFFFFF); }
