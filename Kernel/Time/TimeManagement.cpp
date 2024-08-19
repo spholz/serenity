@@ -18,6 +18,7 @@
 #    include <Kernel/Arch/x86_64/Time/RTC.h>
 #elif ARCH(AARCH64)
 #    include <Kernel/Arch/aarch64/RPi/Timer.h>
+#    include <Kernel/Arch/aarch64/Time/ARMv8Timer.h>
 #elif ARCH(RISCV64)
 #    include <Kernel/Arch/riscv64/Timer.h>
 #else
@@ -27,6 +28,7 @@
 #include <Kernel/Arch/CurrentTime.h>
 #include <Kernel/Boot/CommandLine.h>
 #include <Kernel/Firmware/ACPI/Parser.h>
+#include <Kernel/Firmware/DeviceTree/DeviceTree.h>
 #include <Kernel/Interrupts/InterruptDisabler.h>
 #include <Kernel/Sections.h>
 #include <Kernel/Tasks/PerformanceManager.h>
@@ -459,14 +461,87 @@ void TimeManagement::increment_time_since_boot_hpet()
 #elif ARCH(AARCH64)
 UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_aarch64_hardware_timers()
 {
-    m_hardware_timers.append(RPi::Timer::initialize());
-    m_system_timer = m_hardware_timers[0];
+    auto const maybe_soc_node = DeviceTree::get().get_child("soc"sv);
+    if (!maybe_soc_node.has_value()) {
+        dmesgln("TimeMangement: No `soc` node found in the device tree, Timer initialization will be skipped");
+        VERIFY_NOT_REACHED();
+    }
+
+    auto const& soc_node = maybe_soc_node.value();
+
+    enum class ControllerCompatible {
+        Unknown,
+        BRCM_BCM2835_SystemTimer, // brcm,bcm2835-system-timer
+        ARM_ARMv8_Timer,          // arm,armv8-timer
+    };
+
+    auto checkout_node = [this](StringView node_name, ::DeviceTree::DeviceTreeNodeView const& node) {
+        (void)node_name;
+
+        auto maybe_compatible = node.get_property("compatible"sv);
+        if (!maybe_compatible.has_value())
+            return;
+        auto compatible = maybe_compatible.release_value();
+
+        auto controller_compatibility = ControllerCompatible::Unknown;
+        compatible.for_each_string([&controller_compatibility](StringView compatible_string) -> IterationDecision {
+            if (compatible_string == "brcm,bcm2835-system-timer"sv) {
+                controller_compatibility = ControllerCompatible::BRCM_BCM2835_SystemTimer;
+                return IterationDecision::Break;
+            }
+            if (compatible_string == "arm,armv8-timer"sv) {
+                controller_compatibility = ControllerCompatible::ARM_ARMv8_Timer;
+                return IterationDecision::Break;
+            }
+
+            return IterationDecision::Continue;
+        });
+
+        if (controller_compatibility == ControllerCompatible::Unknown)
+            return;
+
+        switch (controller_compatibility) {
+        case ControllerCompatible::BRCM_BCM2835_SystemTimer:
+            m_hardware_timers.append(RPi::Timer::initialize());
+            break;
+
+        case ControllerCompatible::ARM_ARMv8_Timer:
+            m_hardware_timers.append(ARMv8Timer::initialize());
+            break;
+
+        case ControllerCompatible::Unknown:
+            VERIFY_NOT_REACHED();
+        }
+    };
+
+    for (auto const& [node_name, node] : soc_node.children())
+        checkout_node(node_name, node);
+
+    for (auto const& [node_name, node] : DeviceTree::get().children())
+        checkout_node(node_name, node);
+
+    if (m_hardware_timers.is_empty()) {
+        dmesgln("TimeManagement: No compatible timer found in devicetree");
+        VERIFY_NOT_REACHED();
+    }
+
+    m_system_timer = m_hardware_timers.last(); // XXX which timer?
     m_time_ticks_per_second = m_system_timer->ticks_per_second();
+
+    dbgln("TimeManagement: System timer: {}", m_system_timer->model());
 
     m_system_timer->set_callback([this](RegisterState const& regs) {
         auto seconds_since_boot = m_seconds_since_boot;
         auto ticks_this_second = m_ticks_this_second;
-        auto delta_ns = static_cast<RPi::Timer*>(m_system_timer.ptr())->update_time(seconds_since_boot, ticks_this_second, false);
+
+        u64 delta_ns;
+
+        if (m_system_timer->timer_type() == HardwareTimerType::RPiTimer)
+            delta_ns = static_cast<RPi::Timer*>(m_system_timer.ptr())->update_time(seconds_since_boot, ticks_this_second, false);
+        else if (m_system_timer->timer_type() == HardwareTimerType::ARMv8Timer)
+            delta_ns = static_cast<ARMv8Timer*>(m_system_timer.ptr())->update_time(seconds_since_boot, ticks_this_second, false);
+        else
+            VERIFY_NOT_REACHED();
 
         u32 update_iteration = m_update2.fetch_add(1, AK::MemoryOrder::memory_order_acquire);
         m_seconds_since_boot = seconds_since_boot;
