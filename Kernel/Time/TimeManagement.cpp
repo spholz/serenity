@@ -138,7 +138,8 @@ MonotonicTime TimeManagement::monotonic_time(TimePrecision precision) const
             // FIXME: Get rid of these horrible casts
             const_cast<RPi::Timer*>(static_cast<RPi::Timer const*>(m_system_timer.ptr()))->update_time(seconds, ticks, true);
 #elif ARCH(RISCV64)
-            TODO_RISCV64();
+            // FIXME: Get rid of these horrible casts
+            const_cast<RISCV64::Timer*>(static_cast<RISCV64::Timer const*>(m_system_timer.ptr()))->update_time(seconds, ticks, true);
 #else
 #    error Unknown architecture
 #endif
@@ -510,6 +511,7 @@ UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_riscv64_hardware_timers()
         system_timer_tick();
     });
 
+    m_can_query_precise_time.set();
     m_time_keeper_timer = m_system_timer;
 
     return true;
