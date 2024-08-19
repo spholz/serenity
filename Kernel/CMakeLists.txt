@@ -502,6 +502,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
         Arch/aarch64/FPUState.S
         Arch/aarch64/InterruptManagement.cpp
         Arch/aarch64/Interrupts.cpp
+        Arch/aarch64/Interrupts/GIC.cpp
         Arch/aarch64/MainIdRegister.cpp
         Arch/aarch64/PageDirectory.cpp
         Arch/aarch64/Panic.cpp
@@ -518,6 +519,11 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
     # NOTE: These files cannot use a stack protector and sanitizers, as these will cause accesses to global variables to be inserted
     #       by the compiler. The CPU cannot access global variables without the MMU as the kernel is linked for a virtual address in high memory.
     set_source_files_properties(${SOURCES_RUNNING_WITHOUT_MMU} PROPERTIES COMPILE_FLAGS "-fno-stack-protector -fno-sanitize=all")
+
+    # Prevent volatile bitfield accesses from being optimized into smaller load/stores
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set_source_files_properties(Arch/aarch64/Interrupts/GIC.cpp PROPERTIES COMPILE_FLAGS "-fstrict-volatile-bitfields")
+    endif()
 elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
     set(SOURCES_RUNNING_WITHOUT_MMU
         Arch/riscv64/MMU.cpp
