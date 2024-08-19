@@ -136,7 +136,11 @@ public:
     void set_write_through(bool) { }
 
     bool is_cache_disabled() const { TODO_AARCH64(); }
-    void set_cache_disabled(bool) { }
+    void set_cache_disabled(bool b)
+    {
+        if (b)
+            m_raw = (m_raw & ~(0xff << 2)) | (1 << 2);
+    }
 
     bool is_global() const { TODO_AARCH64(); }
     void set_global(bool) { }
