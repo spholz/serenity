@@ -95,6 +95,42 @@ struct DeviceTreeProperty {
     ValueStream as_stream() const { return ValueStream { raw_data }; }
 };
 
+class RegEntry {
+public:
+    ErrorOr<FlatPtr> root_address() const
+    {
+        return bus_address(); // XXX
+    }
+
+    ErrorOr<FlatPtr> bus_address() const
+    {
+        if (m_address.size() == 1)
+            return *bit_cast<BigEndian<u32>*>(m_address.data());
+        if (m_address.size() == 2)
+            return *bit_cast<BigEndian<u64>*>(m_address.data());
+        return EINVAL;
+    }
+
+    ErrorOr<FlatPtr> size() const
+    {
+        if (m_size.size() == 1)
+            return *bit_cast<BigEndian<u32>*>(m_size.data());
+        if (m_size.size() == 2)
+            return *bit_cast<BigEndian<u64>*>(m_size.data());
+        return EINVAL;
+    }
+
+    // private:
+    ReadonlyBytes m_address;
+    ReadonlyBytes m_size;
+};
+
+class Reg {
+public:
+    // private:
+    Vector<RegEntry, 2> entries;
+};
+
 class DeviceTreeNodeView {
     AK_MAKE_NONCOPYABLE(DeviceTreeNodeView);
     AK_MAKE_DEFAULT_MOVABLE(DeviceTreeNodeView);
@@ -102,7 +138,7 @@ class DeviceTreeNodeView {
 public:
     bool has_property(StringView prop) const { return m_properties.contains(prop); }
     bool has_child(StringView child) const { return m_children.contains(child); }
-    bool child(StringView name) const { return has_property(name) || has_child(name); }
+    // bool child(StringView name) const { return has_property(name) || has_child(name); }
 
     Optional<DeviceTreeProperty> get_property(StringView prop) const { return m_properties.get(prop); }
 
@@ -114,6 +150,39 @@ public:
     HashMap<StringView, DeviceTreeProperty> const& properties() const { return m_properties; }
 
     DeviceTreeNodeView const* parent() const { return m_parent; }
+
+    // XXX: Return ErrorOr
+    Optional<u32> address_cells() const
+    {
+        return get_property("#address-cells"sv).map([](auto const& prop) { return prop.template as<u32>(); });
+    }
+
+    Optional<u32> size_cells() const
+    {
+        return get_property("#size-cells"sv).map([](auto const& prop) { return prop.template as<u32>(); });
+    }
+
+    ErrorOr<Reg> reg() const
+    {
+        if (parent() == nullptr)
+            return Error::from_errno(EINVAL);
+
+        auto reg_prop = get_property("reg"sv);
+        if (!reg_prop.has_value())
+            return Error::from_errno(ENOENT);
+
+        // If missing, a client program should assume a default value of 2 for #address-cells, and a value of 1 for #size-cells.
+        auto parent_address_cells = parent()->address_cells().value_or(2);
+        auto parent_size_cells = parent()->size_cells().value_or(1);
+
+        Vector<RegEntry, 2> reg_entries;
+
+        for (size_t i = 0; i < reg_prop->size(); i += (parent_address_cells + parent_size_cells) * sizeof(u32)) {
+            TRY(reg_entries.try_empend(reg_prop->raw_data.slice(i), reg_prop->raw_data.slice(i + parent_address_cells)));
+        }
+
+        return Reg { reg_entries };
+    }
 
     // FIXME: Add convenience functions for common properties like "reg" and "compatible"
     // Note: The "reg" property is a list of address and size pairs, but the address is not always a u32 or u64
