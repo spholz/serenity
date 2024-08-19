@@ -21,6 +21,9 @@ namespace Kernel::USB {
 static Singleton<USBManagement> s_the;
 READONLY_AFTER_INIT bool s_initialized_sys_fs_directory = false;
 
+// XXX: Singleton is ugly here, Vector not constinit-able
+static Singleton<Vector<NonnullLockRefPtr<Driver>>> s_available_drivers;
+
 UNMAP_AFTER_INIT USBManagement::USBManagement()
 {
     enumerate_controllers();
@@ -91,34 +94,32 @@ UNMAP_AFTER_INIT void USBManagement::initialize()
 
 void USBManagement::register_driver(NonnullLockRefPtr<Driver> driver)
 {
-    if (!initialized())
-        return;
     dbgln_if(USB_DEBUG, "Registering driver {}", driver->name());
-    the().m_available_drivers.append(driver);
+    s_available_drivers->append(driver);
 }
 
 LockRefPtr<Driver> USBManagement::get_driver_by_name(StringView name)
 {
-    if (!initialized())
-        return nullptr;
-    auto it = the().m_available_drivers.find_if([name](auto driver) { return driver->name() == name; });
+    auto it = s_available_drivers->find_if([name](auto driver) { return driver->name() == name; });
     return it.is_end() ? nullptr : LockRefPtr { *it };
 }
 
 void USBManagement::unregister_driver(NonnullLockRefPtr<Driver> driver)
 {
-    if (!initialized())
-        return;
-    auto& the_instance = the();
     dbgln_if(USB_DEBUG, "Unregistering driver {}", driver->name());
-    auto const& found_driver = the_instance.m_available_drivers.find(driver);
+    auto const& found_driver = s_available_drivers->find(driver);
     if (!found_driver.is_end())
-        the_instance.m_available_drivers.remove(found_driver.index());
+        s_available_drivers->remove(found_driver.index());
 }
 
 USBManagement& USBManagement::the()
 {
     return *s_the;
+}
+
+Vector<NonnullLockRefPtr<Driver>>& USBManagement::available_drivers()
+{
+    return *s_available_drivers;
 }
 
 }
