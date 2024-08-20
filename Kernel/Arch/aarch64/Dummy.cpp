@@ -14,16 +14,6 @@
 #include <Kernel/Tasks/Process.h>
 #include <Kernel/kstdio.h>
 
-// Delay.cpp
-namespace Kernel {
-
-void microseconds_delay(u32)
-{
-    TODO_AARCH64();
-}
-
-}
-
 // Initializer.cpp
 namespace Kernel::PCI {
 
