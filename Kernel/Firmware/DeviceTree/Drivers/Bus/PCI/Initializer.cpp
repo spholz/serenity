@@ -16,6 +16,8 @@
 
 namespace Kernel::PCI {
 
+// FIXME: Make this a DeviceTree::Driver.
+
 SetOnce g_pci_access_io_probe_failed;
 SetOnce g_pci_access_is_disabled_from_commandline;
 
@@ -36,6 +38,11 @@ void initialize()
     // FIXME: They can also appear in the root node, or any simple-bus other than soc
     auto const& device_tree = DeviceTree::get();
 
+#ifdef AARCH64_MACHINE_VIRT
+    // XXX: HACK
+    (void)device_tree;
+    auto const& soc = DeviceTree::get();
+#else
     auto maybe_soc = device_tree.get_child("soc"sv);
     if (!maybe_soc.has_value()) {
         dmesgln("PCI: No `soc` node found in the device tree, PCI initialization will be skipped");
@@ -43,6 +50,7 @@ void initialize()
     }
 
     auto const& soc = maybe_soc.value();
+#endif
 
     enum class ControllerCompatible {
         Unknown,
@@ -60,6 +68,7 @@ void initialize()
     u64 pci_64bit_mmio_size = 0;
     HashMap<PCIInterruptSpecifier, u64> masked_interrupt_mapping;
     PCIInterruptSpecifier interrupt_mask;
+    size_t host_controller_count = 0;
     for (auto const& [name, node] : soc.children()) {
         if (!name.starts_with("pci"sv))
             continue;
@@ -137,6 +146,8 @@ void initialize()
             auto stream = reg.as_stream();
             FlatPtr paddr = MUST(stream.read_cells(soc_address_cells));
 
+            host_controller_count++;
+
             Access::the().add_host_controller(
                 MemoryBackedHostBridge::must_create(
                     Domain {
@@ -167,7 +178,7 @@ void initialize()
 
                 if (pci_address_metadata.space_type != OpenFirmwareAddress::SpaceType::Memory32BitSpace
                     && pci_address_metadata.space_type != OpenFirmwareAddress::SpaceType::Memory64BitSpace)
-                    continue; // We currently only support memory-mapped PCI on RISC-V
+                    continue; // We currently only support MMIO spaces
 
                 // TODO: Support mapped PCI addresses
                 VERIFY(pci_address == mmio_address);
@@ -189,6 +200,7 @@ void initialize()
             }
         }
 
+#ifndef AARCH64_MACHINE_VIRT // XXX
         // 2.4.3 Interrupt Nexus Properties
         // #interrupt-cells: [2] `1` for pci busses
         // interrupt-map:
@@ -259,6 +271,12 @@ void initialize()
                     interrupt);
             }
         }
+#endif
+    }
+
+    if (host_controller_count == 0) {
+        g_pci_access_io_probe_failed.set(); // XXX
+        return;
     }
 
     if (pci_32bit_mmio_size != 0 || pci_64bit_mmio_size != 0) {

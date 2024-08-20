@@ -493,6 +493,8 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
 
         kprintf.cpp
 
+        Firmware/DeviceTree/Drivers/Bus/PCI/Initializer.cpp
+
         Arch/aarch64/Firmware/ACPI/StaticParsing.cpp
 
         Arch/aarch64/archctl.cpp
@@ -501,7 +503,6 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
         Arch/aarch64/CPUID.cpp
         Arch/aarch64/CurrentTime.cpp
         Arch/aarch64/Delay.cpp
-        Arch/aarch64/Dummy.cpp
         Arch/aarch64/FPUState.S
         Arch/aarch64/InterruptManagement.cpp
         Arch/aarch64/Interrupts.cpp
@@ -545,6 +546,8 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/Processor.cpp
         kprintf.cpp
 
+        Firmware/DeviceTree/Drivers/Bus/PCI/Initializer.cpp
+
         Arch/riscv64/Firmware/ACPI/StaticParsing.cpp
 
         Arch/riscv64/archctl.cpp
@@ -559,7 +562,6 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/MMU.cpp
         Arch/riscv64/PageDirectory.cpp
         Arch/riscv64/Panic.cpp
-        Arch/riscv64/PCI/Initializer.cpp
         Arch/riscv64/PowerState.cpp
         Arch/riscv64/pre_init.cpp
         Arch/riscv64/Processor.cpp
