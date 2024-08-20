@@ -500,6 +500,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
         Arch/aarch64/BootPPMParser.cpp
         Arch/aarch64/CPUID.cpp
         Arch/aarch64/CurrentTime.cpp
+        Arch/aarch64/Delay.cpp
         Arch/aarch64/Dummy.cpp
         Arch/aarch64/FPUState.S
         Arch/aarch64/InterruptManagement.cpp
