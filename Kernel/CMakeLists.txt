@@ -571,6 +571,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Arch/riscv64/trap_handler.S
 
         Bus/PCI/DeviceTreeInitializer.cpp
+        Bus/I2C/Controller/OpenCoresI2CController.cpp
     )
 
     # NOTE: These files cannot use a stack protector and sanitizers, as these will cause accesses to global variables to be inserted

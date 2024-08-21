@@ -50,17 +50,20 @@ void initialize()
     auto soc_address_cells = pci_host_controller_node_parent.get_property("#address-cells"sv).value().as<u32>();
     [[maybe_unused]] auto soc_size_cells = pci_host_controller_node_parent.get_property("#size-cells"sv).value().as<u32>();
 
+    // TODO: DistinctNumeric for Domain?
+    HashMap<u32, PCIConfiguration> pci_configurations;
+
     Optional<u32> domain_counter;
-    FlatPtr pci_32bit_mmio_base = 0;
-    u32 pci_32bit_mmio_size = 0;
-    FlatPtr pci_64bit_mmio_base = 0;
-    u64 pci_64bit_mmio_size = 0;
-    HashMap<PCIInterruptSpecifier, u64> masked_interrupt_mapping;
-    PCIInterruptSpecifier interrupt_mask;
     bool found_compatible_pci_controller = false;
     for (auto const& [name, node] : pci_host_controller_node_parent.children()) {
         if (!name.starts_with("pci"sv))
             continue;
+
+        // These properties must be present and have those values
+        auto address_cells = node.get_property("#address-cells"sv).value().as<u32>();
+        VERIFY(address_cells == 3);
+        auto size_cells = node.get_property("#size-cells"sv).value().as<u32>();
+        VERIFY(size_cells == 2);
 
         if (auto device_type = node.get_property("device_type"sv); !device_type.has_value() || device_type.value().as_string() != "pci"sv) {
             // Technically, the device_type property is deprecated, but if it is present,
@@ -174,6 +177,9 @@ void initialize()
 
         found_compatible_pci_controller = true;
 
+        auto& pci_configuration = pci_configurations.ensure(domain);
+
+        dbgln("PCI: Open Firmware ranges for {}:", name);
         auto maybe_ranges = node.get_property("ranges"sv);
         if (maybe_ranges.has_value()) {
             auto address_cells = node.get_property("#address-cells"sv).value().as<u32>();
@@ -183,34 +189,42 @@ void initialize()
             auto stream = maybe_ranges.value().as_stream();
             while (!stream.is_eof()) {
                 auto pci_address_metadata = bit_cast<OpenFirmwareAddress>(MUST(stream.read_cell()));
-                FlatPtr pci_address = MUST(stream.read_cells(2));
+                FlatPtr child_bus_address = MUST(stream.read_cells(2));
 
-                FlatPtr mmio_address = MUST(stream.read_cells(soc_address_cells));
-                u64 mmio_size = MUST(stream.read_cells(size_cells));
+                FlatPtr parent_bus_address = MUST(stream.read_cells(soc_address_cells));
+                u64 length = MUST(stream.read_cells(size_cells));
+
+                static constexpr auto space_type_names = Array { "Configuration Space"sv, "I/O Space"sv, "32-bit-address Memory Space"sv, "64-bit-address Memory Space"sv };
+
+                dbgln("  {:p}-{:p} => {:p}-{:p} {} prefetchable={} relocatable={}", child_bus_address, child_bus_address + length, parent_bus_address, parent_bus_address + length, space_type_names[to_underlying(pci_address_metadata.space_type)], !!pci_address_metadata.prefetchable, !pci_address_metadata.non_relocatable);
 
                 if (pci_address_metadata.space_type != OpenFirmwareAddress::SpaceType::Memory32BitSpace
                     && pci_address_metadata.space_type != OpenFirmwareAddress::SpaceType::Memory64BitSpace)
                     continue; // We currently only support memory-mapped PCI on RISC-V and AArch64
 
                 // TODO: Support mapped PCI addresses
-                VERIFY(pci_address == mmio_address);
+                VERIFY(child_bus_address == parent_bus_address);
                 if (pci_address_metadata.space_type == OpenFirmwareAddress::SpaceType::Memory32BitSpace) {
                     if (pci_address_metadata.prefetchable)
                         continue; // We currently only use non-prefetchable 32-bit regions, since 64-bit regions are always prefetchable - TODO: Use 32-bit prefetchable regions if only they are available
-                    if (pci_32bit_mmio_size >= mmio_size)
+                    if (pci_configuration.mmio_32bit_end - pci_configuration.mmio_32bit_base >= length)
                         continue; // We currently only use the single largest region - TODO: Use all available regions if needed
 
-                    pci_32bit_mmio_base = mmio_address;
-                    pci_32bit_mmio_size = mmio_size;
+                    pci_configuration.mmio_32bit_base = parent_bus_address;
+                    pci_configuration.mmio_32bit_end = parent_bus_address + length;
                 } else {
-                    if (pci_64bit_mmio_size >= mmio_size)
+                    if (pci_configuration.mmio_64bit_end - pci_configuration.mmio_64bit_base >= length)
                         continue; // We currently only use the single largest region - TODO: Use all available regions if needed
 
-                    pci_64bit_mmio_base = mmio_address;
-                    pci_64bit_mmio_size = mmio_size;
+                    pci_configuration.mmio_64bit_base = parent_bus_address;
+                    pci_configuration.mmio_64bit_end = parent_bus_address + length;
                 }
             }
         }
+
+        // TODO: clean up
+        if (pci_configuration.mmio_32bit_base == 0 && pci_configuration.mmio_64bit_base == 0)
+            dmesgln("PCI: No MMIO ranges found - assuming pre-configured by bootloader");
 
         // 2.4.3 Interrupt Nexus Properties
         // #interrupt-cells: [2] `1` for pci busses
@@ -250,7 +264,7 @@ void initialize()
             // [2]: The interrupt specifier mask should be between 0 and 7
             VERIFY(pin_mask <= 7);
 
-            interrupt_mask = PCIInterruptSpecifier {
+            pci_configuration.interrupt_mask = PCIInterruptSpecifier {
                 .interrupt_pin = static_cast<u8>(pin_mask),
                 .function = metadata_mask.function,
                 .device = metadata_mask.device,
@@ -293,7 +307,7 @@ void initialize()
 
                 pin &= pin_mask;
                 pci_address_metadata.raw &= metadata_mask.raw;
-                masked_interrupt_mapping.set(
+                pci_configuration.masked_interrupt_mapping.set(
                     PCIInterruptSpecifier {
                         .interrupt_pin = static_cast<u8>(pin),
                         .function = pci_address_metadata.function,
@@ -311,19 +325,7 @@ void initialize()
         return;
     }
 
-    if (pci_32bit_mmio_size != 0 || pci_64bit_mmio_size != 0) {
-        PCIConfiguration config {
-            pci_32bit_mmio_base,
-            pci_32bit_mmio_base + pci_32bit_mmio_size,
-            pci_64bit_mmio_base,
-            pci_64bit_mmio_base + pci_64bit_mmio_size,
-            move(masked_interrupt_mapping),
-            interrupt_mask,
-        };
-        Access::the().configure_pci_space(config);
-    } else {
-        dmesgln("PCI: No MMIO ranges found - assuming pre-configured by bootloader");
-    }
+    Access::the().configure_pci_space(pci_configurations);
     Access::the().rescan_hardware();
 
     PCIBusSysFSDirectory::initialize();

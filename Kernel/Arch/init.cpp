@@ -76,6 +76,7 @@
 #    include <Kernel/Arch/aarch64/RPi/MiniUART.h>
 #elif ARCH(RISCV64)
 #    include <Kernel/Arch/riscv64/Delay.h>
+#    include <Kernel/Bus/I2C/Controller/OpenCoresI2CController.h>
 #endif
 
 #if ARCH(AARCH64) || ARCH(RISCV64)
@@ -238,6 +239,33 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
         DeviceTree::dump_fdt();
 
     DeviceTree::Management::initialize();
+#endif
+
+#if ARCH(RISCV64)
+    if (auto res = I2C::OpenCoresI2CController::try_to_initialize(); res.is_error()) {
+        dbgln("ocores-i2c init failed: {}", res);
+    } else {
+        auto i2c_controller = res.release_value();
+
+        auto data_to_write = to_array<u8>({ 0x01, 0x00 });
+        Array<u8, 100> data_read;
+
+        auto transfers = to_array<I2C::Transfer>({
+            I2C::WriteTransfer {
+                .target_address = 0x08,
+                .data_to_write = data_to_write,
+            },
+            I2C::ReadTransfer {
+                .target_address = 0x08,
+                .data_read = data_read,
+            },
+        });
+
+        if (auto res = i2c_controller->do_transfers(transfers); res.is_error())
+            dbgln("i2c transfer failed: {}", res.error());
+
+        dbgln("data read: {}", ReadonlyBytes { data_read });
+    }
 #endif
 
 #if ARCH(RISCV64)

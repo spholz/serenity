@@ -230,6 +230,13 @@ static_assert(AssertSize<SSTATUS, 8>());
 // 4.1.8 Supervisor Cause Register (scause)
 constexpr u64 SCAUSE_INTERRUPT_MASK = 1LU << 63;
 
+// Thse correspond to the interrupts defined in the priviliged ISA and the "major interrupt identities" in the AIA.
+enum class InterruptNumber {
+    SupervisorSoftwareInterrupt = 1,
+    SupervisorTimerInterrupt = 5,
+    SupervisorExternalInterrupt = 9,
+};
+
 enum class SCAUSE : u64 {
     // Interrupts
     // 0 Reserved
