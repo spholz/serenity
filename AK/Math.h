@@ -551,8 +551,7 @@ constexpr T remainder(T x, T y)
     return x;
 #else
 #    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
+    return x - (y * rint(x / y));
 #    endif
     if constexpr (IsSame<T, long double>)
         return __builtin_remainderl(x, y);
