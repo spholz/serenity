@@ -17,6 +17,8 @@
 #    error "Including AK/Math.h from the Kernel is never correct! Floating point is disabled."
 #endif
 
+extern "C" double rint(double) noexcept;
+
 namespace AK {
 
 template<FloatingPoint T>
@@ -36,6 +38,25 @@ template<FloatingPoint T>
 constexpr T L2_10 = 3.321928094887362347870319429489390175864L;
 template<FloatingPoint T>
 constexpr T L2_E = 1.442695040888963407359924681001892137L;
+
+template<FloatingPoint T>
+constexpr T LN_2 = 0.6931471805599453094172321214581765680755001343602552541206800094L;
+
+#define M_E 2.7182818284590452354
+
+template<size_t>
+constexpr size_t factorial();
+template<>
+constexpr size_t factorial<0>() { return 1; }
+template<size_t value>
+constexpr size_t factorial() { return value * factorial<value - 1>(); }
+
+template<size_t>
+constexpr double e_to_power();
+template<>
+constexpr double e_to_power<0>() { return 1; }
+template<size_t exponent>
+constexpr double e_to_power() { return M_E * e_to_power<exponent - 1>(); }
 
 namespace Details {
 template<size_t>
@@ -209,7 +230,7 @@ constexpr T rint(T x)
 #elif ARCH(AARCH64)
     AARCH64_INSTRUCTION(frintx, x);
 #endif
-    TODO();
+    return ::rint(x);
 }
 
 template<FloatingPoint T>
@@ -425,8 +446,7 @@ constexpr T fmod(T x, T y)
 
 #else
 #    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
+    return x - (y * rint(x / y));
 #    endif
     if constexpr (IsSame<T, long double>)
         return __builtin_fmodl(x, y);
@@ -454,8 +474,7 @@ constexpr T remainder(T x, T y)
     return x;
 #else
 #    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
+    return x - (y * rint(x / y));
 #    endif
     if constexpr (IsSame<T, long double>)
         return __builtin_remainderl(x, y);
@@ -497,7 +516,28 @@ constexpr T sqrt(T x)
     return res;
 #elif ARCH(AARCH64)
     AARCH64_INSTRUCTION(fsqrt, x);
+#elif ARCH(RISCV64)
+    if constexpr (IsSame<T, float>) {
+        float res;
+        asm("fsqrt.s %0, %1"
+            : "=f"(res)
+            : "f"(x));
+        return res;
+    }
+    if constexpr (IsSame<T, double>) {
+        double res;
+        asm("fsqrt.d %0, %1"
+            : "=f"(res)
+            : "f"(x));
+        return res;
+    }
+    if constexpr (IsSame<T, long double>)
+        TODO();
 #else
+#    if defined(AK_OS_SERENITY)
+    // TODO: Add implementation for this function.
+    return 0;
+#    endif
     return __builtin_sqrt(x);
 #endif
 }
@@ -655,7 +695,7 @@ constexpr T atan(T value)
 #else
 #    if defined(AK_OS_SERENITY)
     // TODO: Add implementation for this function.
-    TODO();
+    return 0;
 #    endif
     return __builtin_atan(value);
 #endif
@@ -714,7 +754,7 @@ constexpr T atan2(T y, T x)
 #else
 #    if defined(AK_OS_SERENITY)
     // TODO: Add implementation for this function.
-    TODO();
+    return 0;
 #    endif
     return __builtin_atan2(y, x);
 #endif
@@ -881,8 +921,38 @@ constexpr T exp(T exponent)
     return res;
 #else
 #    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
+    double result = 1;
+    if (exponent >= 1) {
+        size_t integer_part = (size_t)exponent;
+        if (integer_part & 1)
+            result *= e_to_power<1>();
+        if (integer_part & 2)
+            result *= e_to_power<2>();
+        if (integer_part > 3) {
+            if (integer_part & 4)
+                result *= e_to_power<4>();
+            if (integer_part & 8)
+                result *= e_to_power<8>();
+            if (integer_part & 16)
+                result *= e_to_power<16>();
+            if (integer_part & 32)
+                result *= e_to_power<32>();
+            if (integer_part >= 64)
+                return NumericLimits<T>::max();
+        }
+        exponent -= integer_part;
+    } else if (exponent < 0)
+        return 1 / exp(-exponent);
+    double taylor_series_result = 1 + exponent;
+    double taylor_series_numerator = exponent * exponent;
+    taylor_series_result += taylor_series_numerator / factorial<2>();
+    taylor_series_numerator *= (double)exponent;
+    taylor_series_result += taylor_series_numerator / factorial<3>();
+    taylor_series_numerator *= (double)exponent;
+    taylor_series_result += taylor_series_numerator / factorial<4>();
+    taylor_series_numerator *= (double)exponent;
+    taylor_series_result += taylor_series_numerator / factorial<5>();
+    return result * taylor_series_result;
 #    endif
     return __builtin_exp(exponent);
 #endif
@@ -907,8 +977,7 @@ constexpr T exp2(T exponent)
     return res;
 #else
 #    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
+    return exp(exponent * LN_2<T>);
 #    endif
     return __builtin_exp2(exponent);
 #endif

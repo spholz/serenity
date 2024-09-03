@@ -26,13 +26,6 @@
 #endif
 
 template<size_t>
-constexpr double e_to_power();
-template<>
-constexpr double e_to_power<0>() { return 1; }
-template<size_t exponent>
-constexpr double e_to_power() { return M_E * e_to_power<exponent - 1>(); }
-
-template<size_t>
 constexpr size_t factorial();
 template<>
 constexpr size_t factorial<0>() { return 1; }
@@ -453,8 +446,7 @@ long double rintl(long double value)
     (void)value;
     TODO_AARCH64();
 #elif ARCH(RISCV64)
-    (void)value;
-    TODO_RISCV64();
+    return rint(value);
 #elif ARCH(X86_64)
     long double res;
     asm(
@@ -519,8 +511,7 @@ long lrintl(long double value)
     (void)value;
     TODO_AARCH64();
 #elif ARCH(RISCV64)
-    (void)value;
-    TODO_RISCV64();
+    return lrint(value);
 #elif ARCH(X86_64)
     long res;
     asm(
