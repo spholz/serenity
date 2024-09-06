@@ -45,7 +45,10 @@ static Vector<FlatPtr, PerformanceEvent::max_stack_frame_count> raw_backtrace(Fl
         [&is_walking_userspace_stack](FlatPtr address) -> ErrorOr<FlatPtr> {
             if (!Memory::is_user_address(VirtualAddress { address })) {
                 if (is_walking_userspace_stack) {
+// FIXME: The userspace stack sometimes contains (very high) invalid addresses on riscv64
+#if !ARCH(RISCV64)
                     dbgln("SHENANIGANS! Userspace stack points back into kernel memory");
+#endif
                     return EFAULT;
                 }
             } else {

@@ -50,7 +50,7 @@ TimerQueue& TimerQueue::the()
     return *s_the;
 }
 
-UNMAP_AFTER_INIT TimerQueue::TimerQueue()
+TimerQueue::TimerQueue()
 {
     m_ticks_per_second = TimeManagement::the().ticks_per_second();
 }
