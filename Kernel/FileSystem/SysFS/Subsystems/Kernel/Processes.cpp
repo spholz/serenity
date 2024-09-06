@@ -93,6 +93,7 @@ ErrorOr<void> SysFSOverallProcesses::try_generate(KBufferBuilder& builder)
         size_t amount_purgeable_volatile = 0;
         size_t amount_purgeable_nonvolatile = 0;
 
+#if 0
         TRY(process.address_space().with([&](auto& space) -> ErrorOr<void> {
             amount_virtual = space->amount_virtual();
             amount_resident = space->amount_resident();
@@ -103,6 +104,7 @@ ErrorOr<void> SysFSOverallProcesses::try_generate(KBufferBuilder& builder)
             amount_purgeable_nonvolatile = space->amount_purgeable_nonvolatile();
             return {};
         }));
+#endif
 
         TRY(process_object.add("amount_virtual"sv, amount_virtual));
         TRY(process_object.add("amount_resident"sv, amount_resident));
