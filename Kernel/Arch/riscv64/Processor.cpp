@@ -473,7 +473,8 @@ void ProcessorBase<T>::exit_trap(TrapFrame& trap)
 
     // Process the deferred call queue. Among other things, this ensures
     // that any pending thread unblocks happen before we enter the scheduler.
-    m_deferred_call_pool.execute_pending();
+    if (Processor::current_in_irq() == 0)
+        m_deferred_call_pool.execute_pending();
 
     auto* current_thread = Processor::current_thread();
     if (current_thread) {

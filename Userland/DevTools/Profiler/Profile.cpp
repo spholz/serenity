@@ -469,7 +469,6 @@ ErrorOr<NonnullOwnPtr<Profile>> Profile::load_from_perfcore_file(StringView path
             event.data = fsdata;
         } else {
             dbgln("Unknown event type '{}'", type_string);
-            VERIFY_NOT_REACHED();
         }
 
         auto maybe_kernel_base = Symbolication::kernel_base();
@@ -484,7 +483,7 @@ ErrorOr<NonnullOwnPtr<Profile>> Profile::load_from_perfcore_file(StringView path
             DeprecatedFlyString object_name;
             ByteString symbol;
 
-            if (maybe_kernel_base.has_value() && ptr >= maybe_kernel_base.value()) {
+            if (maybe_kernel_base.has_value() && ptr >= 0x20'0000'0000) {
                 if (g_kernel_debuginfo_object.has_value()) {
                     symbol = g_kernel_debuginfo_object->elf.symbolicate(ptr - maybe_kernel_base.value(), &offset);
                 } else {

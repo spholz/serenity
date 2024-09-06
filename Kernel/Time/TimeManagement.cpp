@@ -546,6 +546,8 @@ UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_riscv64_hardware_timers()
     m_system_timer = m_hardware_timers[0];
     m_time_ticks_per_second = m_system_timer->ticks_per_second();
 
+    m_profile_timer = m_system_timer;
+
     m_system_timer->set_callback([this]() {
         auto seconds_since_boot = m_seconds_since_boot;
         auto ticks_this_second = m_ticks_this_second;
@@ -562,6 +564,8 @@ UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_riscv64_hardware_timers()
         update_time_page();
 
         system_timer_tick();
+
+        PerformanceManager::timer_tick();
     });
 
     m_can_query_precise_time.set();
