@@ -1485,7 +1485,23 @@ void xHCIController::handle_transfer_event(TransferRequestBlock const& transfer_
 void xHCIController::event_handling_thread()
 {
     while (!Process::current().is_dying()) {
-        m_event_queue.wait_forever("xHCI"sv);
+        auto timeout_time = Duration::from_milliseconds(3);
+        auto timeout = Thread::BlockTimeout { false, &timeout_time };
+        (void)m_event_queue.wait_on(timeout, "xHCI"sv);
+
+        USBStatus usb_status { .raw = m_operational_registers.usb_status.raw };
+        m_operational_registers.usb_status.raw = usb_status.raw;                                   // Clear pending status bits
+        m_runtime_registers.interrupter_registers[0].interrupter_management.interrupt_pending = 1; // Clear pending interrupt
+        if (usb_status.host_controller_halted) {
+            dmesgln_xhci("Host controller halted unexpectedly");
+        }
+        if (usb_status.host_system_error) {
+            dmesgln_xhci("Host system error");
+        }
+        if (usb_status.host_controller_error) {
+            dmesgln_xhci("Host controller error");
+        }
+
         // Handle up to ring-size events each time
         for (auto i = 0u; i < event_ring_segment_size; ++i) {
             // If the Cycle bit of the Event TRB pointed to by the Event Ring Dequeue Pointer equals CCS, then the Event TRB is a valid event,
