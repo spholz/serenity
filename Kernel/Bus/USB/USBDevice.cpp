@@ -23,10 +23,15 @@ ErrorOr<NonnullLockRefPtr<Device>> Device::try_create(USBController& controller,
     device->set_default_pipe(TRY(ControlPipe::create(controller, device, 0, 8)));
     TRY(controller.initialize_device(*device));
 
+    dbgln("USB: Device IDs for port {}: {:04x}:{:04x}", port, device->device_descriptor().vendor_id, device->device_descriptor().product_id);
+
     auto sysfs_node = TRY(SysFSUSBDeviceInformation::create(*device));
     device->m_sysfs_device_info_node.with([&](auto& node) {
         node = move(sysfs_node);
     });
+
+    bool driver_found = false;
+
     // Attempt to find a driver for this device. If one is found, we call the driver's
     // "probe" function, which initialises the local state for the device driver.
     // It is currently the driver's responsibility to search the configuration/interface
@@ -38,10 +43,14 @@ ErrorOr<NonnullLockRefPtr<Device>> Device::try_create(USBController& controller,
         auto result = driver->probe(device);
         if (result.is_error())
             continue;
-        dbgln_if(USB_DEBUG, "Found driver {} for device {:04x}:{:04x}!", driver->name(), device->device_descriptor().vendor_id, device->device_descriptor().product_id);
+        dbgln("USB: Found driver {} for device {:04x}:{:04x}!", driver->name(), device->device_descriptor().vendor_id, device->device_descriptor().product_id);
         device->set_driver(driver);
+        driver_found = true;
         break;
     }
+
+    if (!driver_found)
+        dbgln("USB: No driver for device {:04x}:{:04x} (port {}) found", device->device_descriptor().vendor_id, device->device_descriptor().product_id, port);
 
     return device;
 }

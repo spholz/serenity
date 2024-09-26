@@ -388,7 +388,7 @@ void init_stage2(void*)
 
     auto first_process_vfs_context_or_error = StorageManagement::the().create_first_vfs_root_context();
     if (first_process_vfs_context_or_error.is_error()) {
-        PANIC("StorageManagement::create_first_vfs_root_context failed");
+        PANIC("StorageManagement::create_first_vfs_root_context failed: {}", first_process_vfs_context_or_error.error());
     }
 
     auto first_process_vfs_context = first_process_vfs_context_or_error.release_value();

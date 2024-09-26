@@ -39,6 +39,11 @@ UNMAP_AFTER_INIT ErrorOr<void> Controller::initialize(Badge<AudioManagement>)
 {
     // Enable DMA and interrupts
     PCI::enable_bus_mastering(device_identifier());
+
+    // 255 means "unknown" or "no connection"
+    if (device_identifier().interrupt_line().value() == 255)
+        return ENOTSUP;
+
     m_interrupt_handler = TRY(InterruptHandler::create(*this));
 
     // 3.3.3, 3.3.4: Controller version
