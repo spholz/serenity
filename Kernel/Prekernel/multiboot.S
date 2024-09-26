@@ -23,6 +23,6 @@
 
 /* for MULTIBOOT_VIDEO_MODE */
 .long 0x00000000    /* mode_type */
-.long 1280          /* width */
-.long 1024          /* height */
+.long 1920          /* width */
+.long 1200          /* height */
 .long 32            /* depth */

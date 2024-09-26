@@ -169,7 +169,6 @@ UNMAP_AFTER_INIT void StorageManagement::enumerate_pci_controllers(bool nvme_pol
 
 UNMAP_AFTER_INIT void StorageManagement::enumerate_storage_devices()
 {
-    VERIFY(!m_controllers.is_empty());
     for (auto& controller : m_controllers) {
         for (size_t device_index = 0; device_index < controller->devices_count(); device_index++) {
             auto device = controller->device(device_index);
@@ -186,9 +185,9 @@ UNMAP_AFTER_INIT void StorageManagement::dump_storage_devices_and_partitions() c
     for (auto const& storage_device : m_storage_devices) {
         auto const& partitions = storage_device.partitions();
         if (partitions.is_empty()) {
-            critical_dmesgln("  Device: block{}:{} (no partitions)", storage_device.major(), storage_device.minor());
+            critical_dmesgln("  Device: block{}:{} {} (no partitions)", storage_device.major(), storage_device.minor(), storage_device.command_set_to_string_view());
         } else {
-            critical_dmesgln("  Device: block{}:{} ({} partitions)", storage_device.major(), storage_device.minor(), partitions.size());
+            critical_dmesgln("  Device: block{}:{} {} ({} partitions)", storage_device.major(), storage_device.minor(), storage_device.command_set_to_string_view(), partitions.size());
             unsigned partition_number = 1;
             for (auto const& partition : partitions) {
                 critical_dmesgln("    Partition: {}, block{}:{} (UUID {})", partition_number, partition->major(), partition->minor(), partition->metadata().unique_guid().to_string());
@@ -375,7 +374,6 @@ UNMAP_AFTER_INIT void StorageManagement::determine_boot_device_with_logical_unit
 
 UNMAP_AFTER_INIT bool StorageManagement::determine_boot_device(StringView boot_argument)
 {
-    VERIFY(!m_controllers.is_empty());
     m_boot_argument = boot_argument;
 
     if (m_boot_argument.starts_with(block_device_prefix)) {

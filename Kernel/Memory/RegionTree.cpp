@@ -5,6 +5,7 @@
  */
 
 #include <AK/Format.h>
+#include <Kernel/KSyms.h>
 #include <Kernel/Memory/AnonymousVMObject.h>
 #include <Kernel/Memory/MemoryManager.h>
 #include <Kernel/Memory/RegionTree.h>
@@ -75,6 +76,7 @@ ErrorOr<VirtualRange> RegionTree::allocate_range_anywhere(size_t size, size_t al
     }
 
     dmesgln("RegionTree: Failed to allocate anywhere: size={}, alignment={}", size, alignment);
+    dump_backtrace(PrintToScreen::Yes);
     return ENOMEM;
 }
 
