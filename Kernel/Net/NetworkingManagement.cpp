@@ -156,4 +156,10 @@ bool NetworkingManagement::initialize()
     m_loopback_adapter = *loopback;
     return true;
 }
+
+void NetworkingManagement::add_adapter(NonnullRefPtr<NetworkAdapter> const& adapter)
+{
+    m_adapters.with([&](auto& adapters) { adapters.append(adapter); });
+}
+
 }

@@ -39,6 +39,8 @@ public:
 
     NonnullRefPtr<NetworkAdapter> loopback_adapter() const;
 
+    void add_adapter(NonnullRefPtr<NetworkAdapter> const& adapter);
+
 private:
     ErrorOr<NonnullRefPtr<NetworkAdapter>> determine_network_device(PCI::DeviceIdentifier const&) const;
 
