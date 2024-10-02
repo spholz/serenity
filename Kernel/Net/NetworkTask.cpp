@@ -60,6 +60,9 @@ bool NetworkTask::is_current()
 
 void NetworkTask_main(void*)
 {
+    // USB NIC HACK
+    (void)Thread::current()->sleep(Duration::from_seconds(2));
+
     delayed_ack_sockets = new HashTable<NonnullRefPtr<TCPSocket>>;
 
     WaitQueue packet_wait_queue;

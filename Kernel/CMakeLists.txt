@@ -281,6 +281,7 @@ set(KERNEL_SOURCES
     Library/KLexicalPath.cpp
     Library/KString.cpp
     Library/UserOrKernelBuffer.cpp
+    Net/ASIX/AX88772NetworkAdapter.cpp
     Net/Intel/E1000ENetworkAdapter.cpp
     Net/Intel/E1000NetworkAdapter.cpp
     Net/Realtek/RTL8168NetworkAdapter.cpp
