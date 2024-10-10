@@ -1,0 +1,1 @@
+env set bootargs "nvme_poll root=nvme0:1:0 serial_debug"; env set serverip 192.168.178.30; if dhcp $scriptaddr $serverip:boot.scr.uimg; then source $scriptaddr; fi
