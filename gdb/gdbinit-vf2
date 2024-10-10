@@ -1,0 +1,45 @@
+target extended-remote :3333
+
+# OpenSBI
+# add-symbol-file /media/repos/riscv/opensbi/build/platform/generic/firmware/fw_payload.elf
+
+# Load the U-Boot image at the `relocaddr` from `bdinfo`
+# NOTE: This needs to be adjusted when the U-Boot image is updated
+# add-symbol-file /media/repos/u-boot/u-boot 0xccda4000
+
+# Kernel at physical load address...
+# add-symbol-file Build/riscv64/Kernel/Kernel.debug 0x44000000
+# ... and at the final remapped virtual address
+add-symbol-file Build/riscv64/Kernel/Kernel.debug
+
+# U-Boot
+# break do_go_exec
+
+# Kernel
+# break start
+# break pre_init
+hbreak __panic
+# break asm_trap_handler if $scause != 0x8000000000000005
+# break trap_handler
+# break trap_handler_nommu
+
+set remotecache off
+set stack-cache off
+set code-cache off
+
+source Meta/serenity_gdb.py
+source gdb/riscv_gdb_utils.py
+source gdb/serenity_riscv_unwinder.py
+
+set confirm off
+directory Build/riscv64/
+set confirm on
+
+set print frame-arguments none
+set print asm-demangle on
+
+skip -rfu ^AK::
+
+continue
+
+# vim: ft=gdb
