@@ -820,7 +820,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
 
     # The final kernel binary for some reason includes temporary local symbols on riscv64 clang, which causes kernel.map to be too big to fit in its section in the kernel.
     # Explicitly pass -X to the linker to remove them.
-    target_link_options(Kernel PRIVATE LINKER:-T ${CMAKE_CURRENT_BINARY_DIR}/linker.ld -nostdlib LINKER:--no-pie LINKER:-X)
+    target_link_options(Kernel PRIVATE LINKER:-T ${CMAKE_CURRENT_BINARY_DIR}/linker.ld -nostdlib LINKER:-X)
 
     set_target_properties(Kernel PROPERTIES LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/linker.ld")
 elseif ("${SERENITY_ARCH}" STREQUAL "x86_64")
