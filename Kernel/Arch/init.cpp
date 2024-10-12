@@ -156,8 +156,6 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
     gdt64ptr = boot_info.arch_specific.gdt64ptr;
     code64_sel = boot_info.arch_specific.code64_sel;
     s_kernel_cmdline = boot_info.cmdline;
-    if (boot_info.boot_method == BootMethod::EFI)
-        s_kernel_cmdline = "serial_debug root=nvme:0:1:0"sv;
 #elif ARCH(AARCH64) || ARCH(RISCV64)
     if (boot_info.boot_method == BootMethod::EFI) {
         g_boot_info = boot_info;

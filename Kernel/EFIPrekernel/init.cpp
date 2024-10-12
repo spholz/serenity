@@ -57,6 +57,36 @@ extern "C" [[noreturn]] void __stack_chk_fail()
     PANIC("Stack protector failure, stack smashing detected!");
 }
 
+static void convert_and_map_cmdline(EFI::LoadedImageProtocol* loaded_image_protocol, void* root_page_table, BootInfo& boot_info)
+{
+    // Get the cmdline from loaded_image_protocol->load_options.
+    // FIXME: Support non-ASCII characters.
+    if (loaded_image_protocol->load_options_size != 0 && loaded_image_protocol->load_options != nullptr) {
+        char16_t* load_options_ucs_2 = reinterpret_cast<char16_t*>(loaded_image_protocol->load_options);
+        size_t cmdline_length = loaded_image_protocol->load_options_size / sizeof(char16_t);
+
+        // Allocate pages for the cmdline buffer and map it to EFI_MEMORY_MAP_VADDR + 10 * EFI_PAGE_SIZE
+        // FIXME: Dont't hardcode the offset
+        // TODO: KASLR
+        EFI::PhysicalAddress cmdline_buffer_paddr = 0;
+        if (auto status = g_efi_system_table->boot_services->allocate_pages(EFI::AllocateType::AnyPages, EFI::MemoryType::LoaderData, pages_needed(cmdline_length), &cmdline_buffer_paddr); status != EFI::Status::Success)
+            PANIC("Failed to allocate pages for the cmdline buffer: {}", status);
+
+        if (auto result = Memory::map_pages(root_page_table, EFI_MEMORY_MAP_VADDR + 10 * EFI::EFI_PAGE_SIZE, cmdline_buffer_paddr, pages_needed(cmdline_length), Memory::Access::Read); result.is_error())
+            PANIC("Failed to map the cmdline buffer: {}", result.release_error());
+
+        char* cmdline_buffer = bit_cast<char*>(cmdline_buffer_paddr);
+
+        size_t actual_length = 0;
+        for (size_t i = 0; i < cmdline_length && load_options_ucs_2[i] != u'\0'; i++) {
+            cmdline_buffer[i] = static_cast<char>(load_options_ucs_2[i]);
+            actual_length++;
+        }
+
+        boot_info.cmdline = StringView { bit_cast<char*>(EFI_MEMORY_MAP_VADDR + 10 * EFI::EFI_PAGE_SIZE), actual_length };
+    }
+}
+
 static void map_kernel_image(void* root_page_table, ELF::Image const& kernel_elf_image, ReadonlyBytes kernel_elf_image_data, FlatPtr kernel_load_base)
 {
     kernel_elf_image.for_each_program_header([root_page_table, kernel_elf_image_data, kernel_load_base](ELF::Image::ProgramHeader const& program_header) {
@@ -240,9 +270,7 @@ extern "C" EFIAPI EFI::Status init(EFI::Handle image_handle, EFI::SystemTable* s
     boot_info->kernel_load_base = default_kernel_load_base;
     boot_info->physical_to_virtual_offset = boot_info->kernel_load_base - kernel_image_paddr;
 
-    // TODO: Get the cmdline from loaded_image_protocol->load_options.
-    //       The EFI shell passes the cmdline as a NUL-terminated UCS-2 string with argv[0] being the executable path.
-    //       efibootmgr --unicode doesn't add a NUL terminator.
+    convert_and_map_cmdline(loaded_image_protocol, root_page_table, *boot_info);
 
     dbgln("Mapping the kernel image...");
     map_kernel_image(root_page_table, kernel_elf_image, kernel_elf_image_data, boot_info->kernel_load_base);
