@@ -115,25 +115,17 @@ extern "C" void handle_interrupt(TrapFrame& trap_frame)
     Processor::current().enter_trap(trap_frame, true);
 
     for (auto& interrupt_controller : InterruptManagement::the().controllers()) {
-        auto pending_interrupts = interrupt_controller->pending_interrupts();
-
         // TODO: Add these interrupts as a source of entropy for randomness.
-        u8 irq = 0;
-        while (pending_interrupts) {
-            if ((pending_interrupts & 0b1) != 0b1) {
-                irq += 1;
-                pending_interrupts >>= 1;
-                continue;
-            }
+        for (;;) {
+            auto maybe_irq = interrupt_controller->pending_interrupt();
+            if (!maybe_irq.has_value())
+                break;
 
-            auto* handler = s_interrupt_handlers[irq];
+            auto* handler = s_interrupt_handlers[maybe_irq.value()];
             VERIFY(handler);
             handler->increment_call_count();
             handler->handle_interrupt();
             handler->eoi();
-
-            irq += 1;
-            pending_interrupts >>= 1;
         }
     }
 

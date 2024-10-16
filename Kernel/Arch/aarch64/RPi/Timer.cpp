@@ -10,6 +10,9 @@
 #include <Kernel/Arch/aarch64/RPi/MMIO.h>
 #include <Kernel/Arch/aarch64/RPi/Mailbox.h>
 #include <Kernel/Arch/aarch64/RPi/Timer.h>
+#include <Kernel/Firmware/DeviceTree/DeviceTree.h>
+#include <Kernel/Firmware/DeviceTree/Driver.h>
+#include <Kernel/Firmware/DeviceTree/Management.h>
 
 namespace Kernel::RPi {
 
@@ -30,10 +33,11 @@ enum FlagBits {
     SystemTimerMatch3 = 1 << 3,
 };
 
-Timer::Timer()
-    : HardwareTimer(1)
-    , m_registers(MMIO::the().peripheral<TimerRegisters>(0x3000).release_value_but_fixme_should_propagate_errors())
+Timer::Timer(size_t interrupt_number)
+    : HardwareTimer(interrupt_number)
 {
+    m_registers = MMIO::the().peripheral<TimerRegisters>(0x3000).release_value_but_fixme_should_propagate_errors();
+
     // FIXME: Actually query the frequency of the timer. By default it is 100MHz.
     m_frequency = 1e6;
 
@@ -42,11 +46,6 @@ Timer::Timer()
 }
 
 Timer::~Timer() = default;
-
-NonnullLockRefPtr<Timer> Timer::initialize()
-{
-    return adopt_lock_ref(*new Timer);
-}
 
 u64 Timer::microseconds_since_boot()
 {
@@ -180,6 +179,39 @@ u32 Timer::get_clock_rate(ClockID clock_id)
     }
 
     return message_queue.get_clock_rate.rate_hz;
+}
+
+static constinit Array const compatibles_array = {
+    "brcm,bcm2835-system-timer"sv,
+};
+
+DEVICETREE_DRIVER(BCM2835TimerDriver, compatibles_array);
+
+ErrorOr<void> BCM2835TimerDriver::probe(DeviceTree::Device const& device, StringView) const
+{
+    auto const interrupts = TRY(device.node().interrupts(DeviceTree::get()));
+    if (interrupts.size() != 4)
+        return EINVAL;
+
+    auto const& interrupt = interrupts[1];
+
+    if (!interrupt.domain_root->has_property("interrupt-controller"sv))
+        return ENOTSUP; // TODO: Handle interrupt nexuses
+
+    // XXX: Don't depend on a specific #interrupts-cells value.
+    auto const interrupt_number = *bit_cast<BigEndian<u64>*>(interrupt.interrupt_identifier.data()) & 0xffff'ffff;
+
+    DeviceTree::DeviceRecipe<NonnullLockRefPtr<HardwareTimerBase>> recipe {
+        name(),
+        device.node_name(),
+        [interrupt_number]() {
+            return adopt_nonnull_lock_ref_or_enomem(new (nothrow) Timer(interrupt_number));
+        },
+    };
+
+    TimeManagement::add_recipe(move(recipe));
+
+    return {};
 }
 
 }

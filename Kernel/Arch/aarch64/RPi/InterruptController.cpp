@@ -4,8 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Kernel/Arch/aarch64/InterruptManagement.h>
 #include <Kernel/Arch/aarch64/RPi/InterruptController.h>
 #include <Kernel/Arch/aarch64/RPi/MMIO.h>
+#include <Kernel/Firmware/DeviceTree/DeviceTree.h>
+#include <Kernel/Firmware/DeviceTree/Driver.h>
+#include <Kernel/Firmware/DeviceTree/Management.h>
 #include <Kernel/Interrupts/GenericInterruptHandler.h>
 
 namespace Kernel::RPi {
@@ -54,15 +58,39 @@ void InterruptController::disable(GenericInterruptHandler const& handler)
         m_registers->disable_irqs_2 = m_registers->disable_irqs_2 | (1 << (interrupt_number - 32));
 }
 
-void InterruptController::eoi(GenericInterruptHandler const&) const
+void InterruptController::eoi(GenericInterruptHandler const&)
 {
     // NOTE: The interrupt controller cannot clear the interrupt, since it is basically just a big multiplexer.
     //       The interrupt should be cleared by the corresponding device driver, such as a timer or uart.
 }
 
-u64 InterruptController::pending_interrupts() const
+Optional<u8> InterruptController::pending_interrupt() const
 {
-    return ((u64)m_registers->irq_pending_2 << 32) | (u64)m_registers->irq_pending_1;
+    auto irq_number_plus_one = bit_scan_forward(((u64)m_registers->irq_pending_2 << 32) | (u64)m_registers->irq_pending_1);
+    if (irq_number_plus_one == 0)
+        return {};
+    return irq_number_plus_one - 1;
+}
+
+static constinit Array const compatibles_array = {
+    "brcm,bcm2836-armctrl-ic"sv,
+};
+
+DEVICETREE_DRIVER(BCM2836InterruptControllerDriver, compatibles_array);
+
+ErrorOr<void> BCM2836InterruptControllerDriver::probe(DeviceTree::Device const& device, StringView) const
+{
+    DeviceTree::DeviceRecipe<NonnullLockRefPtr<IRQController>> recipe {
+        name(),
+        device.node_name(),
+        []() {
+            return adopt_nonnull_lock_ref_or_enomem(new (nothrow) InterruptController());
+        },
+    };
+
+    InterruptManagement::add_recipe(move(recipe));
+
+    return {};
 }
 
 }
