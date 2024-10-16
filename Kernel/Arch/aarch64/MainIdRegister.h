@@ -24,6 +24,7 @@ public:
         RaspberryPi2 = 0xC07,
         RaspberryPi3 = 0xD03,
         RaspberryPi4 = 0xD08,
+        RaspberryPi5 = 0xD0B,
     };
     unsigned part_num() const { return (m_value >> 4) & 0xFFF; }
 

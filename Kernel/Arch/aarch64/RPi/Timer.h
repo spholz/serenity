@@ -19,9 +19,8 @@ struct TimerRegisters;
 
 class Timer final : public HardwareTimer<IRQHandler> {
 public:
+    Timer(size_t interrupt_number);
     virtual ~Timer();
-
-    static NonnullLockRefPtr<Timer> initialize();
 
     virtual HardwareTimerType timer_type() const override { return HardwareTimerType::RPiTimer; }
     virtual StringView model() const override { return "RPi Timer"sv; }
@@ -66,8 +65,6 @@ public:
     static u32 get_clock_rate(ClockID);
 
 private:
-    Timer();
-
     enum class TimerID : u32 {
         Timer0 = 0,
         Timer1 = 1,
