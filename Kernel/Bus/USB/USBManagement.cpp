@@ -8,12 +8,14 @@
 #include <AK/Singleton.h>
 #include <Kernel/Boot/CommandLine.h>
 #include <Kernel/Bus/PCI/API.h>
+#include <Kernel/Bus/PCI/Access.h>
 #include <Kernel/Bus/PCI/Definitions.h>
 #include <Kernel/Bus/USB/EHCI/EHCIController.h>
 #include <Kernel/Bus/USB/UHCI/UHCIController.h>
 #include <Kernel/Bus/USB/USBManagement.h>
 #include <Kernel/Bus/USB/xHCI/xHCIController.h>
 #include <Kernel/FileSystem/SysFS/Subsystems/Bus/USB/BusDirectory.h>
+#include <Kernel/Memory/TypedMapping.h>
 #include <Kernel/Sections.h>
 
 namespace Kernel::USB {
@@ -32,6 +34,25 @@ UNMAP_AFTER_INIT USBManagement::USBManagement()
 UNMAP_AFTER_INIT void USBManagement::enumerate_controllers()
 {
     if (kernel_command_line().disable_usb())
+        return;
+
+    // RPi 5 hack
+    auto xhci_controller_or_error = xHCIController::try_to_initialize(MUST(Memory::map_typed<u8>(PhysicalAddress { 0x1f'0020'0000 + 0x40'0000 }, 0x100000, Memory::Region::Access::ReadWrite)));
+    if (xhci_controller_or_error.is_error())
+        dmesgln("USBManagement: Failed initializing xHCI controller - {}", xhci_controller_or_error.error());
+    else
+        m_controllers.append(xhci_controller_or_error.release_value());
+
+    xhci_controller_or_error = xHCIController::try_to_initialize(MUST(Memory::map_typed<u8>(PhysicalAddress { 0x1f'0030'0000 + 0x40'0000 }, 0x100000, Memory::Region::Access::ReadWrite)));
+    if (xhci_controller_or_error.is_error())
+        dmesgln("USBManagement: Failed initializing xHCI controller - {}", xhci_controller_or_error.error());
+    else
+        m_controllers.append(xhci_controller_or_error.release_value());
+
+    if (PCI::Access::is_disabled())
+        return;
+
+    if (PCI::Access::is_disabled())
         return;
 
     MUST(PCI::enumerate([this](PCI::DeviceIdentifier const& device_identifier) {

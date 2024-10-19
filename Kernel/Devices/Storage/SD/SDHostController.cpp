@@ -141,8 +141,11 @@ void SDHostController::try_enable_dma()
 
 ErrorOr<NonnullRefPtr<SDMemoryCard>> SDHostController::try_initialize_inserted_card()
 {
+    dbgln("1");
     if (!is_card_inserted())
         return ENODEV;
+
+    dbgln("2");
 
     // PLSS 4.2: "Card Identification Mode"
     // "After power-on ...the cards are initialized with ... 400KHz clock frequency."
@@ -150,22 +153,30 @@ ErrorOr<NonnullRefPtr<SDMemoryCard>> SDHostController::try_initialize_inserted_c
     // NOTE: The SDHC might already have been initialized (e.g. by the bootloader), let's reset it to a known configuration
     if (is_sd_clock_enabled())
         TRY(sd_clock_stop());
+
+    dbgln("3");
     TRY(sd_clock_supply(400000));
+    dbgln("4");
 
     // PLSS 4.2.3: "Card Initialization and Identification Process"
     // Also see Figure 4-2 in the PLSS spec for a flowchart of the initialization process.
     // Note that the steps correspond to the steps in the flowchart, although I made up the numbering and text
 
     // 1. Send CMD0 (GO_IDLE_STATE) to the card
+    dbgln("5");
     TRY(issue_command(SD::Commands::go_idle_state, 0));
+    dbgln("6");
     TRY(wait_for_response());
+    dbgln("7");
 
     // 2. Send CMD8 (SEND_IF_COND) to the card
     // SD interface condition: 7:0 = check pattern, 11:8 = supply voltage
     //      0x1aa: check pattern = 10101010, supply voltage = 1 => 2.7-3.6V
+    dbgln("8");
     u32 const voltage_window = 0x1aa;
     TRY(issue_command(SD::Commands::send_if_cond, voltage_window));
     auto interface_condition_response = wait_for_response();
+    dbgln("9");
 
     // 3. If the card does not respond to CMD8 it means that (Ver2.00 or later
     // SD Memory Card(voltage mismatch) or Ver1.X SD Memory Card or not SD
@@ -175,6 +186,7 @@ ErrorOr<NonnullRefPtr<SDMemoryCard>> SDHostController::try_initialize_inserted_c
         // flowchart in Figure 4-2 of the PLSS spec
         return ENOTSUP;
     }
+    dbgln("10");
 
     // 4. If the card responds to CMD8, but it's not a valid response then the
     // card is not usable
@@ -182,6 +194,7 @@ ErrorOr<NonnullRefPtr<SDMemoryCard>> SDHostController::try_initialize_inserted_c
         // FIXME: We should probably try again with a lower voltage window
         return ENODEV;
     }
+    dbgln("11");
 
     // 5. Send ACMD41 (SEND_OP_COND) with HCS=1 to the card, repeat this until the card is ready or timeout
     SD::OperatingConditionRegister ocr = {};
@@ -210,6 +223,7 @@ ErrorOr<NonnullRefPtr<SDMemoryCard>> SDHostController::try_initialize_inserted_c
         })) {
         return card_is_usable ? EIO : ENODEV;
     }
+    dbgln("12");
 
     // 6. If you requested to switch to 1.8V, and the card accepts, execute a voltage switch sequence
     //    (we didn't ask it)
@@ -218,12 +232,14 @@ ErrorOr<NonnullRefPtr<SDMemoryCard>> SDHostController::try_initialize_inserted_c
     TRY(issue_command(SD::Commands::all_send_cid, 0));
     auto all_send_cid_response = TRY(wait_for_response());
     auto cid = bit_cast<SD::CardIdentificationRegister>(all_send_cid_response.response);
+    dbgln("13");
 
     // 8. Send CMD3 (SEND_RELATIVE_ADDR) to the card
     TRY(issue_command(SD::Commands::send_relative_addr, 0));
     auto send_relative_addr_response = TRY(wait_for_response());
     u32 rca = send_relative_addr_response.response[0]; // FIXME: Might need to clear some bits here
 
+    dbgln("14");
     // Extra steps:
 
     TRY(issue_command(SD::Commands::send_csd, rca));
@@ -335,12 +351,74 @@ ErrorOr<SDHostController::Response> SDHostController::wait_for_response()
 {
     // SDHC 3.7.1.2 The Sequence to Finalize a Command
 
+    dbgln("a");
+
     // 1. Wait for the Command Complete Interrupt. If the Command Complete
     // Interrupt has occurred, go to step (2).
     if (!retry_with_timeout(
             [&]() { return m_registers->interrupt_status.command_complete; })) {
+        dbgln("Interrupt status:");
+        if (m_registers->interrupt_status.command_complete)
+            dbgln("Command Complete");
+        if (m_registers->interrupt_status.transfer_complete)
+            dbgln("Transfer Complete");
+        if (m_registers->interrupt_status.block_gap_event)
+            dbgln("Block Gap Event");
+        if (m_registers->interrupt_status.dma_interrupt)
+            dbgln("DMA Interrupt");
+        if (m_registers->interrupt_status.buffer_write_ready)
+            dbgln("Buffer Write Ready");
+        if (m_registers->interrupt_status.buffer_read_ready)
+            dbgln("Buffer Read Ready");
+        if (m_registers->interrupt_status.card_insertion)
+            dbgln("Card Insertion");
+        if (m_registers->interrupt_status.card_removal)
+            dbgln("Card Removal");
+        if (m_registers->interrupt_status.card_interrupt)
+            dbgln("Card Interrupt");
+        if (m_registers->interrupt_status.int_a)
+            dbgln("INT_A");
+        if (m_registers->interrupt_status.int_b)
+            dbgln("INT_B");
+        if (m_registers->interrupt_status.int_c)
+            dbgln("INT_C");
+        if (m_registers->interrupt_status.retuning_event)
+            dbgln("Re-tuning Event");
+        if (m_registers->interrupt_status.fx_event)
+            dbgln("FX Event");
+        if (m_registers->interrupt_status.error_interrupt)
+            dbgln("Error Interrupt");
+
+        if (m_registers->interrupt_status.command_timeout_error)
+            dbgln("Command Timeout Error");
+        if (m_registers->interrupt_status.command_crc_error)
+            dbgln("Command CRC Error");
+        if (m_registers->interrupt_status.command_end_bit_error)
+            dbgln("Command End Bit Error");
+        if (m_registers->interrupt_status.command_index_error)
+            dbgln("Command Index Error");
+        if (m_registers->interrupt_status.data_timeout_error)
+            dbgln("Data Timeout Error");
+        if (m_registers->interrupt_status.data_crc_error)
+            dbgln("Data CRC Error");
+        if (m_registers->interrupt_status.data_end_bit_error)
+            dbgln("Data End Bit Error");
+        if (m_registers->interrupt_status.current_limit_error)
+            dbgln("Current Limit Error");
+        if (m_registers->interrupt_status.auto_cmd_error)
+            dbgln("Auto CMD Error");
+        if (m_registers->interrupt_status.adma_error)
+            dbgln("ADMA Error");
+        if (m_registers->interrupt_status.tuning_error)
+            dbgln("Tuning Error");
+        if (m_registers->interrupt_status.response_error)
+            dbgln("Response Error");
+        if (m_registers->interrupt_status.vendor_specific_error != 0)
+            dbgln("Vendor Specific Error: {}", (u32)m_registers->interrupt_status.vendor_specific_error);
         return EIO;
     }
+
+    dbgln("b");
 
     // 2. Write 1 to Command Complete in the Normal Interrupt Status register to clear this bit
     m_registers->interrupt_status.raw = command_complete;
@@ -368,10 +446,14 @@ ErrorOr<SDHostController::Response> SDHostController::wait_for_response()
         break;
     }
 
+    dbgln("c");
+
     // 4. Judge whether the command uses the Transfer Complete Interrupt or not.
     //    If it uses Transfer Complete, go to step (5). If not, go to step (7).
     if (last_sent_command().uses_transfer_complete_interrupt())
         TODO();
+
+    dbgln("d");
 
     // 7. Check for errors in Response Data. If there is no error, go to step (8). If there is an error, go to step (9).
     if (cmd.response_type != SD::ResponseType::ResponseOf136Bits) {
@@ -379,6 +461,8 @@ ErrorOr<SDHostController::Response> SDHostController::wait_for_response()
             return EIO;
         }
     }
+
+    dbgln("e");
 
     // NOTE: Steps 7, 8 and 9 consist of checking the response for errors, which
     // are specific to each command therefore those steps are not fully implemented

@@ -14,16 +14,16 @@
 
 namespace Kernel::USB {
 
-class xHCIInterrupter;
+class xHCIPCIInterrupter;
 
 class xHCIController final
-    : public USBController
-    , public PCI::Device {
+    : public USBController {
+    friend class xHCIPCIInterrupter;
+
 public:
     static ErrorOr<NonnullLockRefPtr<xHCIController>> try_to_initialize(PCI::DeviceIdentifier const& pci_device_identifier);
+    static ErrorOr<NonnullLockRefPtr<xHCIController>> try_to_initialize(Memory::TypedMapping<u8> registers_mapping);
     virtual ~xHCIController() override;
-
-    virtual StringView device_name() const override { return "xHCI"sv; }
 
     virtual ErrorOr<void> initialize() override;
     virtual ErrorOr<void> reset() override;
@@ -47,10 +47,11 @@ public:
     ErrorOr<void> set_port_feature(Badge<xHCIRootHub>, u8 port, HubFeatureSelector);
     ErrorOr<void> clear_port_feature(Badge<xHCIRootHub>, u8 port, HubFeatureSelector);
 
-    void handle_interrupt(Badge<xHCIInterrupter>, u16 interrupter_id);
+    void handle_interrupt(Badge<xHCIPCIInterrupter>, u16 interrupter_id);
 
 private:
-    xHCIController(PCI::DeviceIdentifier const& pci_device_identifier, Memory::TypedMapping<u8> registers_io_window);
+    class PCIDevice;
+    xHCIController(OwnPtr<PCIDevice>, Memory::TypedMapping<u8> registers_io_window);
 
     void take_exclusive_control_from_bios();
     void intel_quirk_enable_xhci_ports();
@@ -1196,8 +1197,37 @@ private:
     TransferRequestBlock* m_event_ring_segment { nullptr };
     PhysicalPtr m_event_ring_segment_pointer { 0 };
 
-    OwnPtr<xHCIInterrupter> m_interrupter;
+    OwnPtr<xHCIPCIInterrupter> m_interrupter;
     OwnPtr<xHCIRootHub> m_root_hub;
+
+    class PCIDevice final : public PCI::Device {
+    public:
+        PCIDevice(PCI::DeviceIdentifier const& device_identifier)
+            : PCI::Device(device_identifier)
+        {
+        }
+
+        StringView device_name() const override { return "xHCI"sv; }
+    };
+
+    OwnPtr<PCIDevice> m_pci_device;
+
+    template<typename... Parameters>
+    void dmesgln_xhci(AK::CheckedFormatString<Parameters...>&& fmt, Parameters const&... parameters)
+    {
+        // if (m_pci_device) {
+        //     PCI::dmesgln_pci(*m_pci_device, move(fmt), forward<Parameters>(parameters)...);
+        // } else {
+        AK::StringBuilder builder;
+
+        builder.append("xHCI: "sv);
+
+        AK::VariadicFormatParams<AK::AllowDebugOnlyFormatters::Yes, Parameters...> variadic_format_params { parameters... };
+        MUST(AK::vformat(builder, fmt.view(), variadic_format_params));
+
+        dmesgln("{}", builder.string_view());
+        // }
+    }
 };
 
 }

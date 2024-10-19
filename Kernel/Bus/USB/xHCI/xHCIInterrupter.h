@@ -13,14 +13,14 @@
 
 namespace Kernel::USB {
 
-class xHCIInterrupter final : public PCI::IRQHandler {
+class xHCIPCIInterrupter final : public PCI::IRQHandler {
 public:
-    static ErrorOr<NonnullOwnPtr<xHCIInterrupter>> create(xHCIController&, u16 interrupter_id);
+    static ErrorOr<NonnullOwnPtr<xHCIPCIInterrupter>> create(xHCIController&, u16 interrupter_id);
 
     virtual StringView purpose() const override { return "xHCI Interrupter"sv; }
 
 private:
-    xHCIInterrupter(xHCIController& controller, u16 interrupter_id, u16 irq);
+    xHCIPCIInterrupter(xHCIController& controller, u16 interrupter_id, u16 irq);
 
     virtual bool handle_irq() override;
 

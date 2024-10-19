@@ -25,6 +25,8 @@ private:
     static bool attach_device_to_driver(Device&, Driver const&, StringView compatible_entry);
 
     HashMap<StringView, NonnullOwnPtr<Driver>> m_drivers;
+
+    // TODO: Convert to OwnPtr, so realloc doesn't destroy the pointers
     HashMap<::DeviceTree::DeviceTreeNodeView const*, Device> m_devices;
 };
 

@@ -71,9 +71,11 @@
 #    include <Kernel/Arch/x86_64/Interrupts/APIC.h>
 #    include <Kernel/Arch/x86_64/Interrupts/PIC.h>
 #elif ARCH(AARCH64)
+#    include <Kernel/Arch/aarch64/PSCI.h>
 #    include <Kernel/Arch/aarch64/RPi/Framebuffer.h>
 #    include <Kernel/Arch/aarch64/RPi/Mailbox.h>
 #    include <Kernel/Arch/aarch64/RPi/MiniUART.h>
+#    include <Kernel/Arch/aarch64/SMCCC.h>
 #elif ARCH(RISCV64)
 #    include <Kernel/Arch/riscv64/Delay.h>
 #endif
@@ -277,8 +279,42 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init([[maybe_
     DeviceTree::Management::initialize();
 #endif
 
+#if 0
+    char const c = 'Q';
+
+    register FlatPtr x0 asm("x0");
+    register u32 const w0 asm("w0") = 0x03;
+    register FlatPtr const x1 asm("x1") = bit_cast<FlatPtr>(&c);
+
+    asm volatile(R"(
+    mov x0, #1
+1:
+    cmp x0, #0
+    b.ne 1b
+    )" :);
+
+    asm volatile(
+        "hlt #0xf000\n"
+        : "=r"(x0)
+        : "r"(w0), "r"(x1)
+        : "memory");
+#endif
+
 #if ARCH(RISCV64)
     init_delay_loop();
+#endif
+
+#if ARCH(AARCH64)
+    auto version = PSCI::get_version();
+    dbgln("PSCI: Version: {}", version);
+
+    if (bit_cast<u32>(version) >= 0x1'0000) {
+        if (auto feature_flags_or_error = PSCI::get_features(0x8000'0000); !feature_flags_or_error.is_error()) {
+            dbgln("PSCI: SMCCC_VERSION supported, feature flags: {:#x}", feature_flags_or_error.release_value());
+
+            dbgln("PCI_VERSION: {:#x}", SMCCC::call32(0x8400'0130, 0, 0, 0, 0, 0, 0, 0).w0);
+        }
+    }
 #endif
 
     InterruptManagement::initialize();
@@ -402,9 +438,7 @@ void init_stage2(void*)
 
     auto boot_profiling = kernel_command_line().is_boot_profiling_enabled();
 
-    if (!PCI::Access::is_disabled()) {
-        USB::USBManagement::initialize();
-    }
+    USB::USBManagement::initialize();
     SysFSFirmwareDirectory::initialize();
 
     if (!PCI::Access::is_disabled()) {

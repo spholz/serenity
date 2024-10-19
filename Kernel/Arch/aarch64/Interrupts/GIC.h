@@ -18,7 +18,7 @@ namespace Kernel {
 
 class GIC final : public IRQController {
 public:
-    static ErrorOr<NonnullLockRefPtr<GIC>> try_to_initialize(DeviceTree::DeviceTreeNodeView const&);
+    static ErrorOr<NonnullLockRefPtr<GIC>> try_to_initialize(::DeviceTree::DeviceTreeNodeView const&);
 
     void enable(GenericInterruptHandler const&) override;
     void disable(GenericInterruptHandler const&) override;

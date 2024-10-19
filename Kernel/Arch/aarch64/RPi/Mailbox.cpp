@@ -39,7 +39,8 @@ constexpr u32 MBOX_EMPTY = 0x4000'0000;
 constexpr int ARM_TO_VIDEOCORE_CHANNEL = 8;
 
 Mailbox::Mailbox()
-    : m_registers(MMIO::the().peripheral<MailboxRegisters>(0xb880).release_value_but_fixme_should_propagate_errors())
+    // : m_registers(MMIO::the().peripheral<MailboxRegisters>(0xb880).release_value_but_fixme_should_propagate_errors())
+    : m_registers(Memory::map_typed_writable<MailboxRegisters volatile>(PhysicalAddress { 0x10'7c01'3880 }).release_value_but_fixme_should_propagate_errors())
 {
 }
 

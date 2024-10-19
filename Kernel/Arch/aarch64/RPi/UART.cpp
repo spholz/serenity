@@ -91,27 +91,29 @@ enum ControlBits {
 };
 
 UART::UART()
-    : m_registers(MMIO::the().peripheral<UARTRegisters>(0x20'1000).release_value_but_fixme_should_propagate_errors())
+    // : m_registers(MMIO::the().peripheral<UARTRegisters>(0x20'1000).release_value_but_fixme_should_propagate_errors())
+    // : m_registers(Memory::map_typed_writable<UARTRegisters volatile>(PhysicalAddress { 0x1f'0003'0000 }).release_value_but_fixme_should_propagate_errors())
+    : m_registers(Memory::map_typed_writable<UARTRegisters volatile>(PhysicalAddress { 0x10'7d00'1000 }).release_value_but_fixme_should_propagate_errors())
 {
     // Disable UART while changing configuration.
     m_registers->control = 0;
 
     // FIXME: Should wait for current transmission to end and should flush FIFO.
 
-    constexpr int baud_rate = 115'200;
+    // constexpr int baud_rate = 115'200;
 
     // Set UART clock so that the baud rate divisor ends up as 1.0.
     // FIXME: Not sure if this is a good UART clock rate.
-    u32 rate_in_hz = Timer::set_clock_rate(Timer::ClockID::UART, 16 * baud_rate);
+    // u32 rate_in_hz = Timer::set_clock_rate(Timer::ClockID::UART, 16 * baud_rate);
 
     // The BCM's PL011 UART is alternate function 0 on pins 14 and 15.
-    auto& gpio = GPIO::the();
-    gpio.set_pin_function(14, GPIO::PinFunction::Alternate0);
-    gpio.set_pin_function(15, GPIO::PinFunction::Alternate0);
-    gpio.set_pin_pull_up_down_state(Array { 14, 15 }, GPIO::PullUpDownState::Disable);
+    // auto& gpio = GPIO::the();
+    // gpio.set_pin_function(14, GPIO::PinFunction::Alternate0);
+    // gpio.set_pin_function(15, GPIO::PinFunction::Alternate0);
+    // gpio.set_pin_pull_up_down_state(Array { 14, 15 }, GPIO::PullUpDownState::Disable);
 
     // Clock and pins are configured. Turn UART on.
-    set_baud_rate(baud_rate, rate_in_hz);
+    // set_baud_rate(baud_rate, rate_in_hz);
     m_registers->line_control = EnableFIFOs | WordLength8Bits;
 
     m_registers->control = UARTEnable | TransmitEnable | ReceiveEnable;

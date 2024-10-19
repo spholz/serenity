@@ -74,7 +74,7 @@ bool Management::attach_device_to_driver(Device& device, Driver const& driver, S
     }
 
     device.set_driver({}, driver);
-    dbgln("DeviceTree: Attached device \"{}\" to driver {}", device.node_name(), driver.name());
+    dbgln("DeviceTree: Attached device \"{}\" to driver {} (for compatible \"{}\")", device.node_name(), driver.name(), compatible_entry);
 
     return true;
 }

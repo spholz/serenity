@@ -93,7 +93,8 @@ struct HostControlRegisterMap {
             // SDHC 2.2.19 Error Interrupt Status Register (Cat.C Offset 032
             u32 command_timeout_error : 1;
             u32 command_crc_error : 1;
-            u32 cammand_index_error : 1;
+            u32 command_end_bit_error : 1;
+            u32 command_index_error : 1;
             u32 data_timeout_error : 1;
             u32 data_crc_error : 1;
             u32 data_end_bit_error : 1;
@@ -102,7 +103,7 @@ struct HostControlRegisterMap {
             u32 adma_error : 1;
             u32 tuning_error : 1;
             u32 response_error : 1;
-            u32 vendor_specific_error : 1;
+            u32 vendor_specific_error : 4;
         } const;
         u32 raw;
     } interrupt_status;

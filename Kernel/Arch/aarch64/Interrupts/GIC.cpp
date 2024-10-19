@@ -6,12 +6,15 @@
 
 #include <Kernel/Arch/aarch64/InterruptManagement.h>
 #include <Kernel/Arch/aarch64/Interrupts/GIC.h>
+#include <Kernel/Firmware/DeviceTree/DeviceTree.h>
+#include <Kernel/Firmware/DeviceTree/Driver.h>
+#include <Kernel/Firmware/DeviceTree/Management.h>
 #include <Kernel/Interrupts/GenericInterruptHandler.h>
 #include <Kernel/Time/HardwareTimer.h>
 
 namespace Kernel {
 
-UNMAP_AFTER_INIT ErrorOr<NonnullLockRefPtr<GIC>> GIC::try_to_initialize(DeviceTree::DeviceTreeNodeView const& dt_node)
+UNMAP_AFTER_INIT ErrorOr<NonnullLockRefPtr<GIC>> GIC::try_to_initialize(::DeviceTree::DeviceTreeNodeView const& dt_node)
 {
     auto maybe_reg = dt_node.get_property("reg"sv);
     if (!maybe_reg.has_value())
@@ -68,9 +71,11 @@ UNMAP_AFTER_INIT ErrorOr<NonnullLockRefPtr<GIC>> GIC::try_to_initialize(DeviceTr
     if (cpu_interface_registers_size < sizeof(CPUInterfaceRegisters))
         return EINVAL;
 
+#ifdef PI4
     // XXX: ranges
     distributor_registers_paddr = distributor_registers_paddr.offset(0xff80'0000 - 0x4000'0000);
     cpu_interface_registers_paddr = cpu_interface_registers_paddr.offset(0xff80'0000 - 0x4000'0000);
+#endif
 
     dbgln("GIC distributor registers @ {}", distributor_registers_paddr);
     dbgln("GIC CPU interface registers @ {}", cpu_interface_registers_paddr);
@@ -135,7 +140,9 @@ UNMAP_AFTER_INIT ErrorOr<void> GIC::initialize()
 
     m_distributor_registers->distributor_control_register.enable = 0;
 
-    u32 max_number_of_interrupts = 32 * (m_distributor_registers->interrupt_controller_type_register.it_lines_number + 1);
+    u32 const max_number_of_interrupts = 32 * (m_distributor_registers->interrupt_controller_type_register.it_lines_number + 1);
+
+    dbgln("GIC Max number of interrupts: {}", max_number_of_interrupts);
 
     for (size_t i = 0; i < max_number_of_interrupts / 32; i++) {
         m_distributor_registers->interrupt_clear_enable_registers[i] = 0xffff'ffff;
@@ -165,6 +172,29 @@ bool HardwareTimer<GenericInterruptHandler>::eoi()
 {
     InterruptManagement::the().get_responsible_irq_controller(0)->eoi(*this);
     return true;
+}
+
+static constinit Array const compatibles_array = {
+    "arm,gic-400"sv,
+};
+
+DEVICETREE_DRIVER(GICDriver, compatibles_array);
+
+ErrorOr<void> GICDriver::probe(DeviceTree::Device const& device, StringView) const
+{
+    auto const& node = device.node();
+
+    DeviceTree::DeviceRecipe<NonnullLockRefPtr<IRQController>> recipe {
+        name(),
+        device.node_name(),
+        [&node]() {
+            return GIC::try_to_initialize(node);
+        },
+    };
+
+    InterruptManagement::add_recipe(move(recipe));
+
+    return {};
 }
 
 }

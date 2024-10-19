@@ -49,6 +49,12 @@ static void drop_el2_to_el1()
     hypervisor_configuration_register_el2.RW = 1; // EL1 to use 64-bit mode
     Aarch64::HCR_EL2::write(hypervisor_configuration_register_el2);
 
+    // XXX: Check Effective value of HCR_EL2.E2H and use appropriate variant of this register?
+    Aarch64::CNTHCTL_EL2 counter_timer_hypervisor_control_register = {};
+    counter_timer_hypervisor_control_register.EL1PCEN = 1;
+    counter_timer_hypervisor_control_register.EL1PCTEN = 1;
+    Aarch64::CNTHCTL_EL2::write(counter_timer_hypervisor_control_register);
+
     Aarch64::SPSR_EL2 saved_program_status_register_el2 = {};
 
     // Mask (disable) all interrupts

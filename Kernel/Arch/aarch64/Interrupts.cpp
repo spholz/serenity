@@ -107,7 +107,7 @@ extern "C" void exception_common(Kernel::TrapFrame* trap_frame)
     Processor::current().exit_trap(*trap_frame);
 }
 
-static Array<GenericInterruptHandler*, 64> s_interrupt_handlers;
+static Array<GenericInterruptHandler*, 256> s_interrupt_handlers;
 
 extern "C" void handle_interrupt(TrapFrame&);
 extern "C" void handle_interrupt(TrapFrame& trap_frame)

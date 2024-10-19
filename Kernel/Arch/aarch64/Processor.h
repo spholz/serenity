@@ -15,7 +15,6 @@
 #include <Kernel/Arch/DeferredCallPool.h>
 #include <Kernel/Arch/ProcessorSpecificDataID.h>
 #include <Kernel/Arch/aarch64/CPUID.h>
-#include <Kernel/Arch/aarch64/Registers.h>
 #include <Kernel/Memory/VirtualAddress.h>
 
 #include <AK/Platform.h>

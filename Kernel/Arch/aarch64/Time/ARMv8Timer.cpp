@@ -7,11 +7,13 @@
 #include <AK/Format.h>
 #include <Kernel/Arch/aarch64/Time/ARMv8Timer.h>
 #include <Kernel/Firmware/DeviceTree/DeviceTree.h>
+#include <Kernel/Firmware/DeviceTree/Driver.h>
+#include <Kernel/Firmware/DeviceTree/Management.h>
 
 namespace Kernel {
 
-ARMv8Timer::ARMv8Timer()
-    : HardwareTimer(30) // TODO: Don't hardcode this
+ARMv8Timer::ARMv8Timer(u8 interrupt_number)
+    : HardwareTimer(interrupt_number)
 {
     // TODO: Handle dt clock-frequency property
     m_frequency = Aarch64::CNTFRQ_EL0::read().ClockFrequency;
@@ -22,9 +24,9 @@ ARMv8Timer::ARMv8Timer()
     start_timer(m_interrupt_interval);
 }
 
-NonnullLockRefPtr<ARMv8Timer> ARMv8Timer::initialize()
+NonnullLockRefPtr<ARMv8Timer> ARMv8Timer::initialize(u8 interrupt_number)
 {
-    auto timer = adopt_lock_ref(*new ARMv8Timer);
+    auto timer = adopt_lock_ref(*new ARMv8Timer(interrupt_number));
 
     // Enable interrupts
     auto ctl = Aarch64::CNTP_CTL_EL0::read();
@@ -85,6 +87,43 @@ void ARMv8Timer::start_timer(u32 delta)
     Aarch64::CNTP_TVAL_EL0::write(Aarch64::CNTP_TVAL_EL0 {
         .TimerValue = delta,
     });
+}
+
+static constinit Array const compatibles_array = {
+    "arm,armv8-timer"sv,
+};
+
+DEVICETREE_DRIVER(ARMv8TimerDriver, compatibles_array);
+
+ErrorOr<void> ARMv8TimerDriver::probe(DeviceTree::Device const& device, StringView) const
+{
+    auto const interrupts = TRY(device.node().interrupts(DeviceTree::get()));
+    if (interrupts.size() != 4)
+        return EINVAL;
+
+    auto const& interrupt = interrupts[1];
+
+    if (!interrupt.domain_root->has_property("interrupt-controller"sv))
+        return ENOTSUP; // TODO: Handle interrupt nexuses
+
+    // XXX: Don't depend on a specific #interrupts-cells value.
+    // auto const interrupt_number = *bit_cast<BigEndian<u64>*>(interrupt.interrupt_identifier.data()) & 0xffff'ffff;
+
+    // auto const interrupt_number = (*bit_cast<BigEndian<u64>*>(interrupt.interrupt_identifier.data())) & 0xffff'ffff;
+    // auto const interrupt_number = 0x2e;
+    auto const interrupt_number = 0x1e;
+
+    DeviceTree::DeviceRecipe<NonnullLockRefPtr<HardwareTimerBase>> recipe {
+        name(),
+        device.node_name(),
+        [interrupt_number]() {
+            return ARMv8Timer::initialize(interrupt_number);
+        },
+    };
+
+    TimeManagement::add_recipe(move(recipe));
+
+    return {};
 }
 
 }

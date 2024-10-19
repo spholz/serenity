@@ -18,6 +18,7 @@
 #    include <Kernel/Arch/x86_64/Time/RTC.h>
 #elif ARCH(AARCH64)
 #    include <Kernel/Arch/aarch64/RPi/Timer.h>
+#    include <Kernel/Arch/aarch64/Time/ARMv8Timer.h>
 #elif ARCH(RISCV64)
 #    include <Kernel/Arch/riscv64/Timer.h>
 #else
@@ -484,7 +485,7 @@ UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_aarch64_hardware_timers()
     if (m_hardware_timers.is_empty())
         PANIC("TimeManagement: No supported timer found in devicetree");
 
-    m_system_timer = m_hardware_timers.last(); // XXX which timer?
+    m_system_timer = m_hardware_timers.first(); // XXX which timer?
     m_time_ticks_per_second = m_system_timer->ticks_per_second();
 
     dbgln("TimeManagement: System timer: {}", m_system_timer->model());

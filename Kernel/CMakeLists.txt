@@ -493,22 +493,25 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
         kprintf.cpp
 
         Arch/aarch64/Firmware/ACPI/StaticParsing.cpp
+        Arch/aarch64/PCI/Initializer.cpp
+        Arch/aarch64/PCI/Controller/SMCCCHostBridge.cpp
 
         Arch/aarch64/archctl.cpp
         Arch/aarch64/boot.S
         Arch/aarch64/CPUID.cpp
         Arch/aarch64/CurrentTime.cpp
         Arch/aarch64/Delay.cpp
-        Arch/aarch64/Dummy.cpp
         Arch/aarch64/FPUState.S
         Arch/aarch64/InterruptManagement.cpp
         Arch/aarch64/Interrupts.cpp
         Arch/aarch64/Interrupts/GIC.cpp
         Arch/aarch64/MainIdRegister.cpp
+        Arch/aarch64/PSCI.cpp
         Arch/aarch64/PageDirectory.cpp
         Arch/aarch64/Panic.cpp
-        Arch/aarch64/Processor.cpp
         Arch/aarch64/PowerState.cpp
+        Arch/aarch64/Processor.cpp
+        Arch/aarch64/SMCCC.cpp
         Arch/aarch64/SafeMem.cpp
         Arch/aarch64/SmapDisabler.cpp
         Arch/aarch64/Time/ARMv8Timer.cpp

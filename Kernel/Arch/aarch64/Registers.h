@@ -488,6 +488,63 @@ struct alignas(u64) ID_AA64DFR1_EL1 {
 };
 static_assert(sizeof(ID_AA64DFR1_EL1) == 8);
 
+// TODO: URL
+// CNTHCTL_EL2, Counter-timer Hypervisor Control Register
+struct alignas(u64) CNTHCTL_EL2 {
+#if 0
+    u64 EL0PCTEN : 1;
+    u64 EL0VCTEN : 1;
+    u64 EVNTEN : 1;
+    u64 EVNTDIR : 1;
+    u64 EVNTI : 4;
+    u64 EL0VTEN : 1;
+    u64 EL0PTEN : 1;
+    u64 EL1PCTEN : 1;
+    u64 EL1PTEN : 1;
+    u64 ECV : 1;
+    u64 EL1TVT : 1;
+    u64 EL1TVCT : 1;
+    u64 EL1NVPCT : 1;
+    u64 EL1NVVCT : 1;
+    u64 EVNTIS : 1;
+    u64 CNTVMASK : 1;
+    u64 CNTPMASK : 1;
+    u64 : 44;
+#else
+    u64 EL1PCTEN : 1;
+    u64 EL1PCEN : 1;
+    u64 EVNTEN : 1;
+    u64 EVNTDIR : 1;
+    u64 EVNTI : 4;
+    u64 RES0 : 4;
+    u64 ECV : 1;
+    u64 EL1TVT : 1;
+    u64 EL1TVCT : 1;
+    u64 EL1NVPCT : 1;
+    u64 EL1NVVCT : 1;
+    u64 EVNTIS : 1;
+    u64 CNTVMASK : 1;
+    u64 CNTPMASK : 1;
+    u64 : 44;
+#endif
+
+    static inline CNTHCTL_EL2 read()
+    {
+        CNTHCTL_EL2 cnthctl_el2;
+
+        asm volatile("mrs %[value], CNTHCTL_EL2"
+                     : [value] "=r"(cnthctl_el2));
+
+        return cnthctl_el2;
+    }
+
+    static inline void write(CNTHCTL_EL2 cnthctl_el2)
+    {
+        asm volatile("msr CNTHCTL_EL2, %[value]" ::[value] "r"(cnthctl_el2));
+    }
+};
+static_assert(sizeof(CNTHCTL_EL2) == 8);
+
 // https://developer.arm.com/documentation/ddi0595/2020-12/AArch64-Registers/CNTFRQ-EL0--Counter-timer-Frequency-register
 // CNTFRQ_EL0, Counter-timer Frequency register
 struct alignas(u64) CNTFRQ_EL0 {
@@ -524,7 +581,7 @@ struct alignas(u64) CNTP_TVAL_EL0 {
 
     static inline void write(CNTP_TVAL_EL0 cntp_tval_el0)
     {
-        asm volatile("msr cntp_tval_el0, %[value]" ::[value] "r"(cntp_tval_el0));
+        asm volatile("msr CNTP_TVAL_EL0, %[value]" ::[value] "r"(cntp_tval_el0));
     }
 };
 static_assert(sizeof(CNTP_TVAL_EL0) == 8);
@@ -570,6 +627,71 @@ struct alignas(u64) CNTPCT_EL0 {
     }
 };
 static_assert(sizeof(CNTPCT_EL0) == 8);
+
+// TODO: URL
+// CNTV_TVAL_EL0, Counter-timer Virtual Timer TimerValue register
+struct alignas(u64) CNTV_TVAL_EL0 {
+    u64 TimerValue : 32;
+    u64 : 32;
+
+    static inline CNTV_TVAL_EL0 read()
+    {
+        CNTV_TVAL_EL0 timer_value;
+
+        asm volatile("mrs %[value], CNTV_TVAL_EL0"
+                     : [value] "=r"(timer_value));
+
+        return timer_value;
+    }
+
+    static inline void write(CNTV_TVAL_EL0 cntp_tval_el0)
+    {
+        asm volatile("msr CNTV_TVAL_EL0, %[value]" ::[value] "r"(cntp_tval_el0));
+    }
+};
+static_assert(sizeof(CNTV_TVAL_EL0) == 8);
+
+// TODO: URL
+// CNTV_CTL_EL0, Counter-timer Virtual Timer Control register
+struct alignas(u64) CNTV_CTL_EL0 {
+    u64 ENABLE : 1;
+    u64 IMASK : 1;
+    u64 ISTATUS : 1;
+    u64 : 61;
+
+    static inline CNTV_CTL_EL0 read()
+    {
+        CNTV_CTL_EL0 control_register;
+
+        asm volatile("mrs %[value], CNTV_CTL_EL0"
+                     : [value] "=r"(control_register));
+
+        return control_register;
+    }
+
+    static inline void write(CNTV_CTL_EL0 cntp_ctl_el0)
+    {
+        asm volatile("msr cntp_ctl_el0, %[value]" ::[value] "r"(cntp_ctl_el0));
+    }
+};
+static_assert(sizeof(CNTV_CTL_EL0) == 8);
+
+// TODO: URL
+// CNTVCT_EL0, Counter-timer Virutal Count register
+struct alignas(u64) CNTVCT_EL0 {
+    u64 PhysicalCount;
+
+    static inline CNTVCT_EL0 read()
+    {
+        CNTVCT_EL0 physical_count;
+
+        asm volatile("mrs %[value], CNTVCT_EL0"
+                     : [value] "=r"(physical_count));
+
+        return physical_count;
+    }
+};
+static_assert(sizeof(CNTVCT_EL0) == 8);
 
 // https://developer.arm.com/documentation/ddi0595/2021-06/AArch64-Registers/TCR-EL1--Translation-Control-Register--EL1-
 // Translation Control Register
