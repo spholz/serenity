@@ -7,6 +7,7 @@
 #include <Kernel/Arch/Processor.h>
 #include <Kernel/KSyms.h>
 #include <Kernel/Library/Panic.h>
+#include <Kernel/Memory/MemoryManager.h>
 
 // FIXME: Merge the code in this file with Kernel/Library/Panic.cpp once the proper abstractions are in place.
 

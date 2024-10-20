@@ -46,6 +46,25 @@ void __panic(char const* file, unsigned int line, char const* function)
         thread->set_crashing();
 
     critical_dmesgln("at {}:{} in {}", file, line, function);
+
+    auto register_region = MUST(MM.allocate_mmio_kernel_region(PhysicalAddress { 0x10'0012'0000 }, 0x9000, "pcie2"sv, Memory::Region::Access::ReadOnly));
+    FlatPtr const register_base = bit_cast<FlatPtr>(register_region->vaddr());
+
+    auto read8 = [register_base](size_t offset) {
+        u32 const value = *bit_cast<u8 volatile*>(register_base + offset);
+        return value;
+    };
+
+    dbgln("Root Complex Config Space:");
+    for (size_t i = 0; i < 0x1000; i += 8) {
+        dbgln("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}", i, read8(i + 0), read8(i + 1), read8(i + 2), read8(i + 3), read8(i + 4), read8(i + 5), read8(i + 6), read8(i + 7));
+    }
+
+    dbgln("RP1 Config Space:");
+    for (size_t i = 0x8000 + 0; i < (0x8000 + 0x1000); i += 8) {
+        dbgln("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}", i - 0x8000, read8(i + 0), read8(i + 1), read8(i + 2), read8(i + 3), read8(i + 4), read8(i + 5), read8(i + 6), read8(i + 7));
+    }
+
     dump_backtrace(PrintToScreen::Yes);
     if (!CommandLine::was_initialized())
         Processor::halt();

@@ -27,20 +27,53 @@ NonnullOwnPtr<SMCCCHostBridge> SMCCCHostBridge::must_create(u16 segment_group_nu
     auto register_region = MUST(MM.allocate_mmio_kernel_region(PhysicalAddress { 0x10'0012'0000 }, MUST(Memory::page_round_up(0x9310)), "pcie2"sv, Memory::Region::Access::ReadWrite));
     FlatPtr const register_base = bit_cast<FlatPtr>(register_region->vaddr());
 
+    // auto read8 = [register_base](size_t offset) {
+    //     u8 const value = *bit_cast<u8 volatile*>(register_base + offset);
+    //     // dbgln("R08 0x100012{:04x} {:#x}", offset, value);
+    //     return value;
+    // };
+
     auto read32 = [register_base](size_t offset) {
         u32 const value = *bit_cast<u32 volatile*>(register_base + offset);
-        dbgln("R 0x100012{:04x} {:#x}", offset, value);
+        dbgln("R32 0x100012{:04x} {:#x}", offset, value);
         return value;
     };
 
+    auto write16 = [register_base](size_t offset, u16 value) {
+        dbgln("W16 0x100012{:04x} {:#x}", offset, value);
+        *bit_cast<u16 volatile*>(register_base + offset) = value;
+    };
+
     auto write32 = [register_base](size_t offset, u32 value) {
-        dbgln("W 0x100012{:04x} {:#x}", offset, value);
+        dbgln("W32 0x100012{:04x} {:#x}", offset, value);
         *bit_cast<u32 volatile*>(register_base + offset) = value;
     };
 
-    write32(0x4064, 0x4);
+    write32(0x4008, 0x38163400);
+    read32(0x4008);
+    write32(0x404c, 0x0);
+    read32(0x404c);
+    write32(0x4304, 0x80);
+    read32(0x4304);
+
+    write32(0x4064, 0x4); // PERST#
     read32(0x4064);
-    read32(0x4068);
+
+    read32(0x4068); // contains link status
+
+    write16(0xac + 0x1c, 1 << 4);   // Enable CRS Software Visibility
+    write16(0xac + 0x08, 0x2c30);   // Device Control Register
+    write16(0x8070 + 0x08, 0x203f); // Device Control Register
+
+    // dbgln("Root Complex Config Space:");
+    // for (size_t i = 0; i < 0x1000; i += 8) {
+    //     dbgln("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}", i, read8(i + 0), read8(i + 1), read8(i + 2), read8(i + 3), read8(i + 4), read8(i + 5), read8(i + 6), read8(i + 7));
+    // }
+
+    // dbgln("RP1 Config Space:");
+    // for (size_t i = 0x8000 + 0; i < (0x8000 + 0x1000); i += 8) {
+    //     dbgln("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}", i - 0x8000, read8(i + 0), read8(i + 1), read8(i + 2), read8(i + 3), read8(i + 4), read8(i + 5), read8(i + 6), read8(i + 7));
+    // }
 
     PCI::Domain const domain { segment_group_number, 0, 0xff };
     return adopt_own_if_nonnull(new (nothrow) SMCCCHostBridge(domain)).release_nonnull();

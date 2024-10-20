@@ -463,7 +463,7 @@ void init_stage2(void*)
 
     microseconds_delay(2'000'000);
     StorageManagement::the().initialize(kernel_command_line().is_nvme_polling_enabled());
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 20; ++i) {
         if (StorageManagement::the().determine_boot_device(kernel_command_line().root_device()))
             break;
         dbgln_if(STORAGE_DEVICE_DEBUG, "Boot device {} not found, sleeping 2 seconds", kernel_command_line().root_device());

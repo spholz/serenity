@@ -454,6 +454,7 @@ private:
 
     union TransferRequestBlock {
         enum class TRBType : u32 {
+            Reserved = 0,
             Normal = 1,
             Setup_Stage = 2,
             Data_Stage = 3,

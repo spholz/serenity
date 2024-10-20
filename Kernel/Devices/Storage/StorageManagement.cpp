@@ -169,7 +169,7 @@ UNMAP_AFTER_INIT void StorageManagement::enumerate_pci_controllers(bool nvme_pol
 
 UNMAP_AFTER_INIT void StorageManagement::enumerate_storage_devices()
 {
-    VERIFY(!m_controllers.is_empty());
+    // VERIFY(!m_controllers.is_empty());
     for (auto& controller : m_controllers) {
         for (size_t device_index = 0; device_index < controller->devices_count(); device_index++) {
             auto device = controller->device(device_index);
@@ -375,7 +375,7 @@ UNMAP_AFTER_INIT void StorageManagement::determine_boot_device_with_logical_unit
 
 UNMAP_AFTER_INIT bool StorageManagement::determine_boot_device(StringView boot_argument)
 {
-    VERIFY(!m_controllers.is_empty());
+    // VERIFY(!m_controllers.is_empty());
     m_boot_argument = boot_argument;
 
     if (m_boot_argument.starts_with(block_device_prefix)) {
@@ -489,7 +489,7 @@ UNMAP_AFTER_INIT void StorageManagement::initialize(bool poll)
         enumerate_pci_controllers(poll);
     }
 
-#if ARCH(AARCH64)
+#if ARCH(AARCH64) && 0
     auto& rpi_sdhc = RPi::SDHostController::the();
     if (auto maybe_error = rpi_sdhc.initialize(); maybe_error.is_error()) {
         dmesgln("Unable to initialize RaspberryPi's SD Host Controller: {}", maybe_error.error());

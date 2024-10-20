@@ -5,6 +5,7 @@
  */
 
 #include <Kernel/Arch/Delay.h>
+#include <Kernel/Arch/aarch64/ASM_wrapper.h>
 #include <Kernel/Bus/PCI/API.h>
 #include <Kernel/Bus/PCI/BarMapping.h>
 #include <Kernel/Bus/PCI/IDs.h>
@@ -396,6 +397,9 @@ void xHCIController::enqueue_command(TransferRequestBlock& transfer_request_bloc
 {
     transfer_request_block.generic.cycle_bit = m_command_ring_producer_cycle_state;
     m_command_ring[m_command_ring_enqueue_index] = transfer_request_block;
+    // Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(&m_command_ring[m_command_ring_enqueue_index]), sizeof(TransferRequestBlock));
+
+    dbgln("enqueue_command: {} @ {}", enum_to_string(transfer_request_block.generic.transfer_request_block_type), m_command_and_event_rings_region->physical_page(0)->paddr().offset(offsetof(CommandAndEventRings, command_ring) + (m_command_ring_enqueue_index * sizeof(TransferRequestBlock))));
 
     m_command_ring_enqueue_index++;
 
@@ -406,7 +410,8 @@ void xHCIController::enqueue_command(TransferRequestBlock& transfer_request_bloc
         m_command_ring_producer_cycle_state ^= 1;
     }
 
-    atomic_thread_fence(MemoryOrder::memory_order_seq_cst);
+    asm volatile("dsb sy" ::: "memory");
+    Aarch64::Asm::flush();
 
     ring_command_doorbell();
 }
@@ -794,9 +799,74 @@ ErrorOr<void> xHCIController::enqueue_transfer(u8 slot, u8 endpoint, Pipe::Direc
     auto* ring_memory = endpoint_ring.ring_vaddr();
     auto first_trb_index = endpoint_ring.enqueue_index;
     auto last_trb_index = 0u;
+    dbgln("xHCIController: enqueue_transfer slot={} endpoint={} dir={}:", slot, endpoint, to_underlying(direction));
     for (auto i = 0u; i < transfer_request_blocks.size(); i++) {
         transfer_request_blocks[i].generic.cycle_bit = endpoint_ring.producer_cycle_state ^ (i == 0);
         ring_memory[endpoint_ring.enqueue_index] = transfer_request_blocks[i];
+
+        // Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(&ring_memory[endpoint_ring.enqueue_index]), sizeof(TransferRequestBlock));
+
+        dbgln("    {}: {} @ {}", i, enum_to_string(transfer_request_blocks[i].generic.transfer_request_block_type), PhysicalAddress { endpoint_ring.ring_paddr() + (endpoint_ring.enqueue_index * sizeof(TransferRequestBlock)) });
+        auto& trb = transfer_request_blocks[i];
+        switch (trb.generic.transfer_request_block_type) {
+            using enum TransferRequestBlock::TRBType;
+
+        case Setup_Stage:
+            dbgln("        bmRequestType: {:#x}", trb.setup_stage.request_type);
+            dbgln("        bRequest: {:#x}", trb.setup_stage.request);
+            dbgln("        wValue: {:#x}", trb.setup_stage.value);
+            dbgln("        wIndex: {:#x}", trb.setup_stage.index);
+            dbgln("        wLength: {:#x}", trb.setup_stage.length);
+            dbgln("        TRB Transfer Length: {:#x}", trb.setup_stage.transfer_request_block_transfer_length);
+            dbgln("        Interrupter Target: {:#x}", trb.setup_stage.interrupter_target);
+            dbgln("        Cycle bit: {}", trb.setup_stage.cycle_bit);
+            dbgln("        Interrupt On Completion: {}", trb.setup_stage.interrupt_on_completion);
+            dbgln("        Immediate Data: {}", trb.setup_stage.immediate_data);
+            dbgln("        Transfer Type: {:#x}", to_underlying(trb.setup_stage.transfer_type));
+            break;
+
+        case Data_Stage:
+            dbgln("        Data Buffer: {:#x}", trb.data_stage.data_buffer_low | (u64)trb.data_stage.data_buffer_high << 32);
+            dbgln("        TRB Transfer Length: {:#x}", trb.data_stage.transfer_request_block_transfer_length);
+            dbgln("        TD Size: {:#x}", trb.data_stage.transfer_descriptor_size);
+            dbgln("        Interrupter Target: {:#x}", trb.data_stage.interrupter_target);
+            dbgln("        Cycle bit: {}", trb.data_stage.cycle_bit);
+            dbgln("        Evaluate Next TRB: {}", trb.data_stage.evaluate_next_transfer_request_block);
+            dbgln("        Interrupt-on Short Packet: {}", trb.data_stage.interrupt_on_short_packet);
+            dbgln("        No Snoop: {}", trb.data_stage.no_snoop);
+            dbgln("        Chain bit: {}", trb.data_stage.chain_bit);
+            dbgln("        Interrupt On Completion: {}", trb.data_stage.interrupt_on_completion);
+            dbgln("        Immediate Data: {}", trb.data_stage.immediate_data);
+            dbgln("        Direction: {}", trb.data_stage.direction);
+            break;
+
+        case Status_Stage:
+            dbgln("        Interrupter Target: {:#x}", trb.setup_stage.interrupter_target);
+            dbgln("        Cycle bit: {}", trb.setup_stage.cycle_bit);
+            dbgln("        Evaluate Next TRB: {}", trb.data_stage.evaluate_next_transfer_request_block);
+            dbgln("        Chain bit: {}", trb.data_stage.chain_bit);
+            dbgln("        Interrupt On Completion: {}", trb.setup_stage.interrupt_on_completion);
+            dbgln("        Direction: {}", trb.data_stage.direction);
+            break;
+
+        case Normal:
+            dbgln("        Data Buffer: {:#x}", trb.normal.data_buffer_pointer_low | (u64)trb.normal.data_buffer_pointer_high << 32);
+            dbgln("        TRB Transfer Length: {:#x}", trb.normal.interrupter_target);
+            dbgln("        TD Size: {:#x}", trb.normal.transfer_descriptor_size);
+            dbgln("        Interrupter Target: {:#x}", trb.normal.interrupter_target);
+            dbgln("        Cycle bit: {}", trb.normal.cycle_bit);
+            dbgln("        Evaluate Next TRB: {}", trb.normal.evaluate_next_transfer_request_block);
+            dbgln("        Interrupt-on Short Packet: {}", trb.normal.interrupt_on_short_packet);
+            dbgln("        No Snoop: {}", trb.normal.no_snoop);
+            dbgln("        Chain bit: {}", trb.normal.chain_bit);
+            dbgln("        Interrupt On Completion: {}", trb.normal.interrupt_on_completion);
+            dbgln("        Immediate Data: {}", trb.normal.immediate_data);
+            dbgln("        Block Event Interrupt: {}", trb.normal.block_event_interrupt);
+            break;
+
+        default:
+            dbgln("        -- TODO --");
+        }
 
         last_trb_index = endpoint_ring.enqueue_index;
         endpoint_ring.enqueue_index++;
@@ -814,11 +884,15 @@ ErrorOr<void> xHCIController::enqueue_transfer(u8 slot, u8 endpoint, Pipe::Direc
     pending_transfer.end_index = last_trb_index;
     endpoint_ring.pending_transfers.append(pending_transfer);
 
-    atomic_thread_fence(MemoryOrder::memory_order_seq_cst);
+    asm volatile("dsb sy" ::: "memory");
+    Aarch64::Asm::flush();
 
     ring_memory[first_trb_index].generic.cycle_bit ^= 1;
 
-    atomic_thread_fence(MemoryOrder::memory_order_seq_cst);
+    asm volatile("dsb sy" ::: "memory");
+    Aarch64::Asm::flush();
+
+    microseconds_delay(100);
 
     ring_endpoint_doorbell(slot, endpoint, direction);
 
@@ -1390,13 +1464,15 @@ StringView xHCIController::enum_to_string(TransferRequestBlock::CompletionCode c
     case TransferRequestBlock::CompletionCode::Split_Transaction_Error:
         return "Split Transaction Error"sv;
     default:
-        VERIFY_NOT_REACHED();
+        return "Unknown"sv;
     }
 }
 
 StringView xHCIController::enum_to_string(TransferRequestBlock::TRBType trb_type)
 {
     switch (trb_type) {
+    case TransferRequestBlock::TRBType::Reserved:
+        return "Invalid"sv;
     case TransferRequestBlock::TRBType::Normal:
         return "Normal"sv;
     case TransferRequestBlock::TRBType::Setup_Stage:
@@ -1464,14 +1540,18 @@ StringView xHCIController::enum_to_string(TransferRequestBlock::TRBType trb_type
     case TransferRequestBlock::TRBType::Microframe_Index_Wrap_Event:
         return "Microframe Index Wrap Event"sv;
     default:
-        VERIFY_NOT_REACHED();
+        return "Unknown"sv;
     }
 }
 
 void xHCIController::handle_transfer_event(TransferRequestBlock const& transfer_request_block)
 {
     auto slot = transfer_request_block.transfer_event.slot_id;
-    VERIFY(slot > 0 && slot <= m_device_slots);
+    if (slot == 0 || slot > m_device_slots) {
+        dmesgln_xhci("Invalid Slot ID in Transfer Event: {}, we have {} device slots", slot, m_device_slots);
+        return;
+    }
+
     auto& slot_state = m_slots_state[slot - 1];
     SpinlockLocker const locker(slot_state.lock);
 
@@ -1509,7 +1589,8 @@ void xHCIController::handle_transfer_event(TransferRequestBlock const& transfer_
             auto& sync_pending_transfer = static_cast<SyncPendingTransfer&>(pending_transfer);
             sync_pending_transfer.completion_code = transfer_request_block.transfer_event.completion_code;
             sync_pending_transfer.remainder = transfer_request_block.transfer_event.transfer_request_block_transfer_length;
-            atomic_thread_fence(MemoryOrder::memory_order_seq_cst);
+            asm volatile("dsb sy" ::: "memory");
+            Aarch64::Asm::flush();
             sync_pending_transfer.wait_queue.wake_all();
         } else {
             auto& periodic_pending_transfer = static_cast<PeriodicPendingTransfer&>(pending_transfer);
@@ -1544,12 +1625,55 @@ void xHCIController::event_handling_thread()
             dmesgln_xhci("Host controller error");
         }
 
+        // No interrupts hack
+        bool header_printed = false;
+
         // Handle up to ring-size events each time
         for (auto i = 0u; i < event_ring_segment_size; ++i) {
             // If the Cycle bit of the Event TRB pointed to by the Event Ring Dequeue Pointer equals CCS, then the Event TRB is a valid event,
             // software processes it and advances the Event Ring Dequeue Pointer.
             if (m_event_ring_segment[m_event_ring_dequeue_index].generic.cycle_bit != m_event_ring_consumer_cycle_state)
                 break;
+
+            if (!header_printed) {
+                dbgln("Event(s):");
+                header_printed = true;
+            }
+
+            auto& trb = m_event_ring_segment[m_event_ring_dequeue_index];
+            dbgln("    {}: {} @ {:p}", i, enum_to_string(trb.generic.transfer_request_block_type), bit_cast<FlatPtr>(&trb));
+
+            switch (trb.generic.transfer_request_block_type) {
+                using enum TransferRequestBlock::TRBType;
+
+            case TransferRequestBlock::TRBType::Transfer_Event:
+                dbgln("        TRB Pointer: {:#x}", trb.transfer_event.transfer_request_block_pointer_low | (u64)trb.transfer_event.transfer_request_block_pointer_high << 32);
+                dbgln("        TRB Transfer Length: {:#x}", trb.transfer_event.transfer_request_block_transfer_length);
+                dbgln("        Completion Code: {}", enum_to_string(trb.transfer_event.completion_code));
+                dbgln("        Cycle Bit: {}", trb.transfer_event.cycle_bit);
+                dbgln("        Event Data: {}", trb.transfer_event.event_data);
+                dbgln("        Endpoint ID: {}", trb.transfer_event.endpoint_id);
+                dbgln("        Slot ID: {}", trb.transfer_event.slot_id);
+                break;
+
+            case TransferRequestBlock::TRBType::Command_Completion_Event:
+                dbgln("        Command TRB Pointer: {:#x}", trb.command_completion_event.command_transfer_request_block_pointer_low | (u64)trb.command_completion_event.command_transfer_request_block_pointer_high << 32);
+                dbgln("        Command Completion Parameter: {:#x}", trb.command_completion_event.command_completion_parameter);
+                dbgln("        Completion Code: {}", enum_to_string(trb.command_completion_event.completion_code));
+                dbgln("        Cycle Bit: {}", trb.command_completion_event.cycle_bit);
+                dbgln("        VF ID: {}", trb.command_completion_event.vf_id);
+                dbgln("        Slot ID: {}", trb.command_completion_event.slot_id);
+                break;
+
+            case TransferRequestBlock::TRBType::Port_Status_Change_Event:
+                dbgln("        Port ID: {}", trb.port_status_change_event.port_id);
+                dbgln("        Completion Code: {}", enum_to_string(trb.port_status_change_event.completion_code));
+                dbgln("        Cycle Bit: {}", trb.command_completion_event.cycle_bit);
+                break;
+
+            default:
+                dbgln("-- TODO --");
+            }
 
             auto event_type = m_event_ring_segment[m_event_ring_dequeue_index].generic.transfer_request_block_type;
             switch (event_type) {
@@ -1560,16 +1684,19 @@ void xHCIController::event_handling_thread()
                 // We only process a single command at a time (and the caller holds the m_command_lock throughout), so we only ever have a single
                 // active command result.
                 m_command_result_transfer_request_block = m_event_ring_segment[m_event_ring_dequeue_index];
-                atomic_thread_fence(MemoryOrder::memory_order_seq_cst);
+                asm volatile("dsb sy" ::: "memory");
+                Aarch64::Asm::flush();
                 m_command_completion_queue.wake_all();
                 break;
             case TransferRequestBlock::TRBType::Port_Status_Change_Event:
                 dbgln_if(XHCI_DEBUG, "Port status change detected by controller");
                 break;
             default:
-                dmesgln_xhci("Received unknown event type {} from controller", enum_to_string(event_type));
+                dmesgln_xhci("Received unknown event type {} ({}) from controller", enum_to_string(event_type), to_underlying(event_type));
                 break;
             }
+
+            microseconds_delay(100);
 
             m_event_ring_dequeue_index++;
 

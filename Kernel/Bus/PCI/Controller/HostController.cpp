@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define PCI_DEBUG 1
-
 #include <AK/Format.h>
 #include <Kernel/Bus/PCI/API.h>
 #include <Kernel/Bus/PCI/Access.h>
@@ -110,7 +108,7 @@ u16 HostController::read16_field(BusNumber bus, DeviceNumber device, FunctionNum
 
 UNMAP_AFTER_INIT void HostController::enumerate_functions(Function<void(EnumerableDeviceIdentifier const&)> const& callback, Function<void(EnumerableDeviceIdentifier const&)>& post_bridge_callback, BusNumber bus, DeviceNumber device, FunctionNumber function, bool recursive_search_into_bridges)
 {
-    dbgln("PCI: Enumerating function, bus={}, device={}, function={}", bus, device, function);
+    dbgln_if(PCI_DEBUG, "PCI: Enumerating function, bus={}, device={}, function={}", bus, device, function);
     Address address(domain_number(), bus.value(), device.value(), function.value());
     auto pci_class = (read8_field(bus, device, function, PCI::RegisterOffset::CLASS) << 8u) | read8_field(bus, device, function, PCI::RegisterOffset::SUBCLASS);
 
@@ -131,7 +129,7 @@ UNMAP_AFTER_INIT void HostController::enumerate_functions(Function<void(Enumerab
         && recursive_search_into_bridges
         && (!m_enumerated_buses.get(read8_field(bus, device, function, PCI::RegisterOffset::SECONDARY_BUS)))) {
         u8 secondary_bus = read8_field(bus, device, function, PCI::RegisterOffset::SECONDARY_BUS);
-        dbgln("PCI: Found secondary bus: {}", secondary_bus);
+        dbgln_if(PCI_DEBUG, "PCI: Found secondary bus: {}", secondary_bus);
         VERIFY(secondary_bus != bus);
         m_enumerated_buses.set(secondary_bus, true);
         enumerate_bus(callback, post_bridge_callback, secondary_bus, recursive_search_into_bridges);
@@ -143,18 +141,13 @@ UNMAP_AFTER_INIT void HostController::enumerate_functions(Function<void(Enumerab
 
 UNMAP_AFTER_INIT void HostController::enumerate_device(Function<void(EnumerableDeviceIdentifier const&)> const& callback, Function<void(EnumerableDeviceIdentifier const&)>& post_bridge_callback, BusNumber bus, DeviceNumber device, bool recursive_search_into_bridges)
 {
-    dbgln("PCI: Enumerating device in bus={}, device={}", bus, device);
-    dbgln("r1");
+    dbgln_if(PCI_DEBUG, "PCI: Enumerating device in bus={}, device={}", bus, device);
     if (read16_field(bus, device, 0, PCI::RegisterOffset::VENDOR_ID) == PCI::none_value)
         return;
-    dbgln("r2");
     enumerate_functions(callback, post_bridge_callback, bus, device, 0, recursive_search_into_bridges);
-    dbgln("r3");
     if (!(read8_field(bus, device, 0, PCI::RegisterOffset::HEADER_TYPE) & 0x80))
         return;
-    dbgln("r4");
     for (u8 function = 1; function < 8; ++function) {
-        dbgln("r5");
         if (read16_field(bus, device, function, PCI::RegisterOffset::VENDOR_ID) != PCI::none_value)
             enumerate_functions(callback, post_bridge_callback, bus, device, function, recursive_search_into_bridges);
     }
@@ -162,49 +155,36 @@ UNMAP_AFTER_INIT void HostController::enumerate_device(Function<void(EnumerableD
 
 UNMAP_AFTER_INIT void HostController::enumerate_bus(Function<void(EnumerableDeviceIdentifier const&)> const& callback, Function<void(EnumerableDeviceIdentifier const&)>& post_bridge_callback, BusNumber bus, bool recursive_search_into_bridges)
 {
-    dbgln("PCI: Enumerating bus {}", bus);
-    for (u8 device = 0; device < 32; ++device) {
-        dbgln("q1");
+    dbgln_if(PCI_DEBUG, "PCI: Enumerating bus {}", bus);
+    for (u8 device = 0; device < 32; ++device)
         enumerate_device(callback, post_bridge_callback, bus, device, recursive_search_into_bridges);
-    }
 }
 
 UNMAP_AFTER_INIT void HostController::enumerate_attached_devices(Function<void(EnumerableDeviceIdentifier const&)> callback, Function<void(EnumerableDeviceIdentifier const&)> post_bridge_callback)
 {
-    dbgln("x1");
     VERIFY(Access::the().access_lock().is_locked());
     VERIFY(Access::the().scan_lock().is_locked());
     m_enumerated_buses.fill(false);
-    dbgln("x2");
     // First scan bus 0. Find any device on that bus, and if it's a PCI-to-PCI
     // bridge, recursively scan it too.
-    dbgln("x3");
     m_enumerated_buses.set(m_domain.start_bus(), true);
     enumerate_bus(callback, post_bridge_callback, m_domain.start_bus(), true);
-    dbgln("x4");
 
     // Handle Multiple PCI host bridges on bus 0, device 0, functions 1-7 (function 0
     // is the main host bridge).
     // If we happen to miss some PCI buses because they are not reachable through
     // recursive PCI-to-PCI bridges starting from bus 0, we might find them here.
     if ((read8_field(0, 0, 0, PCI::RegisterOffset::HEADER_TYPE) & 0x80) != 0) {
-        dbgln("x5");
         for (int bus_as_function_number = 1; bus_as_function_number < 8; ++bus_as_function_number) {
-            dbgln("x6");
             if (read16_field(0, 0, bus_as_function_number, PCI::RegisterOffset::VENDOR_ID) == PCI::none_value)
                 continue;
-            dbgln("x7");
             if (read8_field(0, 0, bus_as_function_number, PCI::RegisterOffset::CLASS) != to_underlying(PCI::ClassID::Bridge))
                 continue;
-            dbgln("x8");
             if (Checked<u8>::addition_would_overflow(m_domain.start_bus(), bus_as_function_number))
                 break;
-            dbgln("x9");
             if (m_enumerated_buses.get(m_domain.start_bus() + bus_as_function_number))
                 continue;
-            dbgln("x10");
             enumerate_bus(callback, post_bridge_callback, m_domain.start_bus() + bus_as_function_number, false);
-            dbgln("x11");
             m_enumerated_buses.set(m_domain.start_bus() + bus_as_function_number, true);
         }
     }
@@ -212,28 +192,20 @@ UNMAP_AFTER_INIT void HostController::enumerate_attached_devices(Function<void(E
 
 void HostController::configure_attached_devices(PCIConfiguration& config)
 {
-    dbgln("1");
     // First, Assign PCI-to-PCI bridge bus numbering
     u8 bus_id = 0;
     enumerate_attached_devices([this, &bus_id](EnumerableDeviceIdentifier const& device_identifier) {
-        dbgln("a");
         // called for each PCI device encountered (including bridges)
         if (read8_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::CLASS) != PCI::ClassID::Bridge)
             return;
-        dbgln("b");
         if (read8_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::SUBCLASS) != PCI::Bridge::SubclassID::PCI_TO_PCI)
             return;
-        dbgln("c");
         write8_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::SECONDARY_BUS, ++bus_id);
-        dbgln("d");
         write8_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::SUBORDINATE_BUS, 0xFF); },
         [this, &bus_id](EnumerableDeviceIdentifier const& device_identifier) {
             // called after a bridge was recursively enumerated
-            dbgln("e");
             write8_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::SUBORDINATE_BUS, bus_id);
         });
-
-    dbgln("2");
 
     // Second, Assign BAR addresses & Interrupt numbers
     // TODO: We currently naively assign addresses bump-allocator style - Switch to a proper allocator if this is not good enough
@@ -258,14 +230,12 @@ void HostController::configure_attached_devices(PCIConfiguration& config)
                 auto mmio_32bit_address = align_up_to(config.mmio_32bit_base, bar_size);
                 if (mmio_32bit_address + bar_size <= config.mmio_32bit_end) {
                     write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), bar_offset, mmio_32bit_address);
-                    dbgln("BAR({}): {:p}", (bar_offset - to_underlying(RegisterOffset::BAR0)) / 4, mmio_32bit_address);
                     config.mmio_32bit_base = mmio_32bit_address + bar_size;
                     continue;
                 }
                 auto mmio_64bit_address = align_up_to(config.mmio_64bit_base, bar_size);
                 if (bar_prefetchable && mmio_64bit_address + bar_size <= config.mmio_64bit_end && mmio_64bit_address + bar_size <= NumericLimits<u32>::max()) {
                     write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), bar_offset, mmio_64bit_address);
-                    dbgln("BAR({}): {:p}", (bar_offset - to_underlying(RegisterOffset::BAR0)) / 4, mmio_64bit_address);
                     config.mmio_64bit_base = mmio_64bit_address + bar_size;
                     continue;
                 }
@@ -290,7 +260,6 @@ void HostController::configure_attached_devices(PCIConfiguration& config)
             if (bar_prefetchable && mmio_64bit_address + bar_size <= config.mmio_64bit_end) {
                 write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), bar_offset, mmio_64bit_address & 0xFFFFFFFF);
                 write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), bar_offset + 4, mmio_64bit_address >> 32);
-                dbgln("BAR({}): {:p}", (bar_offset - to_underlying(RegisterOffset::BAR0)) / 4, mmio_64bit_address);
                 config.mmio_64bit_base = mmio_64bit_address + bar_size;
                 bar_offset += 4;
                 continue;
@@ -299,7 +268,6 @@ void HostController::configure_attached_devices(PCIConfiguration& config)
             if (mmio_32bit_address + bar_size <= config.mmio_32bit_end) {
                 write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), bar_offset, mmio_32bit_address & 0xFFFFFFFF);
                 write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), bar_offset + 4, mmio_32bit_address >> 32);
-                dbgln("BAR({}): {:p}", (bar_offset - to_underlying(RegisterOffset::BAR0)) / 4, mmio_32bit_address);
                 config.mmio_32bit_base = mmio_32bit_address + bar_size;
                 bar_offset += 4;
                 continue;
@@ -309,7 +277,7 @@ void HostController::configure_attached_devices(PCIConfiguration& config)
         }
         // enable memory space
         auto command_value = read16_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::COMMAND);
-        command_value |= 1 << 1; // memory space enable
+        command_value |= (1 << 1) | (1 << 2); // memory space enable
         write16_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::COMMAND, command_value);
         // assign interrupt number
         auto interrupt_pin = read8_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::INTERRUPT_PIN);
@@ -343,11 +311,11 @@ void HostController::configure_attached_devices(PCIConfiguration& config)
             write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::MEMORY_LIMIT, config.mmio_32bit_base >> 16);
             write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::PREFETCHABLE_MEMORY_LIMIT, config.mmio_64bit_base >> 16);
             write32_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::PREFETCHABLE_MEMORY_LIMIT_UPPER_32_BITS, config.mmio_64bit_base >> 32);
+#endif
             // enable bridging
             auto command_value = read16_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::COMMAND);
             command_value |= 1 << 2; // enable forwarding of requests by the bridge
             write16_field(device_identifier.address().bus(), device_identifier.address().device(), device_identifier.address().function(), PCI::RegisterOffset::COMMAND, command_value);
-#endif
         });
 }
 

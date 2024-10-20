@@ -204,8 +204,7 @@ ALWAYS_INLINE void ProcessorBase<T>::wait_check()
 template<typename T>
 ALWAYS_INLINE u64 ProcessorBase<T>::read_cpu_counter()
 {
-    TODO_AARCH64();
-    return 0;
+    return Aarch64::PMCCNTR_EL0::read().CCNT;
 }
 
 }
