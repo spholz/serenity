@@ -11,6 +11,10 @@
 #include <Kernel/Bus/PCI/Definitions.h>
 #include <Kernel/Sections.h>
 
+#if ARCH(RISCV64)
+#    include <Kernel/Firmware/DeviceTree/DeviceTree.h>
+#endif
+
 namespace Kernel::PCI {
 
 HostController::HostController(PCI::Domain const& domain)
@@ -156,7 +160,14 @@ UNMAP_AFTER_INIT void HostController::enumerate_device(Function<void(EnumerableD
 UNMAP_AFTER_INIT void HostController::enumerate_bus(Function<void(EnumerableDeviceIdentifier const&)> const& callback, Function<void(EnumerableDeviceIdentifier const&)>& post_bridge_callback, BusNumber bus, bool recursive_search_into_bridges)
 {
     dbgln_if(PCI_DEBUG, "PCI: Enumerating bus {}", bus);
-    for (u8 device = 0; device < 32; ++device)
+
+#if ARCH(RISCV64)
+    u8 devices_per_bus = is_vf2() ? 1 : 32;
+#else
+    u8 devices_per_bus = 32;
+#endif
+
+    for (u8 device = 0; device < devices_per_bus; ++device)
         enumerate_device(callback, post_bridge_callback, bus, device, recursive_search_into_bridges);
 }
 

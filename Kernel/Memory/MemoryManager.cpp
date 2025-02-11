@@ -684,6 +684,17 @@ UNMAP_AFTER_INIT void MemoryManager::parse_memory_map_fdt(MemoryManager::GlobalD
             .on_end = []() -> ErrorOr<void> { return {}; },
         }));
 
+#if ARCH(RISCV64)
+    if (is_vf2()) {
+        // VF2 Hacks
+
+        // U-Boot framebuffer
+        size_t const vf2_framebuffer_size = 1920ull * 1080 * 4;
+        global_data.physical_memory_ranges.append(PhysicalMemoryRange { PhysicalMemoryRangeType::Reserved, PhysicalAddress { 0xfe00'0000 }, vf2_framebuffer_size });
+        global_data.used_memory_ranges.append(UsedMemoryRange { UsedMemoryRangeType::BootModule, PhysicalAddress { 0xfe00'0000 }, PhysicalAddress { 0xfe00'0000 + vf2_framebuffer_size } });
+    }
+#endif
+
     // FDTs do not seem to be fully sort memory ranges, especially as we get them from at least two structures
     quick_sort(global_data.physical_memory_ranges, [](auto& a, auto& b) -> bool { return a.start > b.start; });
 }

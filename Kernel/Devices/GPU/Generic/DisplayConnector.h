@@ -13,6 +13,10 @@
 #include <Kernel/Locking/Spinlock.h>
 #include <Kernel/Memory/TypedMapping.h>
 
+#if ARCH(RISCV64)
+#    include <Kernel/Arch/riscv64/CPU.h>
+#endif
+
 namespace Kernel {
 
 class GenericDisplayConnector
@@ -34,8 +38,23 @@ protected:
     virtual ErrorOr<void> set_y_offset(size_t) override { return Error::from_errno(ENOTSUP); }
     virtual ErrorOr<void> unblank() override { return Error::from_errno(ENOTSUP); }
 
-    virtual bool partial_flush_support() const override final { return false; }
-    virtual bool flush_support() const override final { return false; }
+    virtual bool partial_flush_support() const override final
+    {
+#if ARCH(RISCV64)
+        return is_vf2();
+#else
+        return false;
+#endif
+    }
+
+    virtual bool flush_support() const override final
+    {
+#if ARCH(RISCV64)
+        return is_vf2();
+#else
+        return false;
+#endif
+    }
     // Note: This is "possibly" a paravirtualized hardware, but since we don't know, we assume there's no refresh rate...
     // We rely on the BIOS and/or the bootloader to initialize the hardware for us, so we don't really care about
     // the specific implementation and settings that were chosen with the given hardware as long as we just
@@ -43,10 +62,25 @@ protected:
     virtual bool refresh_rate_support() const override final { return false; }
 
     virtual ErrorOr<void> flush_first_surface() override final;
+    virtual ErrorOr<void> flush_rectangle(size_t buffer_index, FBRect const& rect) override final;
 
     virtual void enable_console() override final;
     virtual void disable_console() override final;
 
     LockRefPtr<Graphics::GenericFramebufferConsole> m_framebuffer_console;
+
+private:
+    OwnPtr<Memory::Region> m_l2_cache_mmio_region;
+    OwnPtr<Memory::Region> m_l2_zero_device_region;
+    size_t m_l2_cache_size;
+
+    struct CacheConfig {
+        u8 bank_count;
+        u8 ways_per_bank;
+        u8 lg_sets_per_bank;
+        u8 lg_block_size_in_bytes;
+    };
+
+    CacheConfig m_l2_cache_config;
 };
 }

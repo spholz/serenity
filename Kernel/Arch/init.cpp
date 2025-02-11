@@ -164,6 +164,16 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
         else
             s_kernel_cmdline = maybe_command_line.value();
     }
+
+    if (is_vf2()) {
+        // VF2 U-Boot Framebuffer
+        g_boot_info.boot_framebuffer.paddr = PhysicalAddress { 0xfe00'0000 };
+        g_boot_info.boot_framebuffer.width = 1920;
+        g_boot_info.boot_framebuffer.height = 1080;
+        g_boot_info.boot_framebuffer.bpp = 32;
+        g_boot_info.boot_framebuffer.pitch = g_boot_info.boot_framebuffer.width * (g_boot_info.boot_framebuffer.bpp / 8);
+        g_boot_info.boot_framebuffer.type = BootFramebufferType::BGRx8888;
+    }
 #endif
 
     setup_serial_debug();

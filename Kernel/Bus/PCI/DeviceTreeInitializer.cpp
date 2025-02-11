@@ -43,6 +43,7 @@ void initialize()
     enum class ControllerCompatible {
         Unknown,
         ECAM,
+        StarFiveJH7110,
     };
 
     // These properties must be present
@@ -81,6 +82,10 @@ void initialize()
         compatible.for_each_string([&controller_compatibility](StringView compatible_string) -> IterationDecision {
             if (compatible_string == "pci-host-ecam-generic"sv) {
                 controller_compatibility = ControllerCompatible::ECAM;
+                return IterationDecision::Break;
+            }
+            if (compatible_string == "starfive,jh7110-pcie"sv) {
+                controller_compatibility = ControllerCompatible::StarFiveJH7110;
                 return IterationDecision::Break;
             }
             // FIXME: Implement CAM (pci-host-cam-generic), but maybe it's to old to be relevant
@@ -133,6 +138,25 @@ void initialize()
             // FIXME: Use the provided size field
             auto stream = reg.as_stream();
             FlatPtr paddr = MUST(stream.read_cells(soc_address_cells));
+
+            Access::the().add_host_controller(
+                MemoryBackedHostBridge::must_create(
+                    Domain {
+                        domain,
+                        bus_range[0],
+                        bus_range[1],
+                    },
+                    PhysicalAddress { paddr }));
+            break;
+        }
+        case ControllerCompatible::StarFiveJH7110: {
+            auto stream = reg.as_stream();
+            FlatPtr paddr;
+            VERIFY(soc_address_cells == 2);
+
+            (void)MUST(stream.read_value<BigEndian<u64>>());
+            (void)MUST(stream.read_value<BigEndian<u64>>());
+            paddr = MUST(stream.read_value<BigEndian<u64>>());
 
             Access::the().add_host_controller(
                 MemoryBackedHostBridge::must_create(
