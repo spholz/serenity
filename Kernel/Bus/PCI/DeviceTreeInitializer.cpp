@@ -50,9 +50,6 @@ void initialize()
     auto soc_address_cells = pci_host_controller_node_parent.get_property("#address-cells"sv).value().as<u32>();
     [[maybe_unused]] auto soc_size_cells = pci_host_controller_node_parent.get_property("#size-cells"sv).value().as<u32>();
 
-    // TODO: DistinctNumeric for Domain?
-    HashMap<u32, PCIConfiguration> pci_configurations;
-
     Optional<u32> domain_counter;
     bool found_compatible_pci_controller = false;
     for (auto const& [name, node] : pci_host_controller_node_parent.children()) {
@@ -135,6 +132,8 @@ void initialize()
             domain = maybe_domain.value().as<u32>();
         }
 
+        OwnPtr<HostController> host_controller = nullptr;
+
         switch (controller_compatibility) {
         case ControllerCompatible::ECAM: {
             // FIXME: Make this use a nice helper function
@@ -142,14 +141,13 @@ void initialize()
             auto stream = reg.as_stream();
             FlatPtr paddr = MUST(stream.read_cells(soc_address_cells));
 
-            Access::the().add_host_controller(
-                MemoryBackedHostBridge::must_create(
-                    Domain {
-                        domain,
-                        bus_range[0],
-                        bus_range[1],
-                    },
-                    PhysicalAddress { paddr }));
+            host_controller = MemoryBackedHostBridge::must_create(
+                Domain {
+                    domain,
+                    bus_range[0],
+                    bus_range[1],
+                },
+                PhysicalAddress { paddr });
             break;
         }
         case ControllerCompatible::StarFiveJH7110: {
@@ -161,25 +159,24 @@ void initialize()
             (void)MUST(stream.read_value<BigEndian<u64>>());
             paddr = MUST(stream.read_value<BigEndian<u64>>());
 
-            Access::the().add_host_controller(
-                MemoryBackedHostBridge::must_create(
-                    Domain {
-                        domain,
-                        bus_range[0],
-                        bus_range[1],
-                    },
-                    PhysicalAddress { paddr }));
-
-            dbgln("PCI: {}: domain number: {}", name, domain);
+            host_controller = MemoryBackedHostBridge::must_create(
+                Domain {
+                    domain,
+                    bus_range[0],
+                    bus_range[1],
+                },
+                PhysicalAddress { paddr });
             break;
         }
         case ControllerCompatible::Unknown:
             VERIFY_NOT_REACHED(); // This should have been rejected earlier
         }
 
+        dbgln("PCI: {}: domain number: {}", name, domain);
+
         found_compatible_pci_controller = true;
 
-        auto& pci_configuration = pci_configurations.ensure(domain);
+        PCIConfiguration pci_configuration;
 
         dbgln("PCI: Open Firmware ranges for {}:", name);
         auto maybe_ranges = node.get_property("ranges"sv);
@@ -287,7 +284,9 @@ void initialize()
                     TODO();
                 }
 
+#if ARCH(AARCH64)
                 MUST(map_stream.discard(sizeof(u32) * interrupt_controller->address_cells()));
+#endif
 
                 auto interrupt_cells = interrupt_controller->get_property("#interrupt-cells"sv)->as<u32>();
 #if ARCH(RISCV64)
@@ -319,6 +318,10 @@ void initialize()
                     interrupt);
             }
         }
+
+        host_controller->configure_attached_devices(pci_configuration);
+
+        Access::the().add_host_controller(move(host_controller).release_nonnull());
     }
 
     if (!found_compatible_pci_controller) {
@@ -327,7 +330,6 @@ void initialize()
         return;
     }
 
-    Access::the().configure_pci_space(pci_configurations);
     Access::the().rescan_hardware();
 
     PCIBusSysFSDirectory::initialize();

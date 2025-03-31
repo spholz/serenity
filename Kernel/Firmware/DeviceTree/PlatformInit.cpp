@@ -12,6 +12,8 @@
 
 #if ARCH(AARCH64)
 #    include <Kernel/Arch/aarch64/PlatformInit.h>
+#elif ARCH(RISCV64)
+#    include <Kernel/Arch/riscv64/PlatformInit.h>
 #endif
 
 namespace Kernel::DeviceTree {
@@ -27,6 +29,8 @@ static constinit auto const s_platform_init_table = to_array<PlatformInitTableEn
     { "raspberrypi,3-model-b"sv, raspberry_pi_3_4_platform_init },
     { "raspberrypi,4-model-b"sv, raspberry_pi_3_4_platform_init },
     { "raspberrypi,5-model-b"sv, raspberry_pi_5_platform_init },
+#elif ARCH(RISCV64)
+    { "starfive,jh7110"sv, visionfive2_platform_init },
 #endif
 });
 

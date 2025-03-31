@@ -267,6 +267,7 @@ void Hub::check_for_port_updates()
                 }
 
                 USB::Device::DeviceSpeed speed;
+                dbgln("Port {} status: {:#x} change: {:#x}", port_number, port_status.status, port_status.change);
                 if (port_status.status & PORT_STATUS_PORT_POWER) {
                     if (port_status.status & PORT_STATUS_LOW_SPEED_DEVICE_ATTACHED)
                         speed = Device::DeviceSpeed::LowSpeed;

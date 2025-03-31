@@ -203,6 +203,9 @@ UNMAP_AFTER_INIT void HostController::enumerate_attached_devices(Function<void(E
 
 void HostController::configure_attached_devices(PCIConfiguration& config)
 {
+    SpinlockLocker locker(Access::the().access_lock());
+    SpinlockLocker scan_locker(Access::the().scan_lock());
+
     // First, Assign PCI-to-PCI bridge bus numbering
     u8 bus_id = 0;
     enumerate_attached_devices([this, &bus_id](EnumerableDeviceIdentifier const& device_identifier) {

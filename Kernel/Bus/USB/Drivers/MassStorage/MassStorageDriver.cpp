@@ -62,6 +62,9 @@ ErrorOr<void> MassStorageDriver::probe(USB::Device& device)
         dmesgln("    BOT Interface: {}", bot_interface.has_value());
         dmesgln("    UAS Interface: {}", uas_interface.has_value());
 
+        dmesgln("    speed: {}", to_underlying(device.speed()));
+
+#if 0
         if (uas_interface.has_value() && device.speed() != USB::Device::DeviceSpeed::SuperSpeed) {
             // FIXME: We only support UAS on version < 3.0 devices
             //        as we don't support streams, which are mandatory for UAS on USB 3.0 devices,
@@ -70,6 +73,7 @@ ErrorOr<void> MassStorageDriver::probe(USB::Device& device)
             TRY(initialise_uas_device(device, *uas_interface));
             return {};
         }
+#endif
 
         if (bot_interface.has_value()) {
             dmesgln("    Using BOT interface");

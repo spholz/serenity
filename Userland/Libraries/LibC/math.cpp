@@ -271,7 +271,7 @@ static FloatT internal_gamma(FloatT x) NOEXCEPT
     if (x == (FloatT)0.0)
         return signbit(x) ? (FloatT)-INFINITY : (FloatT)INFINITY;
 
-    if (x < (FloatT)0 && (rintl(x) == x || isinf(x)))
+    if (x < (FloatT)0 && (AK::rint(x) == x || isinf(x)))
         return (FloatT)NAN;
 
     if (isinf(x))
@@ -279,6 +279,7 @@ static FloatT internal_gamma(FloatT x) NOEXCEPT
 
     using Extractor = FloatExtractor<FloatT>;
     // These constants were obtained through use of WolframAlpha
+    // FIXME: This assumes long double == f80.
     constexpr long long max_integer_whose_factorial_fits = (Extractor::mantissa_bits == FloatExtractor<long double>::mantissa_bits ? 20 : (Extractor::mantissa_bits == FloatExtractor<double>::mantissa_bits ? 18 : (Extractor::mantissa_bits == FloatExtractor<float>::mantissa_bits ? 10 : 0)));
     static_assert(max_integer_whose_factorial_fits != 0, "internal_gamma needs to be aware of the integer factorial that fits in this floating point type.");
     if ((int)x == x && x <= max_integer_whose_factorial_fits + 1) {
@@ -289,7 +290,7 @@ static FloatT internal_gamma(FloatT x) NOEXCEPT
     }
 
     // Stirling approximation
-    return sqrtl(2.0 * M_PIl / static_cast<long double>(x)) * powl(static_cast<long double>(x) / M_El, static_cast<long double>(x));
+    return AK::sqrt(static_cast<FloatT>(2.0) * AK::Pi<FloatT> / x) * AK::pow(x / AK::E<FloatT>, x);
 }
 
 extern "C" {

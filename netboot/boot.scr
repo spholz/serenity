@@ -2,9 +2,9 @@ pci enum
 nvme scan
 
 setenv serverip 192.168.178.30
-if tftpboot ${kernel_addr_r} ${serverip}:Kernel.bin; then booti ${kernel_addr_r} - ${fdtcontroladdr}; fi
+# if tftpboot ${kernel_addr_r} ${serverip}:Kernel.bin; then booti ${kernel_addr_r} - ${fdtcontroladdr}; fi
 
-# if tftpboot ${kernel_addr_r} ${serverip}:Prekernel.efi; then bootefi ${kernel_addr_r} ${fdtcontroladdr}; fi
+if tftpboot ${kernel_addr_r} ${serverip}:Kernel.efi; then bootefi ${kernel_addr_r} ${fdtcontroladdr}; fi
 
 # necessary if a new (unpatched) version of the downstream vf2 u-boot is used
 # if tftpboot ${kernel_addr_r} ${serverip}:boot_serenity_on_vf2.bin; then

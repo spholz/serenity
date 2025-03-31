@@ -27,7 +27,6 @@ public:
 #endif
 
     ErrorOr<void> fast_enumerate(Function<void(DeviceIdentifier const&)>&) const;
-    void configure_pci_space(HashMap<u32, PCIConfiguration>);
     void rescan_hardware();
 
     static Access& the();
@@ -46,8 +45,8 @@ public:
     // so we don't need this method
     DeviceIdentifier const& get_device_identifier(Address address) const;
 
-    Spinlock<LockRank::None> const& scan_lock() const { return m_scan_lock; }
-    RecursiveSpinlock<LockRank::None> const& access_lock() const { return m_access_lock; }
+    Spinlock<LockRank::None>& scan_lock() const { return m_scan_lock; }
+    RecursiveSpinlock<LockRank::None>& access_lock() const { return m_access_lock; }
 
     ErrorOr<void> add_host_controller_and_scan_for_devices(NonnullOwnPtr<HostController>);
 

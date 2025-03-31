@@ -100,11 +100,16 @@ bool is_vf2()
     static TriState is_vf2 = TriState::Unknown;
 
     if (is_vf2 == TriState::Unknown) {
-        auto& fdt_header = *bit_cast<::DeviceTree::FlattenedDeviceTreeHeader*>(&DeviceTree::s_fdt_storage[0]);
-        auto fdt = ReadonlyBytes(DeviceTree::s_fdt_storage, fdt_header.totalsize);
-        auto compatible = MUST(::DeviceTree::slow_get_property("/compatible"sv, fdt_header, fdt)).as_string();
-
-        is_vf2 = compatible.starts_with("starfive,jh7110"sv) ? TriState::True : TriState::False;
+        if (g_boot_info.boot_method == BootMethod::PreInit) {
+            auto& fdt_header = *bit_cast<::DeviceTree::FlattenedDeviceTreeHeader*>(&DeviceTree::s_fdt_storage[0]);
+            auto fdt = ReadonlyBytes(DeviceTree::s_fdt_storage, fdt_header.totalsize);
+            auto compatible = MUST(::DeviceTree::slow_get_property("/compatible"sv, fdt_header, fdt)).as_string();
+            is_vf2 = compatible.starts_with("starfive,jh7110"sv) ? TriState::True : TriState::False;
+        } else {
+            auto& header = *bit_cast<::DeviceTree::FlattenedDeviceTreeHeader*>(DeviceTree::flattened_devicetree().data());
+            auto compatible = MUST(::DeviceTree::slow_get_property("/compatible"sv, header, DeviceTree::flattened_devicetree())).as_string();
+            is_vf2 = compatible.starts_with("starfive,jh7110"sv) ? TriState::True : TriState::False;
+        }
     }
 
     if (is_vf2 == TriState::True)
