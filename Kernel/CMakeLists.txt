@@ -575,6 +575,8 @@ elseif("${SERENITY_ARCH}" STREQUAL "riscv64")
         Bus/PCI/Controller/GenericECAMHostController.cpp
         Bus/PCI/DeviceTreeHelpers.cpp
         Bus/PCI/DeviceTreeInitializer.cpp
+
+        Arch/riscv64/PCI/Controller/JH7110HostController.cpp
     )
 
     # NOTE: These files cannot use a stack protector and sanitizers, as these will cause accesses to global variables to be inserted
