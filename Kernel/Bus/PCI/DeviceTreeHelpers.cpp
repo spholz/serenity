@@ -221,7 +221,10 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
                 TODO();
             }
 
+            // XXX: Old JH7110 devicetree is missing the #address-cells property, meaning that we assume #address-cells == 2.
+#if ARCH(AARCH64)
             TRY(map_stream.discard(sizeof(u32) * interrupt_controller->address_cells()));
+#endif
 
             auto interrupt_cells = interrupt_controller->get_property("#interrupt-cells"sv)->as<u32>();
 #if ARCH(RISCV64)

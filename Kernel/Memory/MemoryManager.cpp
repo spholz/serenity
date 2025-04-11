@@ -486,6 +486,15 @@ UNMAP_AFTER_INIT void MemoryManager::parse_memory_map_efi(MemoryManager::GlobalD
         }
     }
 
+#if ARCH(RISCV64)
+    // VF2 Hacks
+
+    // U-Boot framebuffer
+    size_t const vf2_framebuffer_size = 1920ull * 1080 * 4;
+    global_data.physical_memory_ranges.append(PhysicalMemoryRange { PhysicalMemoryRangeType::Reserved, PhysicalAddress { 0xfe00'0000 }, vf2_framebuffer_size });
+    global_data.used_memory_ranges.append(UsedMemoryRange { UsedMemoryRangeType::BootModule, PhysicalAddress { 0xfe00'0000 | 0x4'0000'0000 }, PhysicalAddress { (0xfe00'0000 | 0x4'0000'0000) + vf2_framebuffer_size } });
+#endif
+
     // SMBIOS data can be in a BootServicesData memory region (see https://uefi.org/specs/UEFI/2.10/02_Overview.html#x64-platforms, the same requirement is listed for AArch64 and RISC-V as well).
     // BootServices* memory regions are treated as normal main memory after ExitBootServices, so we need to explicitly mark its ranges as used.
     global_data.used_memory_ranges.append(UsedMemoryRange { UsedMemoryRangeType::SMBIOS, g_boot_info.smbios.entry_point_paddr, g_boot_info.smbios.entry_point_paddr.offset(g_boot_info.smbios.entry_point_length) });
@@ -683,6 +692,17 @@ UNMAP_AFTER_INIT void MemoryManager::parse_memory_map_fdt(MemoryManager::GlobalD
             .on_noop = []() -> ErrorOr<IterationDecision> { return IterationDecision::Continue; },
             .on_end = []() -> ErrorOr<void> { return {}; },
         }));
+
+#if ARCH(RISCV64)
+    if (is_vf2()) {
+        // VF2 Hacks
+
+        // U-Boot framebuffer
+        size_t const vf2_framebuffer_size = 1920ull * 1080 * 4;
+        global_data.physical_memory_ranges.append(PhysicalMemoryRange { PhysicalMemoryRangeType::Reserved, PhysicalAddress { 0xfe00'0000 }, vf2_framebuffer_size });
+        global_data.used_memory_ranges.append(UsedMemoryRange { UsedMemoryRangeType::BootModule, PhysicalAddress { 0xfe00'0000 | 0x4'0000'0000 }, PhysicalAddress { (0xfe00'0000 | 0x4'0000'0000) + vf2_framebuffer_size } });
+    }
+#endif
 
     // FDTs do not seem to be fully sort memory ranges, especially as we get them from at least two structures
     quick_sort(global_data.physical_memory_ranges, [](auto& a, auto& b) -> bool { return a.start > b.start; });

@@ -27,3 +27,11 @@ void map_flattened_devicetree();
 ReadonlyBytes flattened_devicetree();
 
 }
+
+#if ARCH(RISCV64)
+namespace Kernel {
+
+bool is_vf2();
+
+}
+#endif
