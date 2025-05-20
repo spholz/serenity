@@ -486,6 +486,8 @@ void Scheduler::notify_finalizer()
     });
 }
 
+bool g_dump_scheduler_state = false;
+
 void Scheduler::idle_loop(void*)
 {
     auto& proc = Processor::current();
@@ -493,6 +495,11 @@ void Scheduler::idle_loop(void*)
     VERIFY(Processor::are_interrupts_enabled());
 
     for (;;) {
+        if (g_dump_scheduler_state) {
+            dump_scheduler_state(true);
+            g_dump_scheduler_state = false;
+        }
+
         proc.idle_begin();
         proc.wait_for_interrupt();
         proc.idle_end();
