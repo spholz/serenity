@@ -102,19 +102,19 @@ timeout=1
 search --no-floppy --fs-uuid --set=root ${esp_uuid}
 
 menuentry 'SerenityOS (normal)' {
-  chainloader /Kernel.efi root=PARTUUID:${root_uuid}
+  chainloader /Kernel.efi root=PARTUUID:${root_uuid} xhci_poll smp=on
 }
 
 menuentry 'SerenityOS (text mode)' {
-  chainloader /Kernel.efi graphics_subsystem_mode=off root=PARTUUID:${root_uuid}
+  chainloader /Kernel.efi graphics_subsystem_mode=off root=PARTUUID:${root_uuid} xhci_poll smp=on
 }
 
 menuentry 'SerenityOS (No ACPI)' {
-  chainloader /Kernel.efi root=PARTUUID:${root_uuid} acpi=off
+  chainloader /Kernel.efi root=PARTUUID:${root_uuid} acpi=off xhci_poll smp=on
 }
 
 menuentry 'SerenityOS (with serial debug)' {
-  chainloader /Kernel.efi serial_debug root=PARTUUID:${root_uuid}
+  chainloader /Kernel.efi serial_debug root=PARTUUID:${root_uuid} xhci_poll smp=on
 }
 EOF
 
