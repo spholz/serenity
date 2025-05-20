@@ -29,7 +29,7 @@ void debug_output(char ch)
     if (!serial_ready) {
         IO::out8(serial_com1_io_port + 1, 0x00);
         IO::out8(serial_com1_io_port + 3, 0x80);
-        IO::out8(serial_com1_io_port + 0, 0x02);
+        IO::out8(serial_com1_io_port + 0, 0x01); // 115200 baud -> divisor=1
         IO::out8(serial_com1_io_port + 1, 0x00);
         IO::out8(serial_com1_io_port + 3, 0x03);
         IO::out8(serial_com1_io_port + 2, 0xC7);
