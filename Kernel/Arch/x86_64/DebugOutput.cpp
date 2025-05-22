@@ -27,9 +27,17 @@ void debug_output(char ch)
     static bool was_cr = false;
 
     if (!serial_ready) {
+        IO::out8(0x2e, 0x87);
+        IO::out8(0x2e, 0x87);
+        IO::out8(0x2e, 0x07);
+        IO::out8(0x2f, 2);
+        IO::out8(0x2e, 0xf0);
+        IO::out8(0x2f, (IO::in8(0x2f) & ~0b11) | 0b11); // UART A clock source: 14.769 MHz
+        IO::out8(0x2e, 0xaa);
+
         IO::out8(serial_com1_io_port + 1, 0x00);
         IO::out8(serial_com1_io_port + 3, 0x80);
-        IO::out8(serial_com1_io_port + 0, 0x01); // 115200 baud -> divisor=1
+        IO::out8(serial_com1_io_port + 0, 0x02); // 460800 baud
         IO::out8(serial_com1_io_port + 1, 0x00);
         IO::out8(serial_com1_io_port + 3, 0x03);
         IO::out8(serial_com1_io_port + 2, 0xC7);
