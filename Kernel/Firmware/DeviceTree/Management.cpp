@@ -45,7 +45,8 @@ ErrorOr<void> Management::scan_node_for_devices(::DeviceTree::Node const& node)
 {
     for (auto const& [child_name, child] : node.children()) {
         // FIXME: The Pi 3 System Timer is disabled in the devicetree, and only the generic ARM timer is enabled. The generic Arm timer on the Pi 3 is connected to the root interrupt controller, which we currently don't support.
-        bool const ignore_status_disabled = DeviceTree::get().is_compatible_with("raspberrypi,3-model-b"sv) && child.is_compatible_with("brcm,bcm2835-system-timer"sv);
+        bool const ignore_status_disabled = (DeviceTree::get().is_compatible_with("raspberrypi,3-model-b"sv) && child.is_compatible_with("brcm,bcm2835-system-timer"sv))
+            || child.is_compatible_with("brcm,2712-v3d"sv);
 
         // The lack of a status property should be treated as if the property existed with the value of "okay". (DTspec 0.4 "2.3.4 status")
         auto maybe_status = child.get_property("status"sv);

@@ -16,8 +16,8 @@ Framebuffer::Framebuffer()
 {
     // FIXME: query HDMI for best mode
     // https://github.com/raspberrypi/userland/blob/master/host_applications/linux/apps/tvservice/tvservice.c
-    m_width = 1280;
-    m_height = 720;
+    m_width = 1920;
+    m_height = 1080;
     m_depth = 32;
     m_initialized = false;
 
