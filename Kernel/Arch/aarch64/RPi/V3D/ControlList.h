@@ -8,14 +8,20 @@
 
 #include <AK/Span.h>
 #include <AK/Types.h>
-#include <Kernel/Library/MiniStdLib.h>
 
+#include "Buffer.h"
+
+#ifdef KERNEL
 namespace Kernel::RPi::V3D {
+#endif
 
 class ControlList {
 public:
-    ControlList(Span<u8> buffer)
-        : m_buffer(buffer)
+    ControlList() = default;
+
+    ControlList(BufferObject bo, Span<u8> buffer)
+        : m_bo(bo)
+        , m_buffer(buffer)
     {
     }
 
@@ -23,7 +29,7 @@ public:
     void append(T const& packet)
     {
         VERIFY(m_offset + sizeof(T) <= m_buffer.size());
-        memcpy(m_buffer.data() + m_offset, &packet, sizeof(T));
+        __builtin_memcpy(m_buffer.data() + m_offset, &packet, sizeof(T));
         m_offset += sizeof(T);
     }
 
@@ -32,9 +38,17 @@ public:
         return m_buffer.slice(0, m_offset);
     }
 
+    BufferObject const& bo() const
+    {
+        return m_bo;
+    }
+
 private:
+    BufferObject m_bo;
     Span<u8> m_buffer;
     size_t m_offset = 0;
 };
 
+#ifdef KERNEL
 }
+#endif
