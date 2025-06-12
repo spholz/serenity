@@ -77,8 +77,8 @@ struct CoreRegisters {
         u32 thread_0_control_list_end_address; // CT0QEA
         u32 thread_1_control_list_end_address; // CT1QEA
 
-        u32 thread_0_tile_alloc_memory_address; // CT0QMA
-        u32 thread_0_tile_alloc_memory_size;    // CT0QMS
+        u32 thread_0_tile_allocation_memory_address; // CT0QMA
+        u32 thread_0_tile_allocation_memory_size;    // CT0QMS
     } control_list_executor;
 
     u8 unknown4[0x188];
@@ -108,7 +108,7 @@ static_assert(__builtin_offsetof(CoreRegisters, control_list_executor.rendering_
 static_assert(__builtin_offsetof(CoreRegisters, control_list_executor.thread_0_tile_state_data_array_address) == 0x15c);
 static_assert(__builtin_offsetof(CoreRegisters, control_list_executor.thread_0_control_list_start_address) == 0x160);
 static_assert(__builtin_offsetof(CoreRegisters, control_list_executor.thread_1_control_list_end_address) == 0x16c);
-static_assert(__builtin_offsetof(CoreRegisters, control_list_executor.thread_0_tile_alloc_memory_address) == 0x170);
+static_assert(__builtin_offsetof(CoreRegisters, control_list_executor.thread_0_tile_allocation_memory_address) == 0x170);
 static_assert(__builtin_offsetof(CoreRegisters, size_of_overspill_binning_memory_block) == 0x30c);
 static_assert(__builtin_offsetof(CoreRegisters, fep_overrun_error_signals) == 0xf04);
 static_assert(__builtin_offsetof(CoreRegisters, fep_internal_stall_input_signals) == 0xf10);

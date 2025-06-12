@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Kernel/API/V3D.h>
 #include <Kernel/Arch/Delay.h>
 #include <Kernel/Arch/aarch64/ASM_wrapper.h>
 #include <Kernel/Arch/aarch64/RPi/V3D/ControlList.h>
 #include <Kernel/Arch/aarch64/RPi/V3D/ControlRecords.h>
+#include <Kernel/Arch/aarch64/RPi/V3D/GPU3DDevice.h>
 #include <Kernel/Arch/aarch64/RPi/V3D/Registers.h>
 #include <Kernel/Arch/aarch64/RPi/V3D/V3D.h>
 #include <Kernel/Firmware/DeviceTree/DeviceTree.h>
@@ -61,8 +63,8 @@ static void dump_core_registers(CoreRegisters const volatile& registers)
     dbgln("    CT0QTS: {:#08x}", (u32)registers.control_list_executor.thread_0_tile_state_data_array_address);
     dbgln("    CT0QBA: {:#08x}", (u32)registers.control_list_executor.thread_0_control_list_start_address);
     dbgln("    CT0QEA: {:#08x}", (u32)registers.control_list_executor.thread_0_control_list_end_address);
-    dbgln("    CT0QMA: {:#08x}", (u32)registers.control_list_executor.thread_0_tile_alloc_memory_address);
-    dbgln("    CT0QMS: {:#08x}", (u32)registers.control_list_executor.thread_0_tile_alloc_memory_size);
+    dbgln("    CT0QMA: {:#08x}", (u32)registers.control_list_executor.thread_0_tile_allocation_memory_address);
+    dbgln("    CT0QMS: {:#08x}", (u32)registers.control_list_executor.thread_0_tile_allocation_memory_size);
     dbgln("  Thread 1:");
     dbgln("    CT1CS: {:#08x}", (u32)registers.control_list_executor.thread_1_control_and_status);
     dbgln("    CT1EA: {:#08x}", (u32)registers.control_list_executor.thread_1_end_address);
@@ -91,6 +93,36 @@ ErrorOr<NonnullRefPtr<V3D>> V3D::create(DeviceTree::Device::Resource hub_registe
     return v3d;
 }
 
+void V3D::submit_job(V3DJob const& job)
+{
+    asm volatile("isb; dsb sy; isb" ::: "memory");
+
+    m_core_0_registers->control_list_executor.thread_0_tile_allocation_memory_address = job.tile_allocation_memory_base_address;
+    m_core_0_registers->control_list_executor.thread_0_tile_allocation_memory_size = job.tile_allocation_memory_size;
+
+    m_core_0_registers->control_list_executor.thread_0_tile_state_data_array_address = job.tile_state_data_array_base_address;
+
+    m_core_0_registers->control_list_executor.thread_0_control_list_start_address = job.binning_control_list_address;
+    m_core_0_registers->control_list_executor.thread_0_control_list_end_address = job.binning_control_list_address + job.binning_control_list_size; // XXX: Checked<>::add?
+
+    dump_core_registers(*m_core_0_registers);
+
+    microseconds_delay(10'000);
+
+    dump_core_registers(*m_core_0_registers);
+
+    asm volatile("isb; dsb sy; isb" ::: "memory");
+
+    m_core_0_registers->control_list_executor.thread_1_control_list_start_address = job.rendering_control_list_address;
+    m_core_0_registers->control_list_executor.thread_1_control_list_end_address = job.rendering_control_list_address + job.rendering_control_list_size; // XXX: Checked<>::add?
+
+    dump_core_registers(*m_core_0_registers);
+
+    microseconds_delay(10'000);
+
+    dump_core_registers(*m_core_0_registers);
+}
+
 V3D::V3D(Memory::TypedMapping<HubRegisters volatile> hub_registers, Memory::TypedMapping<CoreRegisters volatile> core_0_registers)
     : m_hub_registers(move(hub_registers))
     , m_core_0_registers(move(core_0_registers))
@@ -102,13 +134,16 @@ ErrorOr<void> V3D::initialize()
     dump_hub_registers(*m_hub_registers);
     dump_core_registers(*m_core_0_registers);
 
+    m_3d_device = TRY(GPU3DDevice::create(*this));
+
+#if 0
     // auto job = run_clear_color(g_boot_info.boot_framebuffer.paddr.get(), 640, 480, g_boot_info.boot_framebuffer.pitch);
     auto job = run_triangle(g_boot_info.boot_framebuffer.paddr.get(), 640, 480, g_boot_info.boot_framebuffer.pitch);
 
     asm volatile("isb; dsb sy; isb" ::: "memory");
 
-    m_core_0_registers->control_list_executor.thread_0_tile_alloc_memory_address = job.tile_alloc_memory_bo.offset;
-    m_core_0_registers->control_list_executor.thread_0_tile_alloc_memory_size = job.tile_alloc_memory_bo.size;
+    m_core_0_registers->control_list_executor.thread_0_tile_allocation_memory_address = job.tile_alloc_memory_bo.offset;
+    m_core_0_registers->control_list_executor.thread_0_tile_allocation_memory_size = job.tile_alloc_memory_bo.size;
 
     m_core_0_registers->control_list_executor.thread_0_tile_state_data_array_address = job.tile_state_data_array_bo.offset;
 
@@ -133,6 +168,7 @@ ErrorOr<void> V3D::initialize()
     dump_core_registers(*m_core_0_registers);
 
     Processor::halt();
+#endif
 
     return {};
 }
