@@ -110,15 +110,40 @@ bool Mailbox::send_queue(void* queue, u32 queue_size)
 
     wait_until_we_can_write();
 
+#if 1
     // The mailbox message is 32-bit based, so this assumes that message is in the first 4 GiB.
-    // FIXME: Memory::virtual_to_low_physical only works for the initial kernel mappings (including the stack).
-    //        Sending mailbox messages that are on the stack (which is most of them) won't work as soon as we enter init_stage2.
-    //        We should instead use MM DMA functions to allocate memory for transferring messages.
-    u32 queue_paddr = Memory::virtual_to_low_physical(bit_cast<FlatPtr>(queue));
-    u32 request = static_cast<u32>(queue_paddr & ~0xF) | (channel & 0xF);
+    // FIXME: Reuse this DMA buffer instead of allocating a new one every time.
+    auto dma_region = MUST(MM.allocate_dma_buffer_pages(MUST(Memory::page_round_up(queue_size)), "RPi Mailbox buffer"sv, Memory::Region::Access::ReadWrite, Memory::MemoryType::NonCacheable));
+    auto paddr = dma_region->physical_page(0)->paddr().get();
+    auto vaddr = dma_region->vaddr();
+    memset(vaddr.as_ptr(), 0, dma_region->size());
+#else
+    static u8 buffer[4096];
 
-    // The queue buffer might point to normal cached memory, so flush any writes that are in cache and not visible to VideoCore.
+    auto vaddr = VirtualAddress { &buffer };
+    auto paddr = Memory::virtual_to_low_physical(vaddr.get());
+#endif
+
+    if (paddr > 0xffff'ffff) {
+        // FIXME: Add MM APIs that give you memory regions that are guaranteed to be in the first 4 GiB.
+        return false;
+    }
+
+    u32 request = static_cast<u32>(paddr & ~0xF) | (channel & 0xF);
+
     Aarch64::Asm::flush_data_cache((FlatPtr)queue, queue_size);
+
+    asm volatile("dsb sy" ::: "memory");
+    asm volatile("isb" ::: "memory");
+
+    memcpy(vaddr.as_ptr(), queue, queue_size);
+
+    Aarch64::Asm::flush_data_cache(vaddr.get(), queue_size);
+
+    asm volatile("dsb sy" ::: "memory");
+    asm volatile("isb" ::: "memory");
+
+    dbgln("queue: {:p}, size: {:#x}, dma vaddr: {:p}, dma paddr: {:p}, request: {:#08x}", queue, queue_size, vaddr.get(), paddr, request);
 
     m_registers->write_data = request;
 
@@ -127,11 +152,16 @@ bool Mailbox::send_queue(void* queue, u32 queue_size)
 
         u32 response = m_registers->read_data;
         // We keep at most one message in flight and do synchronous communication, so response will always be == request for us.
-        if (response == request)
+        if (response == request) {
+            asm volatile("dsb sy" ::: "memory");
+            asm volatile("isb" ::: "memory");
+            Aarch64::Asm::flush_data_cache(vaddr.get(), queue_size);
+            asm volatile("dsb sy" ::: "memory");
+            asm volatile("isb" ::: "memory");
+            memcpy(queue, vaddr.as_ptr(), queue_size);
             return message_header->success();
+        }
     }
-
-    return true;
 }
 
 class QueryFirmwareVersionMboxMessage : RPi::Mailbox::Message {
