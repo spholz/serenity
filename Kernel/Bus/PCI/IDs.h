@@ -22,10 +22,14 @@ enum VendorID {
 };
 
 enum DeviceID {
-    VirtIONetAdapter = 0x1000,
-    VirtIOBlockDevice = 0x1001,
-    VirtIOConsole = 0x1003,
-    VirtIOEntropy = 0x1005,
+    VirtIONetAdapterTransitional = 0x1000,
+    VirtIOBlockDeviceTransitional = 0x1001,
+    VirtIOConsoleTransitional = 0x1003,
+    VirtIOEntropyTransitional = 0x1005,
+    VirtIONetAdapter = 0x1041,
+    VirtIOBlockDevice = 0x1042,
+    VirtIOEntropy = 0x1044,
+    VirtIOConsole = 0x1043,
     VirtIOGPU = 0x1050,
     VirtIOInput = 0x1052,
 

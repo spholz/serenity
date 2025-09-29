@@ -36,6 +36,7 @@ protected:
 
 static constinit Array const compatibles_array = {
     "pci-host-ecam-generic"sv,
+    "pci-host-cam-generic"sv,
 };
 
 DEVICETREE_DRIVER(GenericECAMPCIHostControllerDriver, compatibles_array);

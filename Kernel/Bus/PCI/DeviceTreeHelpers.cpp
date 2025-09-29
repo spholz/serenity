@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <Kernel/Bus/PCI/Access.h>
 #include <Kernel/Bus/PCI/Controller/HostController.h>
 #include <Kernel/Bus/PCI/DeviceTreeHelpers.h>
@@ -96,7 +97,7 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
     if (!maybe_ranges.is_error()) {
         dbgln("PCI: Address mapping for {}:", node_name);
 
-        for (auto range : maybe_ranges.release_value()) {
+        for (auto [i, range] : enumerate(maybe_ranges.release_value())) {
             auto pci_address = TRY(range.child_bus_address().as<OpenFirmwareAddress>());
             auto cpu_physical_address = TRY(TRY(parent->translate_child_bus_address_to_root_address(range.parent_bus_address())).as_flatptr());
             auto range_size = TRY(range.length().as_size_t());
@@ -117,7 +118,7 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
                 !!pci_address.prefetchable,
                 !pci_address.non_relocatable);
 
-            if (pci_address.space_type == OpenFirmwareAddress::SpaceType::Memory32BitSpace) {
+            if (i == 0) { // pci_address.space_type == OpenFirmwareAddress::SpaceType::Memory32BitSpace) {
                 TRY(host_controller.add_memory_space_window(HostController::Window {
                     .host_address = PhysicalAddress { cpu_physical_address },
                     .bus_address = pci_address.io_or_memory_space_address,
@@ -189,7 +190,7 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
         if (maybe_interrupt_cells->size() != sizeof(u32) || maybe_interrupt_cells->as<u32>() != 1)
             return EINVAL;
 
-        if (maybe_interrupt_map_mask->size() != 4 * sizeof(u32))
+        if (maybe_interrupt_map_mask->size() < 4 * sizeof(u32))
             return EINVAL;
 
         auto mask_stream = maybe_interrupt_map_mask.value().as_stream();

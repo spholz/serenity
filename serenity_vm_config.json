@@ -1,0 +1,24 @@
+{
+    "name": "SerenityOS",
+    "kernel": "/tmp/Kernel",
+    "params": "dump_fdt serial_debug root=block100:0",
+    "disks": [
+        {
+            "partitions": [
+                {
+                    "label": "ROOT",
+                    "path": "/data/local/tmp/_disk_image",
+                    "writable": true
+                }
+            ],
+            "writable": true
+        }
+    ],
+    "protected": false,
+    "memory_mib": 512,
+    "cpu_topology": "match_host",
+    "platform_version": "~1.0",
+    "usb_config": {
+        "controller": true
+    }
+}
