@@ -85,7 +85,7 @@ enum class Limits {
 static constexpr u16 address_port = 0xcf8;
 static constexpr u16 value_port = 0xcfc;
 
-static constexpr size_t mmio_device_space_size = 4096;
+static constexpr size_t mmio_device_space_size = 256;
 static constexpr u16 none_value = 0xffff;
 static constexpr size_t memory_range_per_bus = mmio_device_space_size * to_underlying(Limits::MaxFunctionsPerDevice) * to_underlying(Limits::MaxDevicesPerBus);
 static constexpr u64 bar_address_mask = ~0xfull;

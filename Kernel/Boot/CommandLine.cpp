@@ -271,6 +271,7 @@ StringView CommandLine::system_mode() const
 
 PanicMode CommandLine::panic_mode(Validate should_validate) const
 {
+    should_validate = Validate::No;
     auto const panic_mode = lookup("panic"sv).value_or("halt"sv);
     if (panic_mode == "halt"sv) {
         return PanicMode::Halt;

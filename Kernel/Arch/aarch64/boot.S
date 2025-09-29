@@ -7,6 +7,25 @@
 // In a specially-named text section so that the linker script can put it first in .text.
 .section ".text.first"
 
+// Make the kernel bootable using U-Boot's booti command by adding a linux header (https://www.kernel.org/doc/html/latest/arch/arm64/booting.html#call-the-kernel-image).
+// Booting via booti causes U-Boot to pass us a flattened devicetree.
+linux_header:
+  b start                                   // u32 code0
+  b start                                   // u32 code1
+
+  .dword 0x10000                            // u64 text_offset
+
+  .dword end_of_kernel_image - linux_header // u64 image_size
+
+  // 4K pages
+  .dword (1 << 1)                           // u64 flags
+
+  .dword 0                                  // u64 res2
+  .dword 0                                  // u64 res3
+  .dword 0                                  // u64 res4
+  .ascii "ARM\x64"                          // u32 magic
+  .word 0                                   // u32 res5
+
 // We expect that x0 contains a pointer to a flattened devicetree,
 // which is also what the AArch64 Linux boot protocol requires.
 

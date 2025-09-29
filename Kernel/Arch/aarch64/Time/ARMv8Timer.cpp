@@ -124,7 +124,9 @@ ErrorOr<void> ARMv8TimerDriver::probe(DeviceTree::Device const& device, StringVi
     auto const& interrupt = interrupts[to_underlying(DeviceTreeTimerInterruptIndex::EL1Virtual)];
 
     // FIXME: Don't depend on a specific interrupt descriptor format and implement proper devicetree interrupt mapping/translation.
-    if (!interrupt.domain_root->is_compatible_with("arm,gic-400"sv) && !interrupt.domain_root->is_compatible_with("arm,cortex-a15-gic"sv))
+    if (!interrupt.domain_root->is_compatible_with("arm,gic-400"sv)
+        && !interrupt.domain_root->is_compatible_with("arm,cortex-a15-gic"sv)
+        && !interrupt.domain_root->is_compatible_with("arm,gic-v3"sv))
         return ENOTSUP;
     if (interrupt.interrupt_identifier.size() != 3 * sizeof(BigEndian<u32>))
         return ENOTSUP;
