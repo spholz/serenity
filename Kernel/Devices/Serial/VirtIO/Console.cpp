@@ -243,6 +243,7 @@ PCI_DRIVER(VirtIOConsoleDriver);
 
 ErrorOr<void> VirtIOConsoleDriver::probe(PCI::DeviceIdentifier const& pci_device_identifier) const
 {
+    return ENOTSUP;
     if (pci_device_identifier.hardware_id().vendor_id != PCI::VendorID::VirtIO
         || pci_device_identifier.hardware_id().device_id != PCI::DeviceID::VirtIOConsole)
         return ENOTSUP;

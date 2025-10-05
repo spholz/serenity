@@ -1,0 +1,38 @@
+cc_binary {
+    name: "serenity-vm",
+    defaults: ["avf_build_flags_cc"],
+    srcs: ["main.cpp"],
+    static_libs: [
+        "libbase",
+    ],
+    whole_static_libs: [
+        "android.system.virtualizationcommon-ndk",
+        "android.system.virtualizationservice-ndk",
+        "com.android.microdroid.testservice-ndk",
+        // "android.system.virtualizationservice_internal-ndk",
+        // "libcrosvm_android_display_service-ndk",
+    ],
+    shared_libs: [
+        "libavf",
+        "libbinder",
+        "libbinder_ndk",
+        "libbinder_rpc_unstable",
+        "libcutils",
+        "libgui",
+        "liblog",
+        "libnativewindow",
+        "libui",
+        "libutils",
+        "libinput",
+    ],
+    cppflags: [
+        "-ggdb3",
+        "-Og",
+    ],
+    strip: {
+        none: true
+    },
+    // sanitize: {
+    //     address: true
+    // },
+}

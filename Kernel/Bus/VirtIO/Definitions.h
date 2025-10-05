@@ -63,7 +63,9 @@ enum class ConfigurationType : u8 {
     Notify = 2,
     ISR = 3,
     Device = 4,
-    PCICapabilitiesAccess = 5
+    PCICapabilitiesAccess = 5,
+    SharedMemoryrRegion = 8,
+    VendorSpecific = 9,
 };
 
 struct Configuration {

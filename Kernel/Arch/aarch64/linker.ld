@@ -1,4 +1,4 @@
-ENTRY(start)
+ENTRY(init)
 
 ASSERT(CONSTANT(MAXPAGESIZE) == 4K, "The aarch64 Kernel linker script assumes a max page size of 4K");
 

@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+
+&{/} {
+    framebuffer {
+        compatible = "simple-framebuffer";
+        reg = <0xdeadbeef 0xdeadbeef 0xdeadbeef 0xdeadbeef>;
+        width = <0xdeadbeef>;
+        height = <0xdeadbeef>;
+        stride = <0xdeadbeef>;
+        format = "x8r8g8b8";
+    };
+};

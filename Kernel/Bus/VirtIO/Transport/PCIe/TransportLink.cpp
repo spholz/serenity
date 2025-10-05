@@ -101,7 +101,6 @@ ErrorOr<void> PCIeTransportLink::locate_configurations_and_resources(Badge<VirtI
                 continue;
             if (raw_config_type < static_cast<u8>(ConfigurationType::Common) || raw_config_type > static_cast<u8>(ConfigurationType::PCICapabilitiesAccess)) {
                 dbgln("{}: Unknown capability configuration type: {}", device_name(), raw_config_type);
-                return Error::from_errno(ENXIO);
             }
             config.cfg_type = static_cast<ConfigurationType>(raw_config_type);
             auto cap_length = capability.read8(0x2);
