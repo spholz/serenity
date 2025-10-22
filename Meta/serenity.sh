@@ -191,6 +191,13 @@ cmd_with_target() {
 
 ensure_target() {
     [ -f "$SUPER_BUILD_DIR/build.ninja" ] || create_build_dir
+
+    if [ "$TARGET" != "lagom" ]; then
+        mkdir -p "$BUILD_DIR/Root/usr/lib"
+        [ -f "$BUILD_DIR/Root/usr/lib/libc.so" ] || cp "$SERENITY_SOURCE_DIR/Toolchain/Stubs/$TARGET/libc.so" "$BUILD_DIR/Root/usr/lib/libc.so"
+        [ -f "$BUILD_DIR/Root/usr/lib/libsystem.so" ] || cp "$SERENITY_SOURCE_DIR/Toolchain/Stubs/$TARGET/libsystem.so" "$BUILD_DIR/Root/usr/lib/libsystem.so"
+        [ -f "$BUILD_DIR/Root/usr/lib/crt0.o" ] || cp "$SERENITY_SOURCE_DIR/Toolchain/Stubs/$TARGET/crt0.o" "$BUILD_DIR/Root/usr/lib/crt0.o"
+    fi
 }
 
 run_tests() {
