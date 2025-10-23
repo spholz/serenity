@@ -368,8 +368,13 @@ void xHCIController::enqueue_command(TransferRequestBlock& transfer_request_bloc
 void xHCIController::execute_command(TransferRequestBlock& transfer_request_block)
 {
     SpinlockLocker const locker(m_command_lock);
+    m_current_command_complete.with([](bool& current_command_complete) { current_command_complete = false; });
+
     enqueue_command(transfer_request_block);
-    m_command_completion_queue.wait_forever();
+
+    VERIFY(Process::current().is_kernel_process());
+    MUST(m_command_completion_queue.wait_until(m_current_command_complete, [](bool current_command_complete) { return current_command_complete; }));
+
     transfer_request_block = m_command_result_transfer_request_block;
 }
 
@@ -1413,9 +1418,10 @@ void xHCIController::event_handling_thread()
             case TransferRequestBlock::TRBType::Command_Completion_Event:
                 // We only process a single command at a time (and the caller holds the m_command_lock throughout), so we only ever have a single
                 // active command result.
+                m_current_command_complete.with([](bool& current_command_complete) { current_command_complete = true; });
                 m_command_result_transfer_request_block = m_event_ring_segment[m_event_ring_dequeue_index];
                 full_memory_fence();
-                m_command_completion_queue.wake_all();
+                m_command_completion_queue.notify_one();
                 break;
             case TransferRequestBlock::TRBType::Port_Status_Change_Event:
                 dbgln_if(XHCI_DEBUG, "Port status change detected by controller");
