@@ -1188,6 +1188,11 @@ ErrorOr<NonnullRefPtr<Thread>> Thread::clone(NonnullRefPtr<Process> process)
 void Thread::set_state(State new_state, u8 stop_signal)
 {
     VERIFY(g_scheduler_lock.is_locked_by_current_processor());
+    if (tid() == 7) {
+        dbgln("Thread {}: {} -> {}", *this, state_string(), state_string(new_state));
+        dump_backtrace();
+    }
+
     if (new_state == m_state)
         PANIC("Thread {} is already {}", *this, state_string());
 

@@ -367,7 +367,7 @@ void xHCIController::enqueue_command(TransferRequestBlock& transfer_request_bloc
 
 void xHCIController::execute_command(TransferRequestBlock& transfer_request_block)
 {
-    SpinlockLocker const locker(m_command_lock);
+    MutexLocker const locker(m_command_mutex);
     m_current_command_complete.with([](bool& current_command_complete) { current_command_complete = false; });
 
     enqueue_command(transfer_request_block);

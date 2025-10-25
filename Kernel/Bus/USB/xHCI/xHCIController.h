@@ -233,7 +233,7 @@ private:
 
     Vector<NonnullOwnPtr<PeriodicPendingTransfer>> m_active_periodic_transfers;
 
-    Spinlock<LockRank::None> m_command_lock;
+    Mutex m_command_mutex;
     SpinlockProtected<bool, LockRank::None> m_current_command_complete;
     WaitQueue m_command_completion_queue;
     TransferRequestBlock m_command_result_transfer_request_block {};
