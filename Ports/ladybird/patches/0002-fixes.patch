@@ -1,0 +1,124 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Mon, 1 Dec 2025 17:06:47 +0100
+Subject: [PATCH] fixes
+
+---
+ AK/kmalloc.cpp                             |  2 +-
+ Libraries/LibCore/Socket.cpp               |  8 ++------
+ Libraries/LibCore/System.cpp               |  2 +-
+ Libraries/LibJS/Runtime/ExecutionContext.h |  1 +
+ UI/CMakeLists.txt                          |  1 +
+ Utilities/test262-runner.cpp               | 17 ++++++++++++-----
+ 6 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/AK/kmalloc.cpp b/AK/kmalloc.cpp
+index 181634fbbd12bca447fcf64e0c45235956d25605..ba8fd86a72cd03ed2b728e7e09633777b4237b78 100644
+--- a/AK/kmalloc.cpp
++++ b/AK/kmalloc.cpp
+@@ -7,7 +7,7 @@
+ 
+ #include <AK/kmalloc.h>
+ 
+-#if defined(AK_OS_SERENITY)
++#if defined(AK_OS_SERENITY) && 0
+ 
+ #    include <AK/Assertions.h>
+ 
+diff --git a/Libraries/LibCore/Socket.cpp b/Libraries/LibCore/Socket.cpp
+index 3ac07d2ccb574a3512f4f8e2744ce038369893fc..4d0cd68d7870d96880bfce157e2d410afa533c3d 100644
+--- a/Libraries/LibCore/Socket.cpp
++++ b/Libraries/LibCore/Socket.cpp
+@@ -334,9 +334,7 @@ ErrorOr<NonnullOwnPtr<LocalSocket>> LocalSocket::adopt_fd(int fd, PreventSIGPIPE
+ 
+ ErrorOr<int> LocalSocket::receive_fd(int flags)
+ {
+-#if defined(AK_OS_SERENITY)
+-    return Core::System::recvfd(m_helper.fd(), flags);
+-#elif defined(AK_OS_LINUX) || defined(AK_OS_GNU_HURD) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
++#if defined(AK_OS_LINUX) || defined(AK_OS_GNU_HURD) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU) || defined(AK_OS_SERENITY)
+     union {
+         struct cmsghdr cmsghdr;
+         char control[CMSG_SPACE(sizeof(int))];
+@@ -375,9 +373,7 @@ ErrorOr<int> LocalSocket::receive_fd(int flags)
+ 
+ ErrorOr<void> LocalSocket::send_fd(int fd)
+ {
+-#if defined(AK_OS_SERENITY)
+-    return Core::System::sendfd(m_helper.fd(), fd);
+-#elif defined(AK_OS_LINUX) || defined(AK_OS_GNU_HURD) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
++#if defined(AK_OS_LINUX) || defined(AK_OS_GNU_HURD) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU) || defined(AK_OS_SERENITY)
+     char c = 'F';
+     struct iovec iov {
+         .iov_base = &c,
+diff --git a/Libraries/LibCore/System.cpp b/Libraries/LibCore/System.cpp
+index b8d52a6ab293ebb569da7017ccf9269759dda25b..688d546a040733b8cb126743c63a28c15571bc48 100644
+--- a/Libraries/LibCore/System.cpp
++++ b/Libraries/LibCore/System.cpp
+@@ -754,7 +754,7 @@ u64 physical_memory_bytes()
+ ErrorOr<ByteString> current_executable_path()
+ {
+     char path[4096] = {};
+-#if defined(AK_OS_LINUX) || defined(AK_OS_ANDROID)
++#if defined(AK_OS_LINUX) || defined(AK_OS_ANDROID) || defined(AK_OS_SERENITY)
+     auto ret = ::readlink("/proc/self/exe", path, sizeof(path) - 1);
+     // Ignore error if it wasn't a symlink
+     if (ret == -1 && errno != EINVAL)
+diff --git a/Libraries/LibJS/Runtime/ExecutionContext.h b/Libraries/LibJS/Runtime/ExecutionContext.h
+index e514dd9af5a9d1e69239710cb35dd2c9480c383c..dcacd13d7f3d91adfb287148f0a6a6ed4af07f69 100644
+--- a/Libraries/LibJS/Runtime/ExecutionContext.h
++++ b/Libraries/LibJS/Runtime/ExecutionContext.h
+@@ -9,6 +9,7 @@
+ 
+ #pragma once
+ 
++#include <alloca.h>
+ #include <LibJS/Bytecode/BasicBlock.h>
+ #include <LibJS/Export.h>
+ #include <LibJS/Forward.h>
+diff --git a/UI/CMakeLists.txt b/UI/CMakeLists.txt
+index d02cec2d0c5df08f5957ed98c554a41e97efee89..777d2acd072950790e236012cee461386d71b807 100644
+--- a/UI/CMakeLists.txt
++++ b/UI/CMakeLists.txt
+@@ -54,6 +54,7 @@ elseif (APPLE)
+ elseif(ANDROID)
+    add_subdirectory(Android)
+ else()
++    add_custom_target("ladybird_build_resource_files")
+     # TODO: Check for other GUI frameworks here when we move them in-tree
+     return()
+ endif()
+diff --git a/Utilities/test262-runner.cpp b/Utilities/test262-runner.cpp
+index f9ffe7f4260ea82716daa34a3056e9d0284bff6e..90942b914051ff02392e15629065a53886110c39 100644
+--- a/Utilities/test262-runner.cpp
++++ b/Utilities/test262-runner.cpp
+@@ -548,17 +548,24 @@ static bool g_in_assert = false;
+ #undef NDEBUG
+ #include <assert.h>
+ 
+-#ifdef AK_OS_MACOS
+-extern "C" __attribute__((__noreturn__)) void __assert_rtn(char const* function, char const* file, int line, char const* assertion)
+-#elifdef ASSERT_FAIL_HAS_INT /* Set by CMake */
+-extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function)
++#ifdef AK_OS_SERENITY
++void __assertion_failed(char const* assertion)
++{
++    handle_failed_assert(assertion);
++}
+ #else
++#    ifdef AK_OS_MACOS
++extern "C" __attribute__((__noreturn__)) void __assert_rtn(char const* function, char const* file, int line, char const* assertion)
++#    elifdef ASSERT_FAIL_HAS_INT /* Set by CMake */
++extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function)
++#    else
+ extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, unsigned int line, char const* function)
+-#endif
++#    endif
+ {
+     auto full_message = ByteString::formatted("{}:{}: {}: Assertion `{}' failed.", file, line, function, assertion);
+     handle_failed_assert(full_message.characters());
+ }
++#endif
+ #pragma pop_macro("NDEBUG")
+ 
+ constexpr int exit_wrong_arguments = 2;

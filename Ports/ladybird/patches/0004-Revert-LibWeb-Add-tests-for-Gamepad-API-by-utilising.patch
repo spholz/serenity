@@ -1,0 +1,1165 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Tue, 2 Dec 2025 18:17:23 +0100
+Subject: [PATCH] Revert "LibWeb: Add tests for Gamepad API by utilising
+ virtual SDL3 joysticks"
+
+This reverts commit 9adf27f0099a2761f3f195f30a43561eb6edfc8d.
+---
+ Libraries/LibWeb/CMakeLists.txt               |   1 -
+ Libraries/LibWeb/Forward.h                    |   1 -
+ .../LibWeb/Internals/InternalGamepad.cpp      | 178 ------------------
+ Libraries/LibWeb/Internals/InternalGamepad.h  |  51 -----
+ .../LibWeb/Internals/InternalGamepad.idl      |  14 --
+ Libraries/LibWeb/Internals/Internals.cpp      |  12 --
+ Libraries/LibWeb/Internals/Internals.h        |   4 -
+ Libraries/LibWeb/Internals/Internals.idl      |   5 -
+ Libraries/LibWeb/idl_files.cmake              |   1 -
+ .../GamepadAPI/gamepad-button-pressing.txt    |  47 -----
+ .../gamepad-exposed-after-button-press.txt    |   5 -
+ ...d-exposed-after-negative-axis-movement.txt |  15 --
+ ...d-exposed-after-positive-axis-movement.txt |  15 --
+ ...amepad-exposed-after-pressing-triggers.txt |  16 --
+ .../expected/GamepadAPI/gamepad-iframe.txt    |   9 -
+ ...gamepad-is-available-in-new-navigables.txt |   5 -
+ .../GamepadAPI/gamepad-moving-axes.txt        |  74 --------
+ .../expected/GamepadAPI/gamepad-rumble.txt    |  45 -----
+ .../GamepadAPI/gamepad-button-pressing.html   |  25 ---
+ .../gamepad-exposed-after-button-press.html   |  22 ---
+ ...-exposed-after-negative-axis-movement.html |  27 ---
+ ...-exposed-after-positive-axis-movement.html |  27 ---
+ ...mepad-exposed-after-pressing-triggers.html |  27 ---
+ .../Text/input/GamepadAPI/gamepad-helper.js   |  40 ----
+ .../Text/input/GamepadAPI/gamepad-iframe.html |  76 --------
+ ...amepad-is-available-in-new-navigables.html |  56 ------
+ .../input/GamepadAPI/gamepad-moving-axes.html |  28 ---
+ .../Text/input/GamepadAPI/gamepad-rumble.html |  75 --------
+ 28 files changed, 901 deletions(-)
+ delete mode 100644 Libraries/LibWeb/Internals/InternalGamepad.cpp
+ delete mode 100644 Libraries/LibWeb/Internals/InternalGamepad.h
+ delete mode 100644 Libraries/LibWeb/Internals/InternalGamepad.idl
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-button-pressing.txt
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-button-press.txt
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-negative-axis-movement.txt
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-positive-axis-movement.txt
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-pressing-triggers.txt
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-iframe.txt
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-is-available-in-new-navigables.txt
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-moving-axes.txt
+ delete mode 100644 Tests/LibWeb/Text/expected/GamepadAPI/gamepad-rumble.txt
+ delete mode 100644 Tests/LibWeb/Text/input/GamepadAPI/gamepad-button-pressing.html
+ delete mode 100644 Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-button-press.html
+ delete mode 100644 Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-negative-axis-movement.html
+ delete mode 100644 Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-positive-axis-movement.html
+ delete mode 100644 Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-pressing-triggers.html
+ delete mode 100644 Tests/LibWeb/Text/input/GamepadAPI/gamepad-is-available-in-new-navigables.html
+ delete mode 100644 Tests/LibWeb/Text/input/GamepadAPI/gamepad-moving-axes.html
+ delete mode 100644 Tests/LibWeb/Text/input/GamepadAPI/gamepad-rumble.html
+
+diff --git a/Libraries/LibWeb/CMakeLists.txt b/Libraries/LibWeb/CMakeLists.txt
+index 2056b197f049394f53248cdd56786c99ca44036a..6992d1831eeb589eec30caa074932c612071827f 100644
+--- a/Libraries/LibWeb/CMakeLists.txt
++++ b/Libraries/LibWeb/CMakeLists.txt
+@@ -705,7 +705,6 @@ set(SOURCES
+     Infra/JSON.cpp
+     Infra/Strings.cpp
+     Internals/InternalAnimationTimeline.cpp
+-    Internals/InternalGamepad.cpp
+     Internals/Internals.cpp
+     Internals/InternalsBase.cpp
+     Internals/WebUI.cpp
+diff --git a/Libraries/LibWeb/Forward.h b/Libraries/LibWeb/Forward.h
+index 4ca49c594202359a3eb75d4e728105630b00120e..65a127da90d9301c231fccb655dec9255dfcb0d6 100644
+--- a/Libraries/LibWeb/Forward.h
++++ b/Libraries/LibWeb/Forward.h
+@@ -841,7 +841,6 @@ class RequestList;
+ namespace Web::Internals {
+ 
+ class Internals;
+-class InternalGamepad;
+ class WebUI;
+ 
+ }
+diff --git a/Libraries/LibWeb/Internals/InternalGamepad.cpp b/Libraries/LibWeb/Internals/InternalGamepad.cpp
+deleted file mode 100644
+index 9820c740452fde5c740b94ffe1edb0bf93b90971..0000000000000000000000000000000000000000
+--- a/Libraries/LibWeb/Internals/InternalGamepad.cpp
++++ /dev/null
+@@ -1,178 +0,0 @@
+-/*
+- * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+- *
+- * SPDX-License-Identifier: BSD-2-Clause
+- */
+-
+-#include <LibWeb/Bindings/InternalGamepadPrototype.h>
+-#include <LibWeb/Bindings/Intrinsics.h>
+-#include <LibWeb/Internals/InternalGamepad.h>
+-
+-namespace Web::Internals {
+-
+-GC_DEFINE_ALLOCATOR(InternalGamepad);
+-
+-static constexpr Array<SDL_GamepadButton, 15> BUTTONS = {
+-    SDL_GAMEPAD_BUTTON_SOUTH,
+-    SDL_GAMEPAD_BUTTON_EAST,
+-    SDL_GAMEPAD_BUTTON_WEST,
+-    SDL_GAMEPAD_BUTTON_NORTH,
+-    SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,
+-    SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
+-    SDL_GAMEPAD_BUTTON_BACK,
+-    SDL_GAMEPAD_BUTTON_START,
+-    SDL_GAMEPAD_BUTTON_LEFT_STICK,
+-    SDL_GAMEPAD_BUTTON_RIGHT_STICK,
+-    SDL_GAMEPAD_BUTTON_DPAD_UP,
+-    SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+-    SDL_GAMEPAD_BUTTON_DPAD_LEFT,
+-    SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+-    SDL_GAMEPAD_BUTTON_GUIDE,
+-};
+-
+-static constexpr Array<SDL_GamepadAxis, 4> AXES {
+-    SDL_GAMEPAD_AXIS_LEFTX,
+-    SDL_GAMEPAD_AXIS_LEFTY,
+-    SDL_GAMEPAD_AXIS_RIGHTX,
+-    SDL_GAMEPAD_AXIS_RIGHTY,
+-};
+-
+-static constexpr Array<SDL_GamepadAxis, 2> TRIGGERS {
+-    SDL_GAMEPAD_AXIS_LEFT_TRIGGER,
+-    SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
+-};
+-
+-static constexpr char const* VIRTUAL_GAMEPAD_NAME = "Ladybird Virtual Gamepad";
+-
+-static SDLCALL bool rumble(void* user_data, u16 low_frequency_rumble, u16 high_frequency_rumble)
+-{
+-    auto* internal_gamepad = static_cast<InternalGamepad*>(user_data);
+-    internal_gamepad->received_rumble(low_frequency_rumble, high_frequency_rumble);
+-    return true;
+-}
+-
+-static SDLCALL bool rumble_triggers(void* user_data, u16 left_rumble, u16 right_rumble)
+-{
+-    auto* internal_gamepad = static_cast<InternalGamepad*>(user_data);
+-    internal_gamepad->received_rumble_triggers(left_rumble, right_rumble);
+-    return true;
+-}
+-
+-InternalGamepad::InternalGamepad(JS::Realm& realm)
+-    : Bindings::PlatformObject(realm)
+-{
+-    SDL_VirtualJoystickDesc virtual_joystick_desc {};
+-    SDL_INIT_INTERFACE(&virtual_joystick_desc);
+-
+-    virtual_joystick_desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+-    virtual_joystick_desc.naxes = AXES.size() + TRIGGERS.size();
+-    virtual_joystick_desc.nbuttons = BUTTONS.size();
+-
+-    u32 button_mask = 0;
+-    for (auto const button : BUTTONS)
+-        button_mask |= 1 << button;
+-
+-    virtual_joystick_desc.button_mask = button_mask;
+-
+-    u32 axis_mask = 0;
+-    for (auto const axis : AXES)
+-        axis_mask |= 1 << axis;
+-
+-    for (auto const trigger : TRIGGERS)
+-        axis_mask |= 1 << trigger;
+-
+-    virtual_joystick_desc.axis_mask = axis_mask;
+-
+-    virtual_joystick_desc.name = VIRTUAL_GAMEPAD_NAME;
+-    virtual_joystick_desc.userdata = this;
+-    virtual_joystick_desc.Rumble = rumble;
+-    virtual_joystick_desc.RumbleTriggers = rumble_triggers;
+-
+-    m_sdl_joystick_id = SDL_AttachVirtualJoystick(&virtual_joystick_desc);
+-    m_sdl_joystick = SDL_OpenJoystick(m_sdl_joystick_id);
+-}
+-
+-InternalGamepad::~InternalGamepad() = default;
+-
+-void InternalGamepad::initialize(JS::Realm& realm)
+-{
+-    WEB_SET_PROTOTYPE_FOR_INTERFACE(InternalGamepad);
+-    Base::initialize(realm);
+-}
+-
+-void InternalGamepad::visit_edges(Cell::Visitor& visitor)
+-{
+-    Base::visit_edges(visitor);
+-    visitor.visit(m_received_rumble_effects);
+-    visitor.visit(m_received_rumble_trigger_effects);
+-}
+-
+-void InternalGamepad::finalize()
+-{
+-    disconnect();
+-}
+-
+-Array<SDL_GamepadButton, 15> const& InternalGamepad::buttons()
+-{
+-    return BUTTONS;
+-}
+-
+-Array<SDL_GamepadAxis, 4> const& InternalGamepad::axes()
+-{
+-    return AXES;
+-}
+-
+-Array<SDL_GamepadAxis, 2> const& InternalGamepad::triggers()
+-{
+-    return TRIGGERS;
+-}
+-
+-void InternalGamepad::set_button(int button, bool down)
+-{
+-    SDL_SetJoystickVirtualButton(m_sdl_joystick, button, down);
+-}
+-
+-void InternalGamepad::set_axis(int axis, short value)
+-{
+-    SDL_SetJoystickVirtualAxis(m_sdl_joystick, axis, value);
+-}
+-
+-GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_effects() const
+-{
+-    GC::RootVector<JS::Object*> received_rumble_effects { realm().heap() };
+-    for (auto const received_rumble_effect : m_received_rumble_effects)
+-        received_rumble_effects.append(received_rumble_effect);
+-    return received_rumble_effects;
+-}
+-
+-GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_trigger_effects() const
+-{
+-    GC::RootVector<JS::Object*> received_rumble_trigger_effects { realm().heap() };
+-    for (auto const received_rumble_trigger_effect : m_received_rumble_trigger_effects)
+-        received_rumble_trigger_effects.append(received_rumble_trigger_effect);
+-    return received_rumble_trigger_effects;
+-}
+-
+-void InternalGamepad::received_rumble(u16 low_frequency_rumble, u16 high_frequency_rumble)
+-{
+-    auto object = JS::Object::create(realm(), nullptr);
+-    object->define_direct_property("lowFrequencyRumble"_utf16, JS::Value(low_frequency_rumble), JS::default_attributes);
+-    object->define_direct_property("highFrequencyRumble"_utf16, JS::Value(high_frequency_rumble), JS::default_attributes);
+-    m_received_rumble_effects.append(object);
+-}
+-
+-void InternalGamepad::received_rumble_triggers(u16 left_rumble, u16 right_rumble)
+-{
+-    auto object = JS::Object::create(realm(), nullptr);
+-    object->define_direct_property("leftRumble"_utf16, JS::Value(left_rumble), JS::default_attributes);
+-    object->define_direct_property("rightRumble"_utf16, JS::Value(right_rumble), JS::default_attributes);
+-    m_received_rumble_trigger_effects.append(object);
+-}
+-
+-void InternalGamepad::disconnect()
+-{
+-    SDL_CloseJoystick(m_sdl_joystick);
+-    SDL_DetachVirtualJoystick(m_sdl_joystick_id);
+-}
+-
+-}
+diff --git a/Libraries/LibWeb/Internals/InternalGamepad.h b/Libraries/LibWeb/Internals/InternalGamepad.h
+deleted file mode 100644
+index a5f8fb9af8c9858b95cd61d1fee38d62e3e116ff..0000000000000000000000000000000000000000
+--- a/Libraries/LibWeb/Internals/InternalGamepad.h
++++ /dev/null
+@@ -1,51 +0,0 @@
+-/*
+- * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+- *
+- * SPDX-License-Identifier: BSD-2-Clause
+- */
+-
+-#pragma once
+-
+-#include <LibWeb/Bindings/PlatformObject.h>
+-#include <SDL3/SDL_gamepad.h>
+-#include <SDL3/SDL_joystick.h>
+-
+-namespace Web::Internals {
+-
+-class InternalGamepad : public Bindings::PlatformObject {
+-    WEB_PLATFORM_OBJECT(InternalGamepad, Bindings::PlatformObject);
+-    GC_DECLARE_ALLOCATOR(InternalGamepad);
+-
+-public:
+-    static GC::Ref<InternalGamepad> create(JS::Realm&);
+-
+-    virtual ~InternalGamepad() override;
+-
+-    Array<SDL_GamepadButton, 15> const& buttons();
+-    Array<SDL_GamepadAxis, 4> const& axes();
+-    Array<SDL_GamepadAxis, 2> const& triggers();
+-
+-    void set_button(int button, bool down);
+-    void set_axis(int axis, short value);
+-
+-    GC::RootVector<JS::Object*> get_received_rumble_effects() const;
+-    GC::RootVector<JS::Object*> get_received_rumble_trigger_effects() const;
+-
+-    void received_rumble(u16 low_frequency_rumble, u16 high_frequency_rumble);
+-    void received_rumble_triggers(u16 left_rumble, u16 right_rumble);
+-
+-    void disconnect();
+-
+-private:
+-    InternalGamepad(JS::Realm&);
+-    virtual void initialize(JS::Realm&) override;
+-    virtual void visit_edges(Cell::Visitor&) override;
+-    virtual void finalize() override;
+-
+-    SDL_JoystickID m_sdl_joystick_id;
+-    SDL_Joystick* m_sdl_joystick;
+-    Vector<GC::Ref<JS::Object>> m_received_rumble_effects;
+-    Vector<GC::Ref<JS::Object>> m_received_rumble_trigger_effects;
+-};
+-
+-}
+diff --git a/Libraries/LibWeb/Internals/InternalGamepad.idl b/Libraries/LibWeb/Internals/InternalGamepad.idl
+deleted file mode 100644
+index 5dd6e55fb4622bd679372fd75b80325328648e10..0000000000000000000000000000000000000000
+--- a/Libraries/LibWeb/Internals/InternalGamepad.idl
++++ /dev/null
+@@ -1,14 +0,0 @@
+-[Exposed=Nobody]
+-interface InternalGamepad {
+-    readonly attribute sequence<long> buttons;
+-    readonly attribute sequence<long> axes;
+-    readonly attribute sequence<long> triggers;
+-
+-    undefined setButton(long button, boolean down);
+-    undefined setAxis(long axis, short value);
+-
+-    sequence<object> getReceivedRumbleEffects();
+-    sequence<object> getReceivedRumbleTriggerEffects();
+-
+-    undefined disconnect();
+-};
+diff --git a/Libraries/LibWeb/Internals/Internals.cpp b/Libraries/LibWeb/Internals/Internals.cpp
+index 7338289a5d207c79721d34326abc07d1b6c15497..64d5344d0aeb6d5a1bb0abc8350e41dd65137bbe 100644
+--- a/Libraries/LibWeb/Internals/Internals.cpp
++++ b/Libraries/LibWeb/Internals/Internals.cpp
+@@ -23,7 +23,6 @@
+ #include <LibWeb/HTML/HTMLElement.h>
+ #include <LibWeb/HTML/Navigable.h>
+ #include <LibWeb/HTML/Window.h>
+-#include <LibWeb/Internals/InternalGamepad.h>
+ #include <LibWeb/Internals/Internals.h>
+ #include <LibWeb/Page/InputEvent.h>
+ #include <LibWeb/Page/Page.h>
+@@ -361,15 +360,4 @@ GC::Ptr<DOM::ShadowRoot> Internals::get_shadow_root(GC::Ref<DOM::Element> elemen
+     return element->shadow_root();
+ }
+ 
+-void Internals::handle_sdl_input_events()
+-{
+-    page().handle_sdl_input_events();
+-}
+-
+-GC::Ref<InternalGamepad> Internals::connect_virtual_gamepad()
+-{
+-    auto& realm = this->realm();
+-    return realm.create<InternalGamepad>(realm);
+-}
+-
+ }
+diff --git a/Libraries/LibWeb/Internals/Internals.h b/Libraries/LibWeb/Internals/Internals.h
+index fc28e306c96ac6535939fa9fd362626dd27f7865..e444f012f32da19221936f368a907272b17080fc 100644
+--- a/Libraries/LibWeb/Internals/Internals.h
++++ b/Libraries/LibWeb/Internals/Internals.h
+@@ -74,10 +74,6 @@ public:
+ 
+     GC::Ptr<DOM::ShadowRoot> get_shadow_root(GC::Ref<DOM::Element>);
+ 
+-    void handle_sdl_input_events();
+-
+-    GC::Ref<InternalGamepad> connect_virtual_gamepad();
+-
+ private:
+     explicit Internals(JS::Realm&);
+ 
+diff --git a/Libraries/LibWeb/Internals/Internals.idl b/Libraries/LibWeb/Internals/Internals.idl
+index ebd12edf6369c8d88b16af20f6f3e0016f7493b0..00a4bbc5a5e380fe5a9d81c505c4bfb72284d325 100644
+--- a/Libraries/LibWeb/Internals/Internals.idl
++++ b/Libraries/LibWeb/Internals/Internals.idl
+@@ -1,7 +1,6 @@
+ #import <DOM/EventTarget.idl>
+ #import <HTML/HTMLElement.idl>
+ #import <Internals/InternalAnimationTimeline.idl>
+-#import <Internals/InternalGamepad.idl>
+ 
+ [Exposed=Nobody]
+ interface Internals {
+@@ -64,8 +63,4 @@ interface Internals {
+     // Returns the shadow root of the element, if it has one, even if it's not normally accessible to JS.
+     ShadowRoot? getShadowRoot(Element element);
+ 
+-    undefined handleSDLInputEvents();
+-
+-    InternalGamepad connectVirtualGamepad();
+-
+ };
+diff --git a/Libraries/LibWeb/idl_files.cmake b/Libraries/LibWeb/idl_files.cmake
+index a70bb6014ab06ad0a0ce33018c34d67415ebf8b5..3e8fa6a7cf1d14a1cf0bf4f285a609c1dcac3fe1 100644
+--- a/Libraries/LibWeb/idl_files.cmake
++++ b/Libraries/LibWeb/idl_files.cmake
+@@ -318,7 +318,6 @@ libweb_js_bindings(IndexedDB/IDBRequest)
+ libweb_js_bindings(IndexedDB/IDBTransaction)
+ libweb_js_bindings(IndexedDB/IDBVersionChangeEvent)
+ libweb_js_bindings(Internals/InternalAnimationTimeline)
+-libweb_js_bindings(Internals/InternalGamepad)
+ libweb_js_bindings(Internals/Internals)
+ libweb_js_bindings(Internals/WebUI)
+ libweb_js_bindings(IntersectionObserver/IntersectionObserver)
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-button-pressing.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-button-pressing.txt
+deleted file mode 100644
+index 933fa3f87d0544cd4833149bf12d0c90caff9b27..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-button-pressing.txt
++++ /dev/null
+@@ -1,47 +0,0 @@
+-Before pressing button 0: []
+-Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After pressing button 0: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 1: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 1: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 2: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 2: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 3: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 3: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 9: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 9: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 10: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 10: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 4: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 4: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 6: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 6: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 7: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 7: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 8: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 8: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 11: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 11: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 12: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 12: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 13: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 13: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 14: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 14: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before pressing button 5: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After pressing button 5: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":1}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After unpressed button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-button-press.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-button-press.txt
+deleted file mode 100644
+index 7be923b175760e4ecf5c518565c4af9615e06214..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-button-press.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-Initial: []
+-Before user gesture of pressing a button: []
+-Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After user gesture of pressing a button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-negative-axis-movement.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-negative-axis-movement.txt
+deleted file mode 100644
+index d25152ab45628187f0f9aab0b77e642e9558b18d..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-negative-axis-movement.txt
++++ /dev/null
+@@ -1,15 +0,0 @@
+-Initial: []
+-Before user gesture of moving axis to -0.1 (-3262): []
+-After user gesture of moving axis to -0.1 (-3262): []
+-Before user gesture of moving axis to -0.2 (-6525): []
+-After user gesture of moving axis to -0.2 (-6525): []
+-Before user gesture of moving axis to -0.3 (-9788): []
+-After user gesture of moving axis to -0.3 (-9788): []
+-Before user gesture of moving axis to -0.4 (-13051): []
+-After user gesture of moving axis to -0.4 (-13051): []
+-Before user gesture of moving axis to -0.5 (-16314): []
+-After user gesture of moving axis to -0.5 (-16314): []
+-Before user gesture of moving axis to -0.503 (-16411): []
+-Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After user gesture of moving axis to -0.503 (-16411): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[-0.5008163576714733,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-positive-axis-movement.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-positive-axis-movement.txt
+deleted file mode 100644
+index 83acd97995bb5812778381f65945d31a91f3a09f..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-positive-axis-movement.txt
++++ /dev/null
+@@ -1,15 +0,0 @@
+-Initial: []
+-Before user gesture of moving axis to 0.1 (3262): []
+-After user gesture of moving axis to 0.1 (3262): []
+-Before user gesture of moving axis to 0.2 (6525): []
+-After user gesture of moving axis to 0.2 (6525): []
+-Before user gesture of moving axis to 0.3 (9788): []
+-After user gesture of moving axis to 0.3 (9788): []
+-Before user gesture of moving axis to 0.4 (13051): []
+-After user gesture of moving axis to 0.4 (13051): []
+-Before user gesture of moving axis to 0.5 (16314): []
+-After user gesture of moving axis to 0.5 (16314): []
+-Before user gesture of moving axis to 0.503 (16411): []
+-Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After user gesture of moving axis to 0.503 (16411): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.5008468757152666,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-pressing-triggers.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-pressing-triggers.txt
+deleted file mode 100644
+index 600f6070b58110cb5f76be993e45ffd8f19ddd6c..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-exposed-after-pressing-triggers.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-Before moving trigger axis 4 to -1 (-32628): []
+-After moving trigger axis 4 to -1 (-32628): []
+-Before moving trigger axis 4 to -0.98 (-31976): []
+-After moving trigger axis 4 to -0.98 (-31976): []
+-Before moving trigger axis 4 to -0.96 (-31323): []
+-After moving trigger axis 4 to -0.96 (-31323): []
+-Before moving trigger axis 4 to -0.94 (-30671): []
+-After moving trigger axis 4 to -0.94 (-30671): []
+-Before moving trigger axis 4 to -0.92 (-30018): []
+-After moving trigger axis 4 to -0.92 (-30018): []
+-Before moving trigger axis 4 to -0.9 (-29366): []
+-After moving trigger axis 4 to -0.9 (-29366): []
+-Before moving trigger axis 4 to -0.8033 (-26211): []
+-Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After moving trigger axis 4 to -0.8033 (-26211): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.1000396740623188},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-iframe.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-iframe.txt
+deleted file mode 100644
+index d065d936b350496442212376c11560dfd2dc2bc1..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-iframe.txt
++++ /dev/null
+@@ -1,9 +0,0 @@
+-Before pressing a button: []
+-Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After pressing a button: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 0 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 0 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.7965972381170368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Received dual rumble effects: [{"lowFrequencyRumble":32767,"highFrequencyRumble":32767},{"lowFrequencyRumble":0,"highFrequencyRumble":0}]
+-Received trigger rumble effects: [{"leftRumble":32767,"rightRumble":32767},{"leftRumble":0,"rightRumble":0}]
+-Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After disconnecting gamepad: []
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-is-available-in-new-navigables.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-is-available-in-new-navigables.txt
+deleted file mode 100644
+index c01640ff944d46162b8fcae8a23be5fb9fad6e07..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-is-available-in-new-navigables.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-Before pressing button in top level: []
+-Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After pressing button in top level: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Gamepad should not be immediately exposed in the new navigable: []
+-Gamepad is now exposed in the new navigable: [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.000015259021896696368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":true,"touched":true,"value":1},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-moving-axes.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-moving-axes.txt
+deleted file mode 100644
+index 1028a733db5250b33da24e5e6a9e64c44e4824b4..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-moving-axes.txt
++++ /dev/null
+@@ -1,74 +0,0 @@
+-Before moving axis 0 to 1 (32628): []
+-Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+-After moving axis 0 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 0 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 0 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.7965972381170368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 0 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.7965972381170368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 0 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.3983062485694666,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 0 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.3983062485694666,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 0 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[-0.39827573052567333,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 0 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[-0.39827573052567333,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 0 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.7965972381170368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 0 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.7965972381170368,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 0 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 1 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.000015259021896696368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 1 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 1 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 1 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.7965972381170368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 1 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.7965972381170368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 1 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.3983062485694666,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 1 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.3983062485694666,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 1 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,-0.39827573052567333,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 1 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,-0.39827573052567333,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 1 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.7965972381170368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 1 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.7965972381170368,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 1 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 2 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.000015259021896696368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 2 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 2 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 2 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.7965972381170368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 2 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.7965972381170368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 2 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.3983062485694666,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 2 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.3983062485694666,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 2 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,-0.39827573052567333,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 2 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,-0.39827573052567333,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 2 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.7965972381170368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 2 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.7965972381170368,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 2 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 3 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.000015259021896696368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 3 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 3 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 3 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.7965972381170368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 3 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.7965972381170368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 3 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.3983062485694666],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 3 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.3983062485694666],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 3 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,-0.39827573052567333],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 3 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,-0.39827573052567333],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 3 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.7965972381170368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 3 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.7965972381170368],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 3 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 4 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 4 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 4 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 4 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.8982818079165014},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 4 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.8982818079165014},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 4 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.6991485335856197},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 4 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.6991485335856197},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 4 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.3008514664143803},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 4 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.3008514664143803},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 4 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.8982818079165014},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 4 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.8982818079165014},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 4 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 5 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 5 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 5 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 5 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.8982818079165014},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 5 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.8982818079165014},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 5 to 0.4 (13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.6991485335856197},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 5 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.6991485335856197},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 5 to -0.4 (-13051): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.3008514664143803},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 5 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.3008514664143803},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 5 to 0.8 (26102): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.8982818079165014},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Before moving axis 5 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.8982818079165014},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-After moving axis 5 to 1 (32628): [{"id":"Ladybird Virtual Gamepad","index":0,"connected":true,"mapping":"standard","axes":[0.9957579919127184,0.9957579919127184,0.9957579919127184,0.9957579919127184],"buttons":[{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":true,"touched":true,"value":0.9978637043366801},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0},{"pressed":false,"touched":false,"value":0}],"vibrationActuator":{"effects":["dual-rumble","trigger-rumble"]}}]
+-Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
+diff --git a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-rumble.txt b/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-rumble.txt
+deleted file mode 100644
+index 572b614ac8f6c22eac04a1b259d1457d9f41686a..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/expected/GamepadAPI/gamepad-rumble.txt
++++ /dev/null
+@@ -1,45 +0,0 @@
+-Checking if effect 'dual-rumble' with params '{"duration":5001}' throws
+-TypeError: Invalid effect
+-Checking if effect 'dual-rumble' with params '{"startDelay":5001}' throws
+-TypeError: Invalid effect
+-Checking if effect 'dual-rumble' with params '{"duration":2500,"startDelay":2501}' throws
+-TypeError: Invalid effect
+-Checking if effect 'dual-rumble' with params '{"duration":1,"weakMagnitude":-0.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'dual-rumble' with params '{"duration":1,"weakMagnitude":1.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'dual-rumble' with params '{"duration":1,"strongMagnitude":-0.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'dual-rumble' with params '{"duration":1,"strongMagnitude":1.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":5001}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"startDelay":5001}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":2500,"startDelay":2501}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":1,"weakMagnitude":-0.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":1,"weakMagnitude":1.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":1,"strongMagnitude":-0.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":1,"strongMagnitude":1.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":1,"leftTrigger":-0.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":1,"leftTrigger":1.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":1,"rightTrigger":-0.1}' throws
+-TypeError: Invalid effect
+-Checking if effect 'trigger-rumble' with params '{"duration":1,"rightTrigger":1.1}' throws
+-TypeError: Invalid effect
+-Playing valid dual rumble effect
+-Dual rumble promise resolved with 'complete'
+-Playing valid trigger rumble effect
+-Trigger rumble promise resolved with 'complete'
+-Testing preempting a rumble effect
+-newDualRumbleResult: 'complete', preemptedResult: 'preempted'
+-Received dual rumble effects: [{"lowFrequencyRumble":32767,"highFrequencyRumble":32767},{"lowFrequencyRumble":0,"highFrequencyRumble":0},{"lowFrequencyRumble":6553,"highFrequencyRumble":6553},{"lowFrequencyRumble":65535,"highFrequencyRumble":65535},{"lowFrequencyRumble":0,"highFrequencyRumble":0}]
+-Received trigger rumble effects: [{"leftRumble":32767,"rightRumble":32767},{"leftRumble":0,"rightRumble":0}]
+-Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-button-pressing.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-button-pressing.html
+deleted file mode 100644
+index e07bbea8c9fbf8ee12bfd989e60dae6a8b3ca986..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-button-pressing.html
++++ /dev/null
+@@ -1,25 +0,0 @@
+-<!DOCTYPE html>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-        listenForGamepadConnected();
+-
+-        for (const button of gamepad.buttons) {
+-            println(`Before pressing button ${button}: ${getStringifiedGamepads()}`);
+-            gamepad.setButton(button, true);
+-            await handleSDLInputEvents();
+-            println(`After pressing button ${button}: ${getStringifiedGamepads()}`);
+-            gamepad.setButton(button, false);
+-            await handleSDLInputEvents();
+-            println(`After unpressed button: ${getStringifiedGamepads()}`);
+-        }
+-
+-        listenForGamepadDisconnected();
+-        gamepad.disconnect();
+-        await handleSDLInputEvents();
+-        done();
+-    });
+-</script>
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-button-press.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-button-press.html
+deleted file mode 100644
+index 45c7184946638af5a721e67a4316968d821a2470..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-button-press.html
++++ /dev/null
+@@ -1,22 +0,0 @@
+-<!DOCTYPE html>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        println(`Initial: ${getStringifiedGamepads()}`);
+-
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-        listenForGamepadConnected();
+-
+-        println(`Before user gesture of pressing a button: ${getStringifiedGamepads()}`);
+-        gamepad.setButton(gamepad.buttons[0], true);
+-        await handleSDLInputEvents();
+-        println(`After user gesture of pressing a button: ${getStringifiedGamepads()}`);
+-
+-        listenForGamepadDisconnected();
+-        gamepad.disconnect();
+-        await handleSDLInputEvents();
+-        done();
+-    });
+-</script>
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-negative-axis-movement.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-negative-axis-movement.html
+deleted file mode 100644
+index 20d67058b71c278cb4c42a033e7c858cd052dbc3..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-negative-axis-movement.html
++++ /dev/null
+@@ -1,27 +0,0 @@
+-<!DOCTYPE html>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        println(`Initial: ${getStringifiedGamepads()}`);
+-
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-        listenForGamepadConnected();
+-
+-        const shortMax = 32628;
+-
+-        for (const axisValue of [-0.1, -0.2, -0.3, -0.4, -0.5, -0.503]) {
+-            const axisAsInt = Math.ceil(axisValue * shortMax);
+-            println(`Before user gesture of moving axis to ${axisValue} (${axisAsInt}): ${getStringifiedGamepads()}`);
+-            gamepad.setAxis(gamepad.axes[0], axisAsInt);
+-            await handleSDLInputEvents();
+-            println(`After user gesture of moving axis to ${axisValue} (${axisAsInt}): ${getStringifiedGamepads()}`);
+-        }
+-
+-        listenForGamepadDisconnected();
+-        gamepad.disconnect();
+-        await handleSDLInputEvents();
+-        done();
+-    });
+-</script>
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-positive-axis-movement.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-positive-axis-movement.html
+deleted file mode 100644
+index 7e841f6f8ef8376ddd559a688af277b454656bcf..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-positive-axis-movement.html
++++ /dev/null
+@@ -1,27 +0,0 @@
+-<!DOCTYPE html>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        println(`Initial: ${getStringifiedGamepads()}`);
+-
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-        listenForGamepadConnected();
+-
+-        const shortMax = 32628;
+-
+-        for (const axisValue of [0.1, 0.2, 0.3, 0.4, 0.5, 0.503]) {
+-            const axisAsInt = Math.floor(axisValue * shortMax);
+-            println(`Before user gesture of moving axis to ${axisValue} (${axisAsInt}): ${getStringifiedGamepads()}`);
+-            gamepad.setAxis(gamepad.axes[0], axisAsInt);
+-            await handleSDLInputEvents();
+-            println(`After user gesture of moving axis to ${axisValue} (${axisAsInt}): ${getStringifiedGamepads()}`);
+-        }
+-
+-        listenForGamepadDisconnected();
+-        gamepad.disconnect();
+-        await handleSDLInputEvents();
+-        done();
+-    });
+-</script>
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-pressing-triggers.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-pressing-triggers.html
+deleted file mode 100644
+index 400d68bd7b61156817852d42a5508a17432123f9..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-exposed-after-pressing-triggers.html
++++ /dev/null
+@@ -1,27 +0,0 @@
+-<!DOCTYPE html>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-        listenForGamepadConnected();
+-
+-        const shortMax = 32628;
+-
+-        const trigger = gamepad.triggers[0];
+-
+-        for (const axisValue of [-1.0, -0.98, -0.96, -0.94, -0.92, -0.9, -0.8033]) {
+-            const axisValueAsInt = Math.floor(axisValue * shortMax);
+-            println(`Before moving trigger axis ${trigger} to ${axisValue} (${axisValueAsInt}): ${getStringifiedGamepads()}`);
+-            gamepad.setAxis(trigger, axisValueAsInt);
+-            await handleSDLInputEvents();
+-            println(`After moving trigger axis ${trigger} to ${axisValue} (${axisValueAsInt}): ${getStringifiedGamepads()}`);
+-        }
+-
+-        listenForGamepadDisconnected();
+-        gamepad.disconnect();
+-        await handleSDLInputEvents();
+-        done();
+-    });
+-</script>
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-helper.js b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-helper.js
+index 415a18a435aac107d58201b42b7f6662f6c3cc66..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 100644
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-helper.js
++++ b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-helper.js
+@@ -1,40 +0,0 @@
+-(() => {
+-    globalThis.handleSDLInputEvents = () => {
+-        internals.handleSDLInputEvents();
+-        return new Promise(resolve => {
+-            setTimeout(() => resolve(), 0);
+-        });
+-    };
+-
+-    globalThis.getStringifiedGamepads = () => {
+-        const gamepads = navigator.getGamepads().map(gamepad => ({
+-            id: gamepad.id,
+-            index: gamepad.index,
+-            connected: gamepad.connected,
+-            mapping: gamepad.mapping,
+-            axes: gamepad.axes,
+-            buttons: gamepad.buttons.map(button => ({
+-                pressed: button.pressed,
+-                touched: button.touched,
+-                value: button.value,
+-            })),
+-            vibrationActuator: {
+-                effects: gamepad.vibrationActuator.effects,
+-            },
+-        }));
+-
+-        return JSON.stringify(gamepads);
+-    };
+-
+-    globalThis.listenForGamepadConnected = () => {
+-        window.addEventListener("gamepadconnected", ({ gamepad }) => {
+-            println(`Received gamepadconnected event for '${gamepad.id}' at index ${gamepad.index}`);
+-        });
+-    };
+-
+-    globalThis.listenForGamepadDisconnected = () => {
+-        window.addEventListener("gamepaddisconnected", ({ gamepad }) => {
+-            println(`Received gamepaddisconnected event for '${gamepad.id}' at index ${gamepad.index}`);
+-        });
+-    };
+-})();
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-iframe.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-iframe.html
+index f87be56921b04e91ae0429b7f47abb26db70539f..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 100644
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-iframe.html
++++ b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-iframe.html
+@@ -1,76 +0,0 @@
+-<!DOCTYPE html>
+-<iframe id="test-iframe" srcdoc="
+-<script src='gamepad-helper.js'></script>
+-<script>
+-    window.onmessage = async ({ data }) => {
+-        switch (data) {
+-        case 'getGamepads':
+-            window.parent.postMessage(getStringifiedGamepads(), '*');
+-            break;
+-        case 'rumbleGamepad': {
+-            const navGamepad = navigator.getGamepads()[0];
+-            await navGamepad.vibrationActuator.playEffect('dual-rumble', { duration: 1, weakMagnitude: 0.5, strongMagnitude: 0.5 });
+-            await handleSDLInputEvents();
+-            await navGamepad.vibrationActuator.playEffect('trigger-rumble', { duration: 1, leftTrigger: 0.5, rightTrigger: 0.5 });
+-            await handleSDLInputEvents();
+-            window.parent.postMessage('done', '*');
+-            break;
+-        }
+-        default:
+-            break;
+-        }
+-    };
+-</script>
+-"></iframe>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        const testIframe = document.getElementById("test-iframe");
+-
+-        const sendMessageAndWait = (message) => {
+-            return new Promise((resolve) => {
+-                const listener = ({ data }) => {
+-                    window.removeEventListener('message', listener);
+-                    resolve(data);
+-                };
+-                window.addEventListener('message', listener);
+-                testIframe.contentWindow.postMessage(message, "*");
+-            });
+-        };
+-
+-        // wait for the iframe to be ready
+-        await new Promise((resolve) => {
+-            testIframe.addEventListener('load', resolve);
+-            if (testIframe.contentDocument.readyState === 'complete')
+-                resolve();
+-        });
+-
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-        listenForGamepadConnected();
+-
+-        println(`Before pressing a button: ${await sendMessageAndWait("getGamepads")}`);
+-        gamepad.setButton(gamepad.buttons[0], true);
+-        await handleSDLInputEvents();
+-        println(`After pressing a button: ${await sendMessageAndWait("getGamepads")}`);
+-
+-        const shortMax = 32628;
+-        const axisValueAsInt = Math.floor(0.8 * shortMax);
+-        println(`Before moving axis ${gamepad.axes[0]} to 0.8 (${axisValueAsInt}): ${await sendMessageAndWait("getGamepads")}`);
+-        gamepad.setAxis(gamepad.axes[0], axisValueAsInt);
+-        await handleSDLInputEvents();
+-        println(`After moving axis ${gamepad.axes[0]} to 0.8 (${axisValueAsInt}): ${await sendMessageAndWait("getGamepads")}`);
+-
+-        await sendMessageAndWait("rumbleGamepad");
+-        println(`Received dual rumble effects: ${JSON.stringify(gamepad.getReceivedRumbleEffects())}`);
+-        println(`Received trigger rumble effects: ${JSON.stringify(gamepad.getReceivedRumbleTriggerEffects())}`);
+-
+-        listenForGamepadDisconnected();
+-        gamepad.disconnect();
+-        await handleSDLInputEvents();
+-        println(`After disconnecting gamepad: ${await sendMessageAndWait("getGamepads")}`);
+-
+-        done();
+-    });
+-</script>
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-is-available-in-new-navigables.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-is-available-in-new-navigables.html
+deleted file mode 100644
+index 1a2bceb9cfcceedab0d90e19bcdabf8e489157f6..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-is-available-in-new-navigables.html
++++ /dev/null
+@@ -1,56 +0,0 @@
+-<!DOCTYPE html>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-        listenForGamepadConnected();
+-
+-        println(`Before pressing button in top level: ${getStringifiedGamepads()}`);
+-        gamepad.setButton(gamepad.buttons[0], true);
+-        await handleSDLInputEvents();
+-        println(`After pressing button in top level: ${getStringifiedGamepads()}`);
+-        gamepad.setButton(gamepad.buttons[0], false);
+-        await handleSDLInputEvents();
+-
+-        const iframe = document.createElement("iframe");
+-        iframe.onload = async () => {
+-            const sendMessageAndWait = (message) => {
+-                return new Promise((resolve) => {
+-                    window.onmessage = ({ data }) => {
+-                        resolve(data);
+-                    };
+-
+-                    iframe.contentWindow.postMessage(message, "*");
+-                });
+-            };
+-
+-            println(`Gamepad should not be immediately exposed in the new navigable: ${await sendMessageAndWait("getGamepads")}`);
+-
+-            // New navigables will automatically connect to available gamepads, otherwise this wouldn't do anything.
+-            gamepad.setButton(gamepad.buttons[0], true);
+-            await handleSDLInputEvents();
+-
+-            println(`Gamepad is now exposed in the new navigable: ${await sendMessageAndWait("getGamepads")}`);
+-
+-            done();
+-        };
+-
+-        iframe.srcdoc = `
+-\u003cscript src="gamepad-helper.js"\u003e\u003c/script\u003e
+-\u003cscript\u003e
+-    window.onmessage = async ({ data }) => {
+-        switch (data) {
+-        case 'getGamepads':
+-            window.parent.postMessage(getStringifiedGamepads(), '*');
+-            break;
+-        default:
+-            break;
+-        }
+-    };
+-\u003c/script\u003e`;
+-
+-        document.body.appendChild(iframe);
+-    });
+-</script>
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-moving-axes.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-moving-axes.html
+deleted file mode 100644
+index 8a981ec4e63e766b44660e553c0ccc4f66277cab..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-moving-axes.html
++++ /dev/null
+@@ -1,28 +0,0 @@
+-<!DOCTYPE html>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-        listenForGamepadConnected();
+-
+-        const shortMax = 32628;
+-
+-        for (const axis of gamepad.axes.concat(gamepad.triggers)) {
+-            for (const axisValue of [1.0, 0.8, 0.4, -0.4, 0.8, 1.0]) {
+-                const axisValueAsInt = axisValue * shortMax;
+-                const axisValueRounded = axisValue > 0 ? Math.floor(axisValueAsInt) : Math.ceil(axisValueAsInt);
+-                println(`Before moving axis ${axis} to ${axisValue} (${axisValueRounded}): ${getStringifiedGamepads()}`);
+-                gamepad.setAxis(axis, axisValueRounded);
+-                await handleSDLInputEvents();
+-                println(`After moving axis ${axis} to ${axisValue} (${axisValueRounded}): ${getStringifiedGamepads()}`);
+-            }
+-        }
+-
+-        listenForGamepadDisconnected();
+-        gamepad.disconnect();
+-        await handleSDLInputEvents();
+-        done();
+-    });
+-</script>
+diff --git a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-rumble.html b/Tests/LibWeb/Text/input/GamepadAPI/gamepad-rumble.html
+deleted file mode 100644
+index a20cc2fc1209c27061346c0f873b5e7915d69657..0000000000000000000000000000000000000000
+--- a/Tests/LibWeb/Text/input/GamepadAPI/gamepad-rumble.html
++++ /dev/null
+@@ -1,75 +0,0 @@
+-<!DOCTYPE html>
+-<script src="../include.js"></script>
+-<script src="gamepad-helper.js"></script>
+-<script>
+-    asyncTest(async (done) => {
+-        const gamepad = internals.connectVirtualGamepad();
+-        await handleSDLInputEvents();
+-
+-        gamepad.setButton(gamepad.buttons[0], true);
+-        await handleSDLInputEvents();
+-
+-        const navGamepad = navigator.getGamepads()[0];
+-
+-        const checkIfThrows = async (effectType, params) => {
+-            println(`Checking if effect '${effectType}' with params '${JSON.stringify(params)}' throws`);
+-            try {
+-                await navGamepad.vibrationActuator.playEffect(effectType, params);
+-                println("FAIL: Did not throw");
+-            } catch (e) {
+-                println(`${e.name}: ${e.message}`);
+-            }
+-        }
+-
+-        await checkIfThrows("dual-rumble", { duration: 5001 });
+-        await checkIfThrows("dual-rumble", { startDelay: 5001 });
+-        await checkIfThrows("dual-rumble", { duration: 2500, startDelay: 2501 });
+-        await checkIfThrows("dual-rumble", { duration: 1, weakMagnitude: -0.1 });
+-        await checkIfThrows("dual-rumble", { duration: 1, weakMagnitude: 1.1 });
+-        await checkIfThrows("dual-rumble", { duration: 1, strongMagnitude: -0.1 });
+-        await checkIfThrows("dual-rumble", { duration: 1, strongMagnitude: 1.1 });
+-
+-        await checkIfThrows("trigger-rumble", { duration: 5001 });
+-        await checkIfThrows("trigger-rumble", { startDelay: 5001 });
+-        await checkIfThrows("trigger-rumble", { duration: 2500, startDelay: 2501 });
+-        await checkIfThrows("trigger-rumble", { duration: 1, weakMagnitude: -0.1 });
+-        await checkIfThrows("trigger-rumble", { duration: 1, weakMagnitude: 1.1 });
+-        await checkIfThrows("trigger-rumble", { duration: 1, strongMagnitude: -0.1 });
+-        await checkIfThrows("trigger-rumble", { duration: 1, strongMagnitude: 1.1 });
+-        await checkIfThrows("trigger-rumble", { duration: 1, leftTrigger: -0.1 });
+-        await checkIfThrows("trigger-rumble", { duration: 1, leftTrigger: 1.1 });
+-        await checkIfThrows("trigger-rumble", { duration: 1, rightTrigger: -0.1 });
+-        await checkIfThrows("trigger-rumble", { duration: 1, rightTrigger: 1.1 });
+-
+-        println("Playing valid dual rumble effect");
+-        const dualRumbleResult = await navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 2, weakMagnitude: 0.5, strongMagnitude: 0.5 });
+-        await handleSDLInputEvents();
+-        println(`Dual rumble promise resolved with '${dualRumbleResult}'`);
+-        println("Playing valid trigger rumble effect");
+-        const triggerRumbleResult = await navGamepad.vibrationActuator.playEffect("trigger-rumble", { duration: 2, leftTrigger: 0.5, rightTrigger: 0.5 });
+-        await handleSDLInputEvents();
+-        println(`Trigger rumble promise resolved with '${triggerRumbleResult}'`);
+-
+-        println("Testing preempting a rumble effect");
+-        const effectToPreemptPromise = navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 1000, strongMagnitude: 0.1, weakMagnitude: 0.1 });
+-
+-        // Make sure the first effect is issued to the gamepad.
+-        await new Promise(resolve => {
+-            setTimeout(() => resolve(), 1);
+-        });
+-        await handleSDLInputEvents();
+-
+-        const newDualRumbleResult = await navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 2, strongMagnitude: 1.0, weakMagnitude: 1.0 });
+-        await handleSDLInputEvents();
+-        const preemptedResult = await effectToPreemptPromise;
+-        println(`newDualRumbleResult: '${newDualRumbleResult}', preemptedResult: '${preemptedResult}'`);
+-
+-        println(`Received dual rumble effects: ${JSON.stringify(gamepad.getReceivedRumbleEffects())}`);
+-        println(`Received trigger rumble effects: ${JSON.stringify(gamepad.getReceivedRumbleTriggerEffects())}`);
+-
+-        listenForGamepadDisconnected();
+-        gamepad.disconnect();
+-        await handleSDLInputEvents();
+-        done();
+-    });
+-</script>

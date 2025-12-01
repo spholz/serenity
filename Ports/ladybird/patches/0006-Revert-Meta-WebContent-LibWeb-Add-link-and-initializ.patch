@@ -1,0 +1,125 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Tue, 2 Dec 2025 18:17:56 +0100
+Subject: [PATCH] Revert "Meta+WebContent+LibWeb: Add, link and initialize
+ SDL3"
+
+This reverts commit 50dcd8fc850de096bcbd7510c15bc0084876511c.
+---
+ Libraries/LibWeb/CMakeLists.txt               |  3 +--
+ Meta/CMake/SDL3.cmake                         |  3 ---
+ Meta/CMake/flatpak/org.ladybird.Ladybird.json | 17 -----------------
+ Services/WebContent/CMakeLists.txt            |  2 --
+ Services/WebContent/main.cpp                  |  8 --------
+ 5 files changed, 1 insertion(+), 32 deletions(-)
+ delete mode 100644 Meta/CMake/SDL3.cmake
+
+diff --git a/Libraries/LibWeb/CMakeLists.txt b/Libraries/LibWeb/CMakeLists.txt
+index 0034ce69fbdb7f34a9281ee96d80cff3909ebeb9..a253965420c53f832931d9cbf5ccc0f95e94ccb7 100644
+--- a/Libraries/LibWeb/CMakeLists.txt
++++ b/Libraries/LibWeb/CMakeLists.txt
+@@ -1,7 +1,6 @@
+ include(libweb_generators)
+ include(vulkan)
+ include(skia)
+-include(SDL3)
+ 
+ # find_package(unofficial-angle CONFIG)
+ # if(unofficial-angle_FOUND)
+@@ -1152,7 +1151,7 @@ ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
+ 
+ find_package(LibXml2 REQUIRED)
+ 
+-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
++target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} LibXml2::LibXml2)
+ 
+ # FIXME: https://github.com/microsoft/vcpkg/issues/42324
+ target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
+diff --git a/Meta/CMake/SDL3.cmake b/Meta/CMake/SDL3.cmake
+deleted file mode 100644
+index 918b20667d591ea43d8df7900afc84dd67a3b7d6..0000000000000000000000000000000000000000
+--- a/Meta/CMake/SDL3.cmake
++++ /dev/null
+@@ -1,3 +0,0 @@
+-include_guard()
+-
+-find_package(SDL3 CONFIG REQUIRED)
+diff --git a/Meta/CMake/flatpak/org.ladybird.Ladybird.json b/Meta/CMake/flatpak/org.ladybird.Ladybird.json
+index deb8a3e6e75eaa83d85be8e056bb805eb49dbc3b..04bcfcd2ce99bcba4f712fdbb025059e674958ff 100644
+--- a/Meta/CMake/flatpak/org.ladybird.Ladybird.json
++++ b/Meta/CMake/flatpak/org.ladybird.Ladybird.json
+@@ -9,7 +9,6 @@
+   "command": "Ladybird",
+   "finish-args": [
+     "--device=dri",
+-    "--device=input",
+     "--share=ipc",
+     "--share=network",
+     "--socket=wayland",
+@@ -507,22 +506,6 @@
+           "-DFASTFLOAT_INSTALL=ON"
+         ]
+     },
+-    {
+-      "name": "sdl3",
+-      "buildsystem": "cmake-ninja",
+-      "sources": [
+-        {
+-          "type": "git",
+-          "url": "https://github.com/libsdl-org/SDL.git",
+-          "tag": "release-3.2.20"
+-        }
+-      ],
+-      "config-opts": [
+-        "-DCMAKE_BUILD_TYPE=Release",
+-        "-DCMAKE_PREFIX_PATH=/app",
+-        "-DCMAKE_INSTALL_LIBDIR=lib"
+-      ]
+-    },
+     {
+       "name": "libdwarf",
+       "buildsystem": "cmake-ninja",
+diff --git a/Services/WebContent/CMakeLists.txt b/Services/WebContent/CMakeLists.txt
+index f0a0f170aaf864b84cc5f7ce3c8e98f34867788f..4ade0c2189302021637900c11e2a5d597dcdc3f6 100644
+--- a/Services/WebContent/CMakeLists.txt
++++ b/Services/WebContent/CMakeLists.txt
+@@ -1,5 +1,4 @@
+ include(audio)
+-include(SDL3)
+ 
+ set(SOURCES
+     ConnectionFromClient.cpp
+@@ -32,7 +31,6 @@ target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD
+ 
+ target_link_libraries(webcontentservice PUBLIC LibCore LibCrypto LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient LibGC)
+ target_link_libraries(webcontentservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
+-target_link_libraries(webcontentservice PRIVATE SDL3::SDL3)
+ 
+ add_executable(WebContent main.cpp)
+ 
+diff --git a/Services/WebContent/main.cpp b/Services/WebContent/main.cpp
+index 02582b88a1e6bb062595fb73c9bef57cdc9d66d3..6d455f880341e5313c87b3c5b60238540ab1ae0d 100644
+--- a/Services/WebContent/main.cpp
++++ b/Services/WebContent/main.cpp
+@@ -41,8 +41,6 @@
+ #    include <LibCore/Platform/ProcessStatisticsMach.h>
+ #endif
+ 
+-#include <SDL3/SDL_init.h>
+-
+ static ErrorOr<void> load_content_filters(StringView config_path);
+ 
+ static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
+@@ -55,12 +53,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
+ {
+     AK::set_rich_debug_enabled(true);
+ 
+-    // SDL is used for the Gamepad API.
+-    if (!SDL_Init(SDL_INIT_GAMEPAD)) {
+-        dbgln("Failed to initialize SDL3: {}", SDL_GetError());
+-        return -1;
+-    }
+-
+     Core::EventLoop event_loop;
+ 
+     WebView::platform_init();

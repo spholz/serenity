@@ -1,19 +1,34 @@
 #!/usr/bin/env -S bash ../.port_include.sh
 port='libtiff'
-version='4.5.1'
+version='4.7.1'
 files=(
-    "http://download.osgeo.org/libtiff/tiff-${version}.tar.xz#3c080867114c26edab3129644a63b708028a90514b7fe3126e38e11d24f9f88a"
+    "http://download.osgeo.org/libtiff/tiff-${version}.tar.xz#b92017489bdc1db3a4c97191aa4b75366673cb746de0dce5d7a749d5954681ba"
 )
 useconfigure='true'
+
 configopts=(
-    "--with-sysroot=${SERENITY_INSTALL_ROOT}"
-    '--prefix=/usr/local'
-    '--disable-static'
-    '--enable-shared'
+    "-DCMAKE_TOOLCHAIN_FILE=${SERENITY_BUILD_DIR}/CMakeToolchain.txt"
+    '-DWEBP_BUILD_EXTRAS=OFF'
+    '-DWEBP_BUILD_VWEBP=OFF'
+    '-DCMAKE_BUILD_TYPE=Release'
+    '-Dwebp=OFF' # Avoid a circular dependency between libwebp and libtiff.
 )
+
 workdir="tiff-${version}"
 depends=(
     'libjpeg'
     'xz'
     'zstd'
 )
+
+configure() {
+    run cmake -G Ninja -B build -S . "${configopts[@]}"
+}
+
+build() {
+    run cmake --build build --parallel "${MAKEJOBS}"
+}
+
+install() {
+    run cmake --install build
+}

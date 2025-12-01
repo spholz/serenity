@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Thu, 4 Dec 2025 21:09:34 +0100
+Subject: [PATCH] fixes
+
+---
+ Meta/CMake/lagom_compile_options.cmake | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/Meta/CMake/lagom_compile_options.cmake b/Meta/CMake/lagom_compile_options.cmake
+index 81580f6fdffa04c2533c05407c5a2978410222be..ca604963b00933030a7cc0fc498fa702105080cc 100644
+--- a/Meta/CMake/lagom_compile_options.cmake
++++ b/Meta/CMake/lagom_compile_options.cmake
+@@ -66,6 +66,8 @@ if (NOT WIN32)
+     endif()
+ endif()
+ 
++add_cxx_link_options(-Wl,--unresolved-symbols=ignore-all)
++
+ if (NOT WIN32 AND NOT APPLE AND NOT ENABLE_FUZZERS)
+     # NOTE: Assume ELF
+     # NOTE: --no-undefined is not compatible with clang sanitizer runtimes
+@@ -74,9 +76,11 @@ if (NOT WIN32 AND NOT APPLE AND NOT ENABLE_FUZZERS)
+         add_link_options(LINKER:--allow-shlib-undefined)
+         add_link_options(LINKER:-z,undefs)
+     else()
+-        add_link_options(LINKER:-z,defs)
+-        add_link_options(LINKER:--no-undefined)
+-        add_link_options(LINKER:--no-allow-shlib-undefined)
++        add_link_options(LINKER:--allow-shlib-undefined)
++        add_link_options(LINKER:-z,undefs)
++        # add_link_options(LINKER:-z,defs)
++        # add_link_options(LINKER:--no-undefined)
++        # add_link_options(LINKER:--no-allow-shlib-undefined)
+     endif()
+ endif()
+ 

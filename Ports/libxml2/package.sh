@@ -1,8 +1,8 @@
 #!/usr/bin/env -S bash ../.port_include.sh
 port='libxml2'
-version='2.11.5'
+version='2.15.1'
 files=(
-    "https://download.gnome.org/sources/libxml2/2.11/libxml2-${version}.tar.xz#3727b078c360ec69fa869de14bd6f75d7ee8d36987b071e6928d4720a28df3a6"
+    "https://download.gnome.org/sources/libxml2/2.15/libxml2-${version}.tar.xz#c008bac08fd5c7b4a87f7b8a71f283fa581d80d80ff8d2efd3b26224c39bc54c"
 )
 useconfigure='true'
 use_fresh_config_sub='true'

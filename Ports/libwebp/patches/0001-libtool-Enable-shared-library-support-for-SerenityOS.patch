@@ -23,10 +23,10 @@ Co-Authored-By: Daniel Bertalan <dani@danielbertalan.dev>
  1 file changed, 22 insertions(+)
 
 diff --git a/configure b/configure
-index d4507aa5761e23c732cc219af4c1c119055cb377..884c76f4da0d8d2640b9fa66cd869816ff35c927 100755
+index fbcdc842784b63e64dfa32f8a3f6724c6ddd0e5a..c17439012a026a654175f93299c1c99ea0e870fe 100755
 --- a/configure
 +++ b/configure
-@@ -5635,6 +5635,10 @@ else $as_nop
+@@ -5863,6 +5863,10 @@ else case e in #(
      lt_cv_sys_max_cmd_len=8192
      ;;
  
@@ -37,7 +37,7 @@ index d4507aa5761e23c732cc219af4c1c119055cb377..884c76f4da0d8d2640b9fa66cd869816
    osf*)
      # Dr. Hans Ekkehard Plesser reports seeing a kernel panic running configure
      # due to this test when exec_disable_arg_limit is 1 on Tru64. It is not
-@@ -9224,6 +9228,10 @@ lt_prog_compiler_static=
+@@ -9543,6 +9547,10 @@ lt_prog_compiler_static=
        lt_prog_compiler_pic='-fPIC -shared'
        ;;
  
@@ -48,18 +48,18 @@ index d4507aa5761e23c732cc219af4c1c119055cb377..884c76f4da0d8d2640b9fa66cd869816
      sysv4*MP*)
        if test -d /usr/nec; then
  	lt_prog_compiler_pic=-Kconform_pic
-@@ -10067,6 +10075,10 @@ _LT_EOF
+@@ -10409,6 +10417,10 @@ _LT_EOF
        fi
        ;;
  
 +    serenity*)
-+      ld_shlibs=no
++      ld_shlibs=yes
 +      ;;
 +
      solaris*)
        if $LD -v 2>&1 | $GREP 'BFD 2\.8' > /dev/null; then
  	ld_shlibs=no
-@@ -11474,6 +11486,16 @@ beos*)
+@@ -11828,6 +11840,16 @@ beos*)
    dynamic_linker="$host_os ld.so"
    shlibpath_var=LIBRARY_PATH
    ;;

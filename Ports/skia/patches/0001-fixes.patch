@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Mon, 1 Dec 2025 12:57:31 +0100
+Subject: [PATCH] fixes
+
+---
+ BUILD.gn                            | 4 ++--
+ gn/BUILDCONFIG.gn                   | 1 +
+ src/gpu/ganesh/GrAutoLocaleSetter.h | 2 +-
+ src/ports/SkMemory_malloc.cpp       | 4 ++--
+ 4 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/BUILD.gn b/BUILD.gn
+index 1242739effecbdf319c9b9f87abb1019aaa109a6..f41f8fd78b5018d055eafbfba22a92e13ae61214 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -1197,7 +1197,7 @@ optional("pdf") {
+             skia_use_libjpeg_turbo_encode
+   public_defines = [ "SK_SUPPORT_PDF" ]
+ 
+-  deps = [ "//third_party/zlib" ]
++  deps = []
+   public = skia_pdf_public
+   sources = skia_pdf_sources
+   sources_when_disabled = [ "src/pdf/SkDocument_PDF_None.cpp" ]
+@@ -1549,7 +1549,7 @@ skia_component("skia") {
+     ]
+   }
+ 
+-  if (is_linux || is_wasm) {
++  if (is_linux || is_wasm || is_serenity) {
+     sources += [ "src/ports/SkDebug_stdio.cpp" ]
+     if (skia_use_egl) {
+       libs += [ "GLESv2" ]
+diff --git a/gn/BUILDCONFIG.gn b/gn/BUILDCONFIG.gn
+index 146ad60b4b276918221a4be6b6faec2561b82f77..dcc357dd7958c0046b06f7b29f9b474c7a73e30e 100644
+--- a/gn/BUILDCONFIG.gn
++++ b/gn/BUILDCONFIG.gn
+@@ -69,6 +69,7 @@ is_ios = current_os == "ios" || current_os == "tvos"
+ is_tvos = current_os == "tvos"
+ is_linux = current_os == "linux"
+ is_mac = current_os == "mac"
++is_serenity = current_os == "serenity"
+ is_wasm = current_os == "wasm"
+ is_win = current_os == "win"
+ 
+diff --git a/src/gpu/ganesh/GrAutoLocaleSetter.h b/src/gpu/ganesh/GrAutoLocaleSetter.h
+index 13a2ab37f93aae9e5dc42ed6eeba971082bec51b..47f1576a8707cf971decb4447e49c9fc8bcdf299 100644
+--- a/src/gpu/ganesh/GrAutoLocaleSetter.h
++++ b/src/gpu/ganesh/GrAutoLocaleSetter.h
+@@ -27,7 +27,7 @@
+ #define HAVE_XLOCALE 0
+ #endif
+ 
+-#if defined(SK_BUILD_FOR_ANDROID) || defined(__UCLIBC__) || defined(_NEWLIB_VERSION)
++#if defined(SK_BUILD_FOR_ANDROID) || defined(__UCLIBC__) || defined(_NEWLIB_VERSION) || defined(__serenity__)
+ #define HAVE_LOCALE_T 0
+ #else
+ #define HAVE_LOCALE_T 1
+diff --git a/src/ports/SkMemory_malloc.cpp b/src/ports/SkMemory_malloc.cpp
+index d784af53ef3f5fb2a0a0743bcbd6e42336dcb362..20e3b518bd8650f2583a34ea597004ef6c14a789 100644
+--- a/src/ports/SkMemory_malloc.cpp
++++ b/src/ports/SkMemory_malloc.cpp
+@@ -15,7 +15,7 @@
+ 
+ #if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
+ #include <malloc/malloc.h>
+-#elif defined(SK_BUILD_FOR_ANDROID) || defined(SK_BUILD_FOR_UNIX)
++#elif (defined(SK_BUILD_FOR_ANDROID) || defined(SK_BUILD_FOR_UNIX)) && !defined(__serenity__)
+ #include <malloc.h>
+ #elif defined(SK_BUILD_FOR_WIN)
+ #include <malloc.h>
+@@ -126,7 +126,7 @@ size_t sk_malloc_size(void* addr, size_t size) {
+     #elif defined(SK_BUILD_FOR_ANDROID) && __ANDROID_API__ >= 17
+         completeSize = malloc_usable_size(addr);
+         SkASSERT(completeSize >= size);
+-    #elif defined(SK_BUILD_FOR_UNIX)
++    #elif defined(SK_BUILD_FOR_UNIX) && !defined(__serenity__)
+         completeSize = malloc_usable_size(addr);
+         SkASSERT(completeSize >= size);
+     #elif defined(SK_BUILD_FOR_WIN)

@@ -1,23 +1,16 @@
 #!/usr/bin/env -S bash ../.port_include.sh
-port='libwebp'
-version='1.6.0'
+port='libavif'
+version='1.3.0'
 useconfigure='true'
 files=(
-    "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-${version}.tar.gz#e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564"
+    "https://github.com/AOMediaCodec/libavif/archive/refs/tags/v${version}.tar.gz#0a545e953cc049bf5bcf4ee467306a2f113a75110edf59e61248873101cd26c1"
 )
-depends=(
-    'libjpeg'
-    'libpng'
-    'libtiff'
-)
-
 configopts=(
     "-DCMAKE_TOOLCHAIN_FILE=${SERENITY_BUILD_DIR}/CMakeToolchain.txt"
-    '-DBUILD_SHARED_LIBS=ON'
-    '-DWEBP_BUILD_EXTRAS=OFF'
-    '-DWEBP_BUILD_VWEBP=OFF'
     '-DCMAKE_BUILD_TYPE=Release'
+    '-DBUILD_SHARED_LIBS=ON'
 )
+depends=(libyuv)
 
 configure() {
     run cmake -G Ninja -B build -S . "${configopts[@]}"

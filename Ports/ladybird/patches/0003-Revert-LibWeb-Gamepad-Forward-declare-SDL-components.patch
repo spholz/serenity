@@ -1,0 +1,241 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Tue, 2 Dec 2025 18:14:47 +0100
+Subject: [PATCH] Revert "LibWeb/Gamepad: Forward declare SDL components to fix
+ Windows build"
+
+This reverts commit 454e6a6f7f178650f4eb6a67b8952accca47e02d.
+---
+ Libraries/LibWeb/Gamepad/Gamepad.cpp           |  2 --
+ Libraries/LibWeb/Gamepad/Gamepad.h             |  2 +-
+ Libraries/LibWeb/Gamepad/GamepadButton.cpp     |  2 --
+ Libraries/LibWeb/Gamepad/GamepadButton.h       |  1 +
+ Libraries/LibWeb/Gamepad/NavigatorGamepad.cpp  |  2 --
+ Libraries/LibWeb/Gamepad/NavigatorGamepad.h    |  3 ++-
+ Libraries/LibWeb/Gamepad/SDLGamepadForward.h   | 16 ----------------
+ Libraries/LibWeb/Internals/InternalGamepad.cpp | 15 ++++++---------
+ Libraries/LibWeb/Internals/InternalGamepad.h   |  9 +++++----
+ Libraries/LibWeb/Page/EventHandler.cpp         |  1 -
+ Libraries/LibWeb/Page/EventHandler.h           |  3 ++-
+ 11 files changed, 17 insertions(+), 39 deletions(-)
+ delete mode 100644 Libraries/LibWeb/Gamepad/SDLGamepadForward.h
+
+diff --git a/Libraries/LibWeb/Gamepad/Gamepad.cpp b/Libraries/LibWeb/Gamepad/Gamepad.cpp
+index a4a6c50ecc4149ddaef2d42fb31925db6f13e81a..fa1f450fca668a6edd4c10ed8abd6efd291b5c31 100644
+--- a/Libraries/LibWeb/Gamepad/Gamepad.cpp
++++ b/Libraries/LibWeb/Gamepad/Gamepad.cpp
+@@ -16,8 +16,6 @@
+ #include <LibWeb/HTML/Window.h>
+ #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+ 
+-#include <SDL3/SDL_gamepad.h>
+-
+ namespace Web::Gamepad {
+ 
+ GC_DEFINE_ALLOCATOR(Gamepad);
+diff --git a/Libraries/LibWeb/Gamepad/Gamepad.h b/Libraries/LibWeb/Gamepad/Gamepad.h
+index 4512bfd35ea4f8dab56dd7ccf6138ffd4498b8a0..cb1a25a7b65b163e7340536c8fad7a9e96c7f7dd 100644
+--- a/Libraries/LibWeb/Gamepad/Gamepad.h
++++ b/Libraries/LibWeb/Gamepad/Gamepad.h
+@@ -9,8 +9,8 @@
+ 
+ #include <LibWeb/Bindings/GamepadPrototype.h>
+ #include <LibWeb/Bindings/PlatformObject.h>
+-#include <LibWeb/Gamepad/SDLGamepadForward.h>
+ #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
++#include <SDL3/SDL_gamepad.h>
+ 
+ namespace Web::Gamepad {
+ 
+diff --git a/Libraries/LibWeb/Gamepad/GamepadButton.cpp b/Libraries/LibWeb/Gamepad/GamepadButton.cpp
+index 51cbd808337f3332dc5f595d158dddec65c2e477..3254d8e52d548f784d4302af4e4ecb816c374edb 100644
+--- a/Libraries/LibWeb/Gamepad/GamepadButton.cpp
++++ b/Libraries/LibWeb/Gamepad/GamepadButton.cpp
+@@ -8,8 +8,6 @@
+ #include <LibWeb/Bindings/Intrinsics.h>
+ #include <LibWeb/Gamepad/GamepadButton.h>
+ 
+-#include <SDL3/SDL_gamepad.h>
+-
+ namespace Web::Gamepad {
+ 
+ GC_DEFINE_ALLOCATOR(GamepadButton);
+diff --git a/Libraries/LibWeb/Gamepad/GamepadButton.h b/Libraries/LibWeb/Gamepad/GamepadButton.h
+index 7e0d9b95684c15c11992ffd0c240378bfe029c42..273c3cebb39f2004bf392264fd99e894594d310c 100644
+--- a/Libraries/LibWeb/Gamepad/GamepadButton.h
++++ b/Libraries/LibWeb/Gamepad/GamepadButton.h
+@@ -7,6 +7,7 @@
+ #pragma once
+ 
+ #include <LibWeb/Bindings/PlatformObject.h>
++#include <SDL3/SDL_gamepad.h>
+ 
+ namespace Web::Gamepad {
+ 
+diff --git a/Libraries/LibWeb/Gamepad/NavigatorGamepad.cpp b/Libraries/LibWeb/Gamepad/NavigatorGamepad.cpp
+index e0edd24c3c35ec58d70953a0f444067234acb4c3..1f3f383f28e1ffa19c39b439b89802f668ab36d7 100644
+--- a/Libraries/LibWeb/Gamepad/NavigatorGamepad.cpp
++++ b/Libraries/LibWeb/Gamepad/NavigatorGamepad.cpp
+@@ -14,8 +14,6 @@
+ #include <LibWeb/HTML/Window.h>
+ #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+ 
+-#include <SDL3/SDL_gamepad.h>
+-
+ namespace Web::Gamepad {
+ 
+ // https://w3c.github.io/gamepad/#dom-navigator-getgamepads
+diff --git a/Libraries/LibWeb/Gamepad/NavigatorGamepad.h b/Libraries/LibWeb/Gamepad/NavigatorGamepad.h
+index 5f0e8755b0af5016040aa38e6dcbd4b1ac67c04b..74c92388fa745e3f36d94cdf5759b6e3349e78cd 100644
+--- a/Libraries/LibWeb/Gamepad/NavigatorGamepad.h
++++ b/Libraries/LibWeb/Gamepad/NavigatorGamepad.h
+@@ -9,9 +9,10 @@
+ #include <LibGC/Ptr.h>
+ #include <LibGC/RootVector.h>
+ #include <LibWeb/Forward.h>
+-#include <LibWeb/Gamepad/SDLGamepadForward.h>
+ #include <LibWeb/WebIDL/ExceptionOr.h>
+ 
++#include <SDL3/SDL_gamepad.h>
++
+ namespace Web::Gamepad {
+ 
+ class NavigatorGamepadPartial {
+diff --git a/Libraries/LibWeb/Gamepad/SDLGamepadForward.h b/Libraries/LibWeb/Gamepad/SDLGamepadForward.h
+deleted file mode 100644
+index e61a26b0fc6e937031daf6e02e2f50436b5a6926..0000000000000000000000000000000000000000
+--- a/Libraries/LibWeb/Gamepad/SDLGamepadForward.h
++++ /dev/null
+@@ -1,16 +0,0 @@
+-/*
+- * Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
+- *
+- * SPDX-License-Identifier: BSD-2-Clause
+- */
+-
+-#pragma once
+-
+-#include <AK/Types.h>
+-
+-typedef uint32_t Uint32;
+-typedef Uint32 SDL_JoystickID;
+-
+-typedef struct SDL_Joystick SDL_Joystick;
+-
+-typedef struct SDL_Gamepad SDL_Gamepad;
+diff --git a/Libraries/LibWeb/Internals/InternalGamepad.cpp b/Libraries/LibWeb/Internals/InternalGamepad.cpp
+index 961c7937d4da050a96e4cea0cbdf21da385606d2..9820c740452fde5c740b94ffe1edb0bf93b90971 100644
+--- a/Libraries/LibWeb/Internals/InternalGamepad.cpp
++++ b/Libraries/LibWeb/Internals/InternalGamepad.cpp
+@@ -8,14 +8,11 @@
+ #include <LibWeb/Bindings/Intrinsics.h>
+ #include <LibWeb/Internals/InternalGamepad.h>
+ 
+-#include <SDL3/SDL_gamepad.h>
+-#include <SDL3/SDL_joystick.h>
+-
+ namespace Web::Internals {
+ 
+ GC_DEFINE_ALLOCATOR(InternalGamepad);
+ 
+-static constexpr Array<i32, 15> BUTTONS = {
++static constexpr Array<SDL_GamepadButton, 15> BUTTONS = {
+     SDL_GAMEPAD_BUTTON_SOUTH,
+     SDL_GAMEPAD_BUTTON_EAST,
+     SDL_GAMEPAD_BUTTON_WEST,
+@@ -33,14 +30,14 @@ static constexpr Array<i32, 15> BUTTONS = {
+     SDL_GAMEPAD_BUTTON_GUIDE,
+ };
+ 
+-static constexpr Array<i32, 4> AXES {
++static constexpr Array<SDL_GamepadAxis, 4> AXES {
+     SDL_GAMEPAD_AXIS_LEFTX,
+     SDL_GAMEPAD_AXIS_LEFTY,
+     SDL_GAMEPAD_AXIS_RIGHTX,
+     SDL_GAMEPAD_AXIS_RIGHTY,
+ };
+ 
+-static constexpr Array<i32, 2> TRIGGERS {
++static constexpr Array<SDL_GamepadAxis, 2> TRIGGERS {
+     SDL_GAMEPAD_AXIS_LEFT_TRIGGER,
+     SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
+ };
+@@ -115,17 +112,17 @@ void InternalGamepad::finalize()
+     disconnect();
+ }
+ 
+-Array<i32, 15> const& InternalGamepad::buttons()
++Array<SDL_GamepadButton, 15> const& InternalGamepad::buttons()
+ {
+     return BUTTONS;
+ }
+ 
+-Array<i32, 4> const& InternalGamepad::axes()
++Array<SDL_GamepadAxis, 4> const& InternalGamepad::axes()
+ {
+     return AXES;
+ }
+ 
+-Array<i32, 2> const& InternalGamepad::triggers()
++Array<SDL_GamepadAxis, 2> const& InternalGamepad::triggers()
+ {
+     return TRIGGERS;
+ }
+diff --git a/Libraries/LibWeb/Internals/InternalGamepad.h b/Libraries/LibWeb/Internals/InternalGamepad.h
+index ddbc3df642a00c457c6f716c485ba558a803e8b3..a5f8fb9af8c9858b95cd61d1fee38d62e3e116ff 100644
+--- a/Libraries/LibWeb/Internals/InternalGamepad.h
++++ b/Libraries/LibWeb/Internals/InternalGamepad.h
+@@ -7,7 +7,8 @@
+ #pragma once
+ 
+ #include <LibWeb/Bindings/PlatformObject.h>
+-#include <LibWeb/Gamepad/SDLGamepadForward.h>
++#include <SDL3/SDL_gamepad.h>
++#include <SDL3/SDL_joystick.h>
+ 
+ namespace Web::Internals {
+ 
+@@ -20,9 +21,9 @@ public:
+ 
+     virtual ~InternalGamepad() override;
+ 
+-    Array<i32, 15> const& buttons();
+-    Array<i32, 4> const& axes();
+-    Array<i32, 2> const& triggers();
++    Array<SDL_GamepadButton, 15> const& buttons();
++    Array<SDL_GamepadAxis, 4> const& axes();
++    Array<SDL_GamepadAxis, 2> const& triggers();
+ 
+     void set_button(int button, bool down);
+     void set_axis(int axis, short value);
+diff --git a/Libraries/LibWeb/Page/EventHandler.cpp b/Libraries/LibWeb/Page/EventHandler.cpp
+index d2dc369e2cda2e329536411987e8144d18af4fb2..f5ae186f3d90abb0de5e137f5b86a17cd278e03f 100644
+--- a/Libraries/LibWeb/Page/EventHandler.cpp
++++ b/Libraries/LibWeb/Page/EventHandler.cpp
+@@ -43,7 +43,6 @@
+ #include <LibWeb/UIEvents/WheelEvent.h>
+ 
+ #include <SDL3/SDL_events.h>
+-#include <SDL3/SDL_joystick.h>
+ 
+ namespace Web {
+ 
+diff --git a/Libraries/LibWeb/Page/EventHandler.h b/Libraries/LibWeb/Page/EventHandler.h
+index c4d41007520337ed8c83fb0e7c09687d4cfeb18d..ffa2703677b343f58c4abcaa24ab3b039d01d26f 100644
+--- a/Libraries/LibWeb/Page/EventHandler.h
++++ b/Libraries/LibWeb/Page/EventHandler.h
+@@ -15,12 +15,13 @@
+ #include <LibUnicode/Forward.h>
+ #include <LibWeb/Export.h>
+ #include <LibWeb/Forward.h>
+-#include <LibWeb/Gamepad/SDLGamepadForward.h>
+ #include <LibWeb/Page/EventResult.h>
+ #include <LibWeb/Page/InputEvent.h>
+ #include <LibWeb/PixelUnits.h>
+ #include <LibWeb/UIEvents/KeyCode.h>
+ 
++#include <SDL3/SDL_joystick.h>
++
+ namespace Web {
+ 
+ class WEB_API EventHandler {

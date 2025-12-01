@@ -1,22 +1,14 @@
 #!/usr/bin/env -S bash ../.port_include.sh
-port='libwebp'
-version='1.6.0'
+port='libyuv'
+version='eb6e7bb63738e29efd82ea3cf2a115238a89fa51'
 useconfigure='true'
 files=(
-    "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-${version}.tar.gz#e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564"
+    "git+https://chromium.googlesource.com/libyuv/libyuv.git#${version}"
 )
-depends=(
-    'libjpeg'
-    'libpng'
-    'libtiff'
-)
-
 configopts=(
     "-DCMAKE_TOOLCHAIN_FILE=${SERENITY_BUILD_DIR}/CMakeToolchain.txt"
-    '-DBUILD_SHARED_LIBS=ON'
-    '-DWEBP_BUILD_EXTRAS=OFF'
-    '-DWEBP_BUILD_VWEBP=OFF'
     '-DCMAKE_BUILD_TYPE=Release'
+    '-DBUILD_SHARED_LIBS=ON'
 )
 
 configure() {

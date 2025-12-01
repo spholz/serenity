@@ -76,7 +76,8 @@ host_env() {
     export CXXFILT="${HOST_CXXFILT}"
     export PKG_CONFIG_DIR="${HOST_PKG_CONFIG_DIR}"
     export PKG_CONFIG_SYSROOT_DIR="${HOST_PKG_CONFIG_SYSROOT_DIR}"
-    export PKG_CONFIG_LIBDIR="${HOST_PKG_CONFIG_LIBDIR}"
+    # export PKG_CONFIG_LIBDIR="${HOST_PKG_CONFIG_LIBDIR}"
+    unset PKG_CONFIG_LIBDIR
     enable_ccache
 }
 

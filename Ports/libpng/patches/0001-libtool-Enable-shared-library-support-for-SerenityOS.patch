@@ -17,10 +17,10 @@ static library into a shared library.
  1 file changed, 22 insertions(+)
 
 diff --git a/configure b/configure
-index ca475f77115be6a5bf8a34d0f8ca903ae8cc9cab..58378b270e70a1347e1db77fb1df1fd2dd53c465 100755
+index c0744b764d9c2fa44aa481ae185ca403c378a3ab..efe29cf82ead48e79ca593213dfa1fbaca2da72f 100755
 --- a/configure
 +++ b/configure
-@@ -6610,6 +6610,9 @@ tpf*)
+@@ -6844,6 +6844,9 @@ tpf*)
  os2*)
    lt_cv_deplibs_check_method=pass_all
    ;;
@@ -30,7 +30,7 @@ index ca475f77115be6a5bf8a34d0f8ca903ae8cc9cab..58378b270e70a1347e1db77fb1df1fd2
  esac
   ;;
  esac
-@@ -10167,6 +10170,10 @@ lt_prog_compiler_static=
+@@ -10505,6 +10508,10 @@ lt_prog_compiler_static=
        lt_prog_compiler_static='-Bstatic'
        ;;
  
@@ -41,7 +41,7 @@ index ca475f77115be6a5bf8a34d0f8ca903ae8cc9cab..58378b270e70a1347e1db77fb1df1fd2
      *)
        lt_prog_compiler_can_build_shared=no
        ;;
-@@ -11709,6 +11716,10 @@ printf "%s\n" "$lt_cv_irix_exported_symbol" >&6; }
+@@ -12058,6 +12065,10 @@ printf "%s\n" "$lt_cv_irix_exported_symbol" >&6; }
        hardcode_shlibpath_var=no
        ;;
  
@@ -52,8 +52,8 @@ index ca475f77115be6a5bf8a34d0f8ca903ae8cc9cab..58378b270e70a1347e1db77fb1df1fd2
      *)
        ld_shlibs=no
        ;;
-@@ -12783,6 +12794,17 @@ uts4*)
-   shlibpath_var=LD_LIBRARY_PATH
+@@ -13694,6 +13705,17 @@ fi
+   no_undefined_flag=
    ;;
  
 +serenity*)

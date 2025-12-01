@@ -1,23 +1,15 @@
 #!/usr/bin/env -S bash ../.port_include.sh
-port='libwebp'
-version='1.6.0'
+port='simdutf'
+version='7.7.0'
 useconfigure='true'
 files=(
-    "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-${version}.tar.gz#e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564"
+    "https://github.com/simdutf/simdutf/archive/refs/tags/v${version}.tar.gz#0180de81a1dd48a87b8c0442ffa81734f3db91a7350914107a449935124e3c6f"
 )
-depends=(
-    'libjpeg'
-    'libpng'
-    'libtiff'
-)
-
 configopts=(
     "-DCMAKE_TOOLCHAIN_FILE=${SERENITY_BUILD_DIR}/CMakeToolchain.txt"
-    '-DBUILD_SHARED_LIBS=ON'
-    '-DWEBP_BUILD_EXTRAS=OFF'
-    '-DWEBP_BUILD_VWEBP=OFF'
     '-DCMAKE_BUILD_TYPE=Release'
 )
+depends=()
 
 configure() {
     run cmake -G Ninja -B build -S . "${configopts[@]}"

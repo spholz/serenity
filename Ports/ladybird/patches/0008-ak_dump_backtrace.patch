@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Thu, 4 Dec 2025 21:31:05 +0100
+Subject: [PATCH] ak_dump_backtrace
+
+---
+ AK/Assertions.cpp | 12 ++++++------
+ AK/Assertions.h   |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/AK/Assertions.cpp b/AK/Assertions.cpp
+index b4ddb26a7710dd61aa8f9e50291a39455b659f13..df5e7c3a106db0b95d5b8df029d408e3de2bd209 100644
+--- a/AK/Assertions.cpp
++++ b/AK/Assertions.cpp
+@@ -43,7 +43,7 @@
+ extern "C" {
+ 
+ #if defined(AK_HAS_CPPTRACE)
+-void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
++void ak_dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
+ {
+     // We should be using cpptrace for everything but android.
+     auto stacktrace = cpptrace::generate_trace(frames_to_skip, max_depth);
+@@ -54,7 +54,7 @@ void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
+     warnln("{}", StringView { string.c_str(), string.length() });
+ }
+ #elif defined(AK_HAS_BACKTRACE_HEADER)
+-void dump_backtrace(unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth)
++void ak_dump_backtrace(unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth)
+ {
+     // Grab symbols and dso name for up to 256 frames
+     void* trace[256] = {};
+@@ -100,9 +100,9 @@ void dump_backtrace(unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth
+     free(syms);
+ }
+ #else
+-void dump_backtrace([[maybe_unused]] unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth)
++void ak_dump_backtrace([[maybe_unused]] unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth)
+ {
+-    PRINT_ERROR("dump_backtrace() is not supported with the current compilation options.\n");
++    PRINT_ERROR("ak_dump_backtrace() is not supported with the current compilation options.\n");
+ }
+ #endif
+ 
+@@ -130,8 +130,8 @@ bool ak_colorize_output(void)
+ NEVER_INLINE void ak_trap(void)
+ {
+ #if defined(AK_HAS_BACKTRACE_HEADER) || defined(AK_HAS_CPPTRACE)
+-    // Skip 3 frames to get to caller. That is dump_backtrace, ak_trap, and ak_verification_failed.
+-    dump_backtrace(3, 100);
++    // Skip 3 frames to get to caller. That is ak_dump_backtrace, ak_trap, and ak_verification_failed.
++    ak_dump_backtrace(3, 100);
+ #endif
+     __builtin_trap();
+ }
+diff --git a/AK/Assertions.h b/AK/Assertions.h
+index 9b67a6d8ae2c28e18d1928ba4f0e9065a1c7aa3c..d024f164a2eda0fdc9802b7f6dcc2e2a5361de4a 100644
+--- a/AK/Assertions.h
++++ b/AK/Assertions.h
+@@ -7,7 +7,7 @@
+ #pragma once
+ 
+ // All the functions for stack traces are never inline as we want a consistent number of frames
+-extern "C" __attribute__((noinline)) void dump_backtrace(unsigned frames_to_skip = 1, unsigned max_depth = 100);
++extern "C" __attribute__((noinline)) void ak_dump_backtrace(unsigned frames_to_skip = 1, unsigned max_depth = 100);
+ extern "C" bool ak_colorize_output(void);
+ extern "C" __attribute__((noreturn, noinline)) void ak_trap(void);
+ 
