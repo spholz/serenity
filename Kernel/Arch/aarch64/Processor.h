@@ -67,11 +67,6 @@ ALWAYS_INLINE Thread* ProcessorBase::idle_thread()
     return current().m_idle_thread;
 }
 
-ALWAYS_INLINE void ProcessorBase::set_current_thread(Thread& current_thread)
-{
-    current().m_current_thread = &current_thread;
-}
-
 // FIXME: When aarch64 supports multiple cores, return the correct core id here.
 ALWAYS_INLINE u32 ProcessorBase::current_id()
 {

@@ -15,6 +15,7 @@
 #include <Kernel/Arch/aarch64/CPU.h>
 #include <Kernel/Arch/aarch64/CPUID.h>
 #include <Kernel/Interrupts/InterruptDisabler.h>
+#include <Kernel/Library/Panic.h>
 #include <Kernel/Security/Random.h>
 #include <Kernel/Tasks/Process.h>
 #include <Kernel/Tasks/Scheduler.h>
@@ -494,6 +495,80 @@ void ProcessorBase::smp_enable()
 bool ProcessorBase::is_smp_enabled()
 {
     return false;
+}
+
+struct [[gnu::packed]] TraceEntry {
+    u32 function_address : 31;
+    u32 is_function_entry : 1;
+    u64 timestamp : 56;
+    pid_t tid : 8;
+};
+
+static constexpr size_t FUNCTION_TRACE_BUFFER_SIZE = 256 * MiB;
+static constexpr size_t FUNCTION_TRACE_BUFFER_ELEMENT_COUNT = FUNCTION_TRACE_BUFFER_SIZE / sizeof(TraceEntry);
+
+static TraceEntry s_function_trace_buffer[FUNCTION_TRACE_BUFFER_ELEMENT_COUNT];
+static size_t s_next_function_trace_buffer_index { 0 };
+
+bool g_enable_function_tracing { false };
+
+static pid_t s_current_tid { -1 };
+
+void ProcessorBase::set_current_thread(Thread& current_thread)
+{
+    s_current_tid = current_thread.tid().value();
+    current().m_current_thread = &current_thread;
+}
+
+void print_function_trace_buffer_info();
+void print_function_trace_buffer_info()
+{
+    dbgln("Function trace buffer @ {:p}", &s_function_trace_buffer);
+    dbgln("    next write index: {} (var @ {:p})", s_next_function_trace_buffer_index, &s_next_function_trace_buffer_index);
+}
+
+extern "C" [[gnu::no_instrument_function, gnu::no_stack_protector, gnu::no_sanitize("undefined", "address")]] void __cyg_profile_func_enter(void* this_fn, void* call_site);
+extern "C" [[gnu::no_instrument_function, gnu::no_stack_protector, gnu::no_sanitize("undefined", "address")]] void __cyg_profile_func_enter(void* this_fn, void*)
+{
+    if (!g_enable_function_tracing)
+        return;
+
+    auto trace_entry = TraceEntry {
+        .function_address = static_cast<u32>(reinterpret_cast<FlatPtr>(this_fn) - g_boot_info.kernel_load_base),
+        .is_function_entry = true,
+        .timestamp = Aarch64::CNTVCT_EL0::read().VirtualCount,
+        .tid = s_current_tid,
+    };
+
+    if (s_next_function_trace_buffer_index >= FUNCTION_TRACE_BUFFER_ELEMENT_COUNT) {
+        g_enable_function_tracing = false;
+        dbgln("XXX Function trace buffer out of memory");
+        return;
+    }
+
+    s_function_trace_buffer[s_next_function_trace_buffer_index++] = trace_entry;
+}
+
+extern "C" [[gnu::no_instrument_function, gnu::no_stack_protector, gnu::no_sanitize("undefined", "address")]] void __cyg_profile_func_exit(void* this_fn, void* call_site);
+extern "C" [[gnu::no_instrument_function, gnu::no_stack_protector, gnu::no_sanitize("undefined", "address")]] void __cyg_profile_func_exit(void* this_fn, void*)
+{
+    if (!g_enable_function_tracing)
+        return;
+
+    auto trace_entry = TraceEntry {
+        .function_address = static_cast<u32>(reinterpret_cast<FlatPtr>(this_fn) - g_boot_info.kernel_load_base),
+        .is_function_entry = false,
+        .timestamp = Aarch64::CNTVCT_EL0::read().VirtualCount,
+        .tid = s_current_tid,
+    };
+
+    if (s_next_function_trace_buffer_index >= FUNCTION_TRACE_BUFFER_ELEMENT_COUNT) {
+        g_enable_function_tracing = false;
+        dbgln("XXX Function trace buffer out of memory");
+        return;
+    }
+
+    s_function_trace_buffer[s_next_function_trace_buffer_index++] = trace_entry;
 }
 
 }

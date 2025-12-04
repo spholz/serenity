@@ -139,6 +139,9 @@ READONLY_AFTER_INIT static StringView s_kernel_cmdline;
 
 READONLY_AFTER_INIT constinit BootInfo g_boot_info;
 
+extern bool g_enable_function_tracing;
+extern void print_function_trace_buffer_info();
+
 extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo const& boot_info)
 {
 #if ARCH(X86_64)
@@ -187,6 +190,10 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
     DeviceTree::map_flattened_devicetree();
     DeviceTree::run_platform_init();
 #endif
+
+    g_enable_function_tracing = true;
+
+    print_function_trace_buffer_info();
 
     // NOTE: If the bootloader provided a framebuffer, then set up an initial console.
     // If the bootloader didn't provide a framebuffer, then set up an initial text console.

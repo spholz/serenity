@@ -118,7 +118,7 @@ public:
     static void flush_entire_tlb_local();
 
     ALWAYS_INLINE static Thread* current_thread();
-    ALWAYS_INLINE static void set_current_thread(Thread& current_thread);
+    static void set_current_thread(Thread& current_thread);
     ALWAYS_INLINE static Thread* idle_thread();
 
     ALWAYS_INLINE static u32 in_critical();

@@ -624,7 +624,7 @@ static_assert(sizeof(CNTV_CTL_EL0) == 8);
 struct alignas(u64) CNTVCT_EL0 {
     u64 VirtualCount;
 
-    static inline CNTVCT_EL0 read()
+    [[gnu::no_instrument_function]] static ALWAYS_INLINE CNTVCT_EL0 read()
     {
         CNTVCT_EL0 virtual_count;
 
