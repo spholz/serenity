@@ -13,7 +13,6 @@ configopts=(
     '-DENABLE_LTO_FOR_RELEASE=OFF'
     '-DCMAKE_CXX_FLAGS=-DSKCMS_PORTABLE'
     '-DLAGOM_TOOL_INSTALL=ON'
-    '-DCMAKE_INSTALL_PREFIX=${SERENITY_INSTALL_ROOT}/opt/'
 )
 depends=(woff2 libicu fontconfig simdutf skia libtommath openssl sqlite libpng libjxl ffmpeg curl libavif)
 
@@ -26,7 +25,6 @@ pre_configure() {
 }
 
 configure() {
-    env
     run cmake -G Ninja -B build -S . "${configopts[@]}" -DLagomTools_DIR="${PWD}/$workdir"/lagom-tools-install/share/LagomTools
 }
 
@@ -35,5 +33,8 @@ build() {
 }
 
 install() {
+    mkdir -p "${SERENITY_INSTALL_ROOT}/opt/ladybird/"
     run cmake --install build
+
+    run cp -r Tests/LibWeb "${SERENITY_INSTALL_ROOT}/opt/ladybird/"
 }

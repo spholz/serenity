@@ -231,7 +231,7 @@ void DynamicLoader::do_main_relocations()
             switch (do_plt_relocation(relocation, ShouldCallIfuncResolver::No)) {
             case RelocationResult::Failed:
                 dbgln("Loader.so: {} unresolved symbol '{}'", m_filepath, relocation.symbol().name());
-                VERIFY_NOT_REACHED();
+                break;
             case RelocationResult::CallIfuncResolver:
                 m_plt_ifunc_relocations.append(relocation);
                 // Set up lazy binding, in case an IFUNC resolver calls another IFUNC that hasn't been resolved yet.

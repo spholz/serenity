@@ -1,0 +1,237 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Thu, 4 Dec 2025 22:12:51 +0100
+Subject: [PATCH] fixes
+
+---
+ Libraries/LibCore/System.cpp         |  10 ++-
+ Libraries/LibIPC/TransportSocket.cpp |   4 +-
+ Tests/LibWeb/test-web/CMakeLists.txt |   2 +
+ UI/CMakeLists.txt                    | 101 +++++++++++++--------------
+ UI/cmake/InstallRules.cmake          |  34 ++++-----
+ 5 files changed, 80 insertions(+), 71 deletions(-)
+
+diff --git a/Libraries/LibCore/System.cpp b/Libraries/LibCore/System.cpp
+index 688d546a040733b8cb126743c63a28c15571bc48..b939836718a023511b06be246fab7c1ed9013d9d 100644
+--- a/Libraries/LibCore/System.cpp
++++ b/Libraries/LibCore/System.cpp
+@@ -26,6 +26,12 @@
+ #include <termios.h>
+ #include <unistd.h>
+ 
++#ifdef AK_OS_SERENITY
++#    include <serenity.h>
++#    include <sys/ptrace.h>
++#    include <sys/sysmacros.h>
++#endif
++
+ #if defined(AK_OS_LINUX) && !defined(MFD_CLOEXEC)
+ #    include <linux/memfd.h>
+ #    include <sys/syscall.h>
+@@ -144,7 +150,9 @@ ErrorOr<void> munmap(void* address, size_t size)
+ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int options)
+ {
+     int fd = -1;
+-#if defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
++#if defined(AK_OS_SERENITY)
++    fd = ::anon_create(round_up_to_power_of_two(size, PAGE_SIZE), options);
++#elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
+     // FIXME: Support more options on Linux.
+     auto linux_options = ((options & O_CLOEXEC) > 0) ? MFD_CLOEXEC : 0;
+     fd = memfd_create("", linux_options);
+diff --git a/Libraries/LibIPC/TransportSocket.cpp b/Libraries/LibIPC/TransportSocket.cpp
+index 595fe226b2a2dbab55a65a31d1618d5cba1f82ff..ce5c65226a3c6ab1ebb93f918aba8427e3254cbb 100644
+--- a/Libraries/LibIPC/TransportSocket.cpp
++++ b/Libraries/LibIPC/TransportSocket.cpp
+@@ -46,8 +46,8 @@ void SendQueue::discard(size_t bytes_count, size_t fds_count)
+ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
+     : m_socket(move(socket))
+ {
+-    (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_SNDBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
+-    (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_RCVBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
++    // (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_SNDBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
++    // (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_RCVBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
+ 
+     m_send_queue = adopt_ref(*new SendQueue);
+ 
+diff --git a/Tests/LibWeb/test-web/CMakeLists.txt b/Tests/LibWeb/test-web/CMakeLists.txt
+index 77ab79fbee659de269433bc0e9594c6574fbb220..1ee565790316bf476fad85d280902f9868ab0016 100644
+--- a/Tests/LibWeb/test-web/CMakeLists.txt
++++ b/Tests/LibWeb/test-web/CMakeLists.txt
+@@ -36,3 +36,5 @@ if (BUILD_TESTING)
+         ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_PROJECT_ROOT}
+         TIMEOUT_SIGNAL_NAME SIGTERM)
+ endif()
++
++install(TARGETS test-web COMPONENT test-web)
+diff --git a/UI/CMakeLists.txt b/UI/CMakeLists.txt
+index 777d2acd072950790e236012cee461386d71b807..70724e7241d1602c099ffa9057be2c8d9aa0ce18 100644
+--- a/UI/CMakeLists.txt
++++ b/UI/CMakeLists.txt
+@@ -56,71 +56,70 @@ elseif(ANDROID)
+ else()
+     add_custom_target("ladybird_build_resource_files")
+     # TODO: Check for other GUI frameworks here when we move them in-tree
+-    return()
+ endif()
+ 
+-if (NOT TARGET ladybird)
+-    message(FATAL_ERROR "UI Framework selection must declare a ladybird target")
+-endif()
++# if (NOT TARGET ladybird)
++#     message(FATAL_ERROR "UI Framework selection must declare a ladybird target")
++# endif()
+ 
+-if (TARGET ladybird_impl)
+-    set(LADYBIRD_TARGET ladybird_impl PUBLIC)
+-else()
+-    set(LADYBIRD_TARGET ladybird PRIVATE)
+-endif()
+-
+-set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibWebViewPlatform LibRequests LibURL)
+-target_link_libraries(${LADYBIRD_TARGET} PRIVATE ${LADYBIRD_LIBS})
+-target_link_libraries(${LADYBIRD_TARGET} PRIVATE OpenSSL::Crypto OpenSSL::SSL)
+-
+-target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
+-target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR})
+-target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
++# if (TARGET ladybird_impl)
++#     set(LADYBIRD_TARGET ladybird_impl PUBLIC)
++# else()
++#     set(LADYBIRD_TARGET ladybird PRIVATE)
++# endif()
++#
++# set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibWebViewPlatform LibRequests LibURL)
++# target_link_libraries(${LADYBIRD_TARGET} PRIVATE ${LADYBIRD_LIBS})
++# target_link_libraries(${LADYBIRD_TARGET} PRIVATE OpenSSL::Crypto OpenSSL::SSL)
++#
++# target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
++# target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR})
++# target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
+ 
+ if(WIN32)
+     target_link_libraries(${LADYBIRD_TARGET} LibDevTools)
+ endif()
+ 
+-function(set_helper_process_properties)
+-    set(targets ${ARGV})
+-    if (APPLE OR WIN32)
+-        # Store helper processes in the same bundle directory as the main application
+-        set_target_properties(${targets} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:ladybird>")
+-    else()
+-        set_target_properties(${targets} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_LIBEXECDIR}")
+-    endif()
+-endfunction()
++# function(set_helper_process_properties)
++#     set(targets ${ARGV})
++#     if (APPLE OR WIN32)
++#         # Store helper processes in the same bundle directory as the main application
++#         set_target_properties(${targets} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:ladybird>")
++#     else()
++#         set_target_properties(${targets} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_LIBEXECDIR}")
++#     endif()
++# endfunction()
+ 
+-add_custom_target(run
+-    COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
+-    USES_TERMINAL
+-    VERBATIM
+-)
++# add_custom_target(run
++#     COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
++#     USES_TERMINAL
++#     VERBATIM
++# )
+ 
+-if (APPLE)
+-    add_custom_target(debug-ladybird
+-        COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" lldb "$<TARGET_BUNDLE_DIR:ladybird>"
+-        USES_TERMINAL
+-    )
+-else()
+-    add_custom_target(debug-ladybird
+-        COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" gdb "$<TARGET_FILE:ladybird>"
+-        USES_TERMINAL
+-    )
+-endif()
++# if (APPLE)
++#     add_custom_target(debug-ladybird
++#         COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" lldb "$<TARGET_BUNDLE_DIR:ladybird>"
++#         USES_TERMINAL
++#     )
++# else()
++#     add_custom_target(debug-ladybird
++#         COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" gdb "$<TARGET_FILE:ladybird>"
++#         USES_TERMINAL
++#     )
++# endif()
+ 
+ set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
+ 
+-add_dependencies(ladybird ${ladybird_helper_processes})
+-# FIXME: Increase support for building targets on Windows
+-if (NOT WIN32)
+-    add_dependencies(WebDriver ladybird)
+-endif()
++# add_dependencies(ladybird ${ladybird_helper_processes})
++# # FIXME: Increase support for building targets on Windows
++# if (NOT WIN32)
++#     add_dependencies(WebDriver ladybird)
++# endif()
+ 
+-set_helper_process_properties(${ladybird_helper_processes})
+-if (APPLE)
+-    set_helper_process_properties(WebDriver)
+-endif()
++# set_helper_process_properties(${ladybird_helper_processes})
++# if (APPLE)
++#     set_helper_process_properties(WebDriver)
++# endif()
+ 
+ if(NOT CMAKE_SKIP_INSTALL_RULES)
+     include(cmake/InstallRules.cmake)
+diff --git a/UI/cmake/InstallRules.cmake b/UI/cmake/InstallRules.cmake
+index bda82f53f96f8eaa8b2cba670518c7bb8111fd9d..df90d982e144b1a1417ef1f452eb6db99eb0190a 100644
+--- a/UI/cmake/InstallRules.cmake
++++ b/UI/cmake/InstallRules.cmake
+@@ -8,23 +8,23 @@ set(ladybird_applications ladybird ${ladybird_helper_processes})
+ 
+ set(app_install_targets ${ladybird_applications})
+ 
+-install(TARGETS ladybird
+-  EXPORT ladybirdTargets
+-  RUNTIME
+-    COMPONENT ladybird_Runtime
+-    DESTINATION ${CMAKE_INSTALL_BINDIR}
+-  BUNDLE
+-    COMPONENT ladybird_Runtime
+-    DESTINATION bundle
+-  LIBRARY
+-    COMPONENT ladybird_Runtime
+-    NAMELINK_COMPONENT ladybird_Development
+-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+-  FILE_SET browser
+-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+-  FILE_SET ladybird
+-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+-)
++# install(TARGETS ladybird
++#   EXPORT ladybirdTargets
++#   RUNTIME
++#     COMPONENT ladybird_Runtime
++#     DESTINATION ${CMAKE_INSTALL_BINDIR}
++#   BUNDLE
++#     COMPONENT ladybird_Runtime
++#     DESTINATION bundle
++#   LIBRARY
++#     COMPONENT ladybird_Runtime
++#     NAMELINK_COMPONENT ladybird_Development
++#     DESTINATION ${CMAKE_INSTALL_LIBDIR}
++#   FILE_SET browser
++#     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++#   FILE_SET ladybird
++#     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++# )
+ 
+ install(TARGETS ${ladybird_helper_processes}
+   EXPORT ladybirdTargets
