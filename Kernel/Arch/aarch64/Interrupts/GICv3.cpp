@@ -404,6 +404,11 @@ ErrorOr<void> GICv3Driver::probe(DeviceTree::Device const& device, StringView) c
     auto gic = TRY(GICv3::try_to_initialize(distributor_registers_resource, redistributor_region_resources, redistributor_stride));
 
     MUST(DeviceTree::Management::register_interrupt_controller(device, *gic));
+
+    // HACK: Pretend that this qualcomm interrupt controller doesn't exist. It doesn't exist in the upstream linux devicetree either.
+    if (auto const* qcom_intc = DeviceTree::get().resolve_node("/soc/interrupt-controller@b220000"sv); qcom_intc != nullptr)
+        MUST(DeviceTree::Management::register_interrupt_controller(DeviceTree::Device { *qcom_intc, "interrupt-controller@b220000"sv }, *gic));
+
     MUST(InterruptManagement::register_interrupt_controller(move(gic)));
 
     return {};

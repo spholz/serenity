@@ -8,6 +8,7 @@
 #include <AK/SetOnce.h>
 #include <AK/Types.h>
 #include <Kernel/Arch/CPU.h>
+#include <Kernel/Arch/Delay.h>
 #include <Kernel/Arch/InterruptManagement.h>
 #include <Kernel/Arch/Processor.h>
 #include <Kernel/Boot/BootInfo.h>
@@ -157,6 +158,8 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
             s_kernel_cmdline = "serial_debug"sv;
         else
             s_kernel_cmdline = maybe_command_line.value();
+
+        s_kernel_cmdline = "serial_debug switch_to_tty=2 root=block3:0 xhci_poll"sv;
     }
 #endif
 
@@ -329,6 +332,10 @@ void init_stage2(void*)
 #if ARCH(AARCH64) || ARCH(RISCV64)
     MUST(DeviceTree::Management::the().probe_drivers(DeviceTree::Driver::ProbeStage::Regular));
 #endif
+
+    critical_dmesgln("Delay 7 second");
+    microseconds_delay(7'000'000);
+    critical_dmesgln("Delay 7 second over");
 
     // Initialize the PCI Bus as early as possible, for early boot (PCI based) serial logging
     PCI::initialize();

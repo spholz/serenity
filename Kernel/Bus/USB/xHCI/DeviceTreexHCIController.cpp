@@ -36,6 +36,7 @@ ErrorOr<OwnPtr<GenericInterruptHandler>> DeviceTreexHCIController::create_interr
 
 static constinit Array const compatibles_array = {
     "generic-xhci"sv,
+    "snps,dwc3"sv,
 };
 
 DEVICETREE_DRIVER(DeviceTreexHCIControllerDriver, compatibles_array);

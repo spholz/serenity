@@ -174,19 +174,19 @@ void Hub::check_for_port_updates()
 
         HubStatus port_status {};
         if (auto result = get_port_status(port_number, port_status); result.is_error()) {
-            dbgln("USB Hub: Error occurred when getting status for port {}: {}. Checking next port instead.", port_number, result.error());
+            critical_dmesgln("USB Hub: Error occurred when getting status for port {}: {}. Checking next port instead.", port_number, result.error());
             continue;
         }
 
         if (port_status.change & PORT_STATUS_CONNECT_STATUS_CHANGED) {
             // Clear the connection status change notification.
             if (auto result = clear_port_feature(port_number, HubFeatureSelector::C_PORT_CONNECTION); result.is_error()) {
-                dbgln("USB Hub: Error occurred when clearing port connection change for port {}: {}.", port_number, result.error());
+                critical_dmesgln("USB Hub: Error occurred when clearing port connection change for port {}: {}.", port_number, result.error());
                 return;
             }
 
             if (port_status.status & PORT_STATUS_CURRENT_CONNECT_STATUS) {
-                dbgln("USB Hub: Device attached to port {}!", port_number);
+                critical_dmesgln("USB Hub: Device attached to port {}!", port_number);
 
                 // Debounce the port. USB 2.0 Specification Page 150
                 // Debounce interval is 100 ms (100000 us). USB 2.0 Specification Page 188 Table 7-14.

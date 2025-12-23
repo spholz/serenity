@@ -124,6 +124,7 @@ set(KERNEL_SOURCES
     Devices/Storage/NVMe/NVMeInterruptQueue.cpp
     Devices/Storage/NVMe/NVMePollQueue.cpp
     Devices/Storage/NVMe/NVMeQueue.cpp
+    Devices/Storage/SD/DeviceTreeSDHostController.cpp
     Devices/Storage/SD/PCISDHostController.cpp
     Devices/Storage/SD/SDHostController.cpp
     Devices/Storage/SD/SDMemoryCard.cpp
@@ -522,6 +523,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
         Arch/aarch64/vector_table.S
 
         Arch/aarch64/PlatformInit/RaspberryPi.cpp
+        Arch/aarch64/PlatformInit/Samsung.cpp
         Arch/aarch64/PlatformInit/Virt.cpp
 
         Arch/aarch64/Serial/PL011.cpp

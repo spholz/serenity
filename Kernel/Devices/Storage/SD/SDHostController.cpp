@@ -106,8 +106,8 @@ ErrorOr<void> SDHostController::initialize()
     m_registers->interrupt_status_enable = 0xffffffff;
 
     auto card_or_error = try_initialize_inserted_card();
-    if (card_or_error.is_error() && card_or_error.error().code() != ENODEV) {
-        dmesgln("SDHostController: Failed to initialize inserted card: {}", card_or_error.error());
+    if (card_or_error.is_error()) {
+        critical_dmesgln("SDHostController: Failed to initialize inserted card: {}", card_or_error.error());
     } else if (!card_or_error.is_error()) {
         m_card = card_or_error.release_value();
     }

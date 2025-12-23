@@ -62,13 +62,17 @@ ErrorOr<void> Management::scan_node_for_devices(::DeviceTree::Node const& node)
 
         // The lack of a status property should be treated as if the property existed with the value of "okay". (DTspec 0.4 "2.3.4 status")
         auto maybe_status = child.get_property("status"sv);
-        if (maybe_status.has_value() && maybe_status->as_string() != "okay" && !ignore_status_disabled)
+        if (maybe_status.has_value()
+            && maybe_status->as_string() != "okay"
+            && maybe_status->as_string() != "ok"
+            && !ignore_status_disabled)
             continue;
 
         if (TRY(m_devices.try_set(&child, Device { child, child_name })) != HashSetResult::InsertedNewEntry)
             continue;
 
-        if (child.is_compatible_with("simple-bus"sv)) {
+        if (child.is_compatible_with("simple-bus"sv)
+            || child.is_compatible_with("qcom,dwc-usb3-msm"sv)) {
             TRY(scan_node_for_devices(child));
             continue;
         }
@@ -80,12 +84,12 @@ ErrorOr<void> Management::scan_node_for_devices(::DeviceTree::Node const& node)
 bool Management::attach_device_to_driver(Device& device, Driver const& driver, StringView compatible_entry)
 {
     if (auto result = driver.probe(device, compatible_entry); result.is_error()) {
-        dbgln("DeviceTree: Failed to attach device \"{}\" to driver {}: {}", device.node_name(), driver.name(), result.release_error());
+        critical_dmesgln("DeviceTree: Failed to attach device \"{}\" to driver {}: {}", device.node_name(), driver.name(), result.release_error());
         return false;
     }
 
     device.set_driver({}, driver);
-    dbgln("DeviceTree: Attached device \"{}\" to driver {}", device.node_name(), driver.name());
+    critical_dmesgln("DeviceTree: Attached device \"{}\" to driver {}", device.node_name(), driver.name());
 
     return true;
 }

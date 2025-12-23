@@ -7,6 +7,23 @@
 // In a specially-named text section so that the linker script can put it first in .text.
 .section ".text.first"
 
+linux_header:
+    b start                                   // u32 code0
+    .word 0                                   // u32 code1
+
+    .dword 0x80000                            // u64 text_offset
+
+    .dword end_of_kernel_image - linux_header // u64 image_size
+
+    // 4K pages
+    .dword (1 << 1)                           // u64 flags
+
+    .dword 0                                  // u64 res2
+    .dword 0                                  // u64 res3
+    .dword 0                                  // u64 res4
+    .ascii "ARM\x64"                          // u32 magic
+    .word 0                                   // u32 res5
+
 // We expect that x0 contains a pointer to a flattened devicetree,
 // which is also what the AArch64 Linux boot protocol requires.
 
