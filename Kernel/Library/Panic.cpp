@@ -5,6 +5,7 @@
  */
 
 #include <AK/Format.h>
+#include <Kernel/Arch/Delay.h>
 #include <Kernel/Arch/PowerState.h>
 #include <Kernel/Arch/Processor.h>
 #include <Kernel/Boot/CommandLine.h>
@@ -23,6 +24,13 @@ void __panic(char const* file, unsigned int line, char const* function)
 
     critical_dmesgln("at {}:{} in {}", file, line, function);
     dump_backtrace(PrintToScreen::Yes);
+
+    critical_dmesgln("Shutting down in 5 seconds");
+    microseconds_delay(5'000'000);
+    arch_specific_poweroff(PowerOffOrRebootReason::NoReason);
+
+    Processor::halt();
+
     if (!CommandLine::was_initialized())
         Processor::halt();
     switch (kernel_command_line().panic_mode()) {
