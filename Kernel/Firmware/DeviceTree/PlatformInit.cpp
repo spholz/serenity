@@ -30,6 +30,7 @@ static constinit auto const s_platform_init_table = to_array<PlatformInitTableEn
 
     // These platforms only have generic SOC names :(
     { "qcom,sm6150p-idp"sv, samsung_a70q_platform_init },
+    { "samsung,exynos7570"sv, samsung_xcover4lte_platform_init },
 #endif
 });
 

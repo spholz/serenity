@@ -72,7 +72,8 @@ ErrorOr<void> Management::scan_node_for_devices(::DeviceTree::Node const& node)
             continue;
 
         if (child.is_compatible_with("simple-bus"sv)
-            || child.is_compatible_with("qcom,dwc-usb3-msm"sv)) {
+            || child.is_compatible_with("qcom,dwc-usb3-msm"sv)
+            || child.is_compatible_with("samsung,exynos7570-dwusb2"sv)) {
             TRY(scan_node_for_devices(child));
             continue;
         }

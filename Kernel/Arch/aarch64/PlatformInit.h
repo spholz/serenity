@@ -15,5 +15,6 @@ void raspberry_pi_5_platform_init(StringView compatible_string);
 void virt_platform_init(StringView compatible_string);
 
 void samsung_a70q_platform_init(StringView compatible_string);
+void samsung_xcover4lte_platform_init(StringView compatible_string);
 
 }
