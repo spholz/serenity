@@ -523,6 +523,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
         Arch/aarch64/Time/PL031.cpp
         Arch/aarch64/vector_table.S
 
+        Arch/aarch64/PlatformInit/Radxa.cpp
         Arch/aarch64/PlatformInit/RaspberryPi.cpp
         Arch/aarch64/PlatformInit/Virt.cpp
 
