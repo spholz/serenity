@@ -180,6 +180,7 @@ static void get_memory_map_and_exit_boot_services(void* root_page_table, BootInf
 
     // Print this message before the first call to GetMemoryMap(), as calling OutputString() could change the memory map.
     dbgln("Exiting EFI Boot Services...");
+    draw_debug_square(boot_info.boot_framebuffer, 0xff'00'00'ff, UsingIdentityMapping::Yes);
 
     // Get the required size for the memory map.
     if (auto status = boot_services->get_memory_map(&memory_map.descriptor_array_size, nullptr, &memory_map.map_key, &memory_map.descriptor_size, &memory_map.descriptor_version); status != EFI::Status::BufferTooSmall)
@@ -224,14 +225,21 @@ static void get_memory_map_and_exit_boot_services(void* root_page_table, BootInf
         // We have to call GetMemoryMap() again, as the memory map changed between GetMemoryMap() and ExitBootServices().
         // Memory allocation services are still allowed to be used if ExitBootServices() failed.
         memory_map.descriptor_array_size = memory_map.buffer_size;
-        if (boot_services->get_memory_map(&memory_map.descriptor_array_size, bit_cast<EFI::MemoryDescriptor*>(memory_map.descriptor_array_paddr), &memory_map.map_key, &memory_map.descriptor_size, &memory_map.descriptor_version) != EFI::Status::Success)
+        if (boot_services->get_memory_map(&memory_map.descriptor_array_size, bit_cast<EFI::MemoryDescriptor*>(memory_map.descriptor_array_paddr), &memory_map.map_key, &memory_map.descriptor_size, &memory_map.descriptor_version) != EFI::Status::Success) {
+            draw_debug_square(boot_info.boot_framebuffer, 0xff'ff'00'00, UsingIdentityMapping::Yes);
             halt();
+        }
 
-        if (boot_services->exit_boot_services(g_efi_image_handle, memory_map.map_key) != EFI::Status::Success)
+        if (boot_services->exit_boot_services(g_efi_image_handle, memory_map.map_key) != EFI::Status::Success) {
+            draw_debug_square(boot_info.boot_framebuffer, 0xff'ff'ff'00, UsingIdentityMapping::Yes);
             halt();
+        }
     } else if (status != EFI::Status::Success) {
+        draw_debug_square(boot_info.boot_framebuffer, 0xff'00'ff'00, UsingIdentityMapping::Yes);
         halt();
     }
+
+    draw_debug_square(boot_info.boot_framebuffer, 0xff'00'ff'ff, UsingIdentityMapping::Yes);
 }
 
 static void set_up_kernel_stack(void* root_page_table)
@@ -359,7 +367,7 @@ extern "C" EFIAPI EFI::Status init(EFI::Handle image_handle, EFI::SystemTable* s
 
     auto kernel_entry_vaddr = boot_info->kernel_load_base + kernel_elf_image.entry().get();
 
-    arch_enter_kernel(root_page_table, kernel_entry_vaddr, KERNEL_STACK_VADDR + KERNEL_STACK_SIZE, BOOT_INFO_VADDR);
+    arch_enter_kernel(*boot_info, root_page_table, kernel_entry_vaddr, KERNEL_STACK_VADDR + KERNEL_STACK_SIZE, BOOT_INFO_VADDR);
 }
 
 }

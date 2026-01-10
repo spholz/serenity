@@ -61,4 +61,26 @@ void init_gop_and_populate_framebuffer_boot_info(BootInfo& boot_info)
     };
 }
 
+void draw_debug_square(BootFramebufferInfo const& boot_framebuffer, u32 color, UsingIdentityMapping using_identity_mapping)
+{
+    if (boot_framebuffer.type != BootFramebufferType::BGRx8888)
+        return;
+
+    if (boot_framebuffer.bpp != 32)
+        return;
+
+    if (using_identity_mapping == UsingIdentityMapping::No)
+        return; // TODO
+
+    size_t rect_width = min(16uz, boot_framebuffer.width);
+    size_t rect_height = min(16uz, boot_framebuffer.height);
+
+    for (size_t y = 0; y < rect_height; y++) {
+        for (size_t x = 0; x < rect_width; x++) {
+            auto pixel = boot_framebuffer.paddr.offset((y * boot_framebuffer.pitch) + (x * sizeof(u32)));
+            *reinterpret_cast<u32 volatile*>(pixel.get()) = color;
+        }
+    }
+}
+
 }
