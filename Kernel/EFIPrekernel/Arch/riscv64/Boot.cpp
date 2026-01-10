@@ -18,6 +18,7 @@
 #include <Kernel/EFIPrekernel/Arch/MMU.h>
 #include <Kernel/EFIPrekernel/DebugOutput.h>
 #include <Kernel/EFIPrekernel/EFIPrekernel.h>
+#include <Kernel/EFIPrekernel/GOP.h>
 #include <Kernel/EFIPrekernel/Globals.h>
 #include <Kernel/EFIPrekernel/Panic.h>
 #include <Kernel/EFIPrekernel/VirtualMemoryLayout.h>
@@ -122,7 +123,7 @@ void arch_prepare_boot(void* root_page_table, BootInfo& boot_info)
     boot_info.boot_pd_kernel = PhysicalAddress { bit_cast<PhysicalPtr>(maybe_kernel_page_directory.value()) };
 }
 
-[[noreturn]] void arch_enter_kernel(void* root_page_table, FlatPtr kernel_entry_vaddr, FlatPtr kernel_stack_pointer, FlatPtr boot_info_vaddr)
+[[noreturn]] void arch_enter_kernel(BootInfo const& boot_info, void* root_page_table, FlatPtr kernel_entry_vaddr, FlatPtr kernel_stack_pointer, FlatPtr boot_info_vaddr)
 {
     RISCV64::CSR::SATP satp = {
         .PPN = bit_cast<u64>(root_page_table) >> PADDR_PPN_OFFSET,
@@ -130,6 +131,7 @@ void arch_prepare_boot(void* root_page_table, BootInfo& boot_info)
         .MODE = RISCV64::CSR::SATP::Mode::Sv39,
     };
 
+    draw_debug_square(boot_info.boot_framebuffer, 0xff'ff'ff'ff, UsingIdentityMapping::Yes);
     enter_kernel_helper(bit_cast<FlatPtr>(satp), kernel_entry_vaddr, kernel_stack_pointer, boot_info_vaddr);
 }
 

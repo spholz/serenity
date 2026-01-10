@@ -14,6 +14,6 @@
 namespace Kernel {
 
 void arch_prepare_boot(void* root_page_table, BootInfo& boot_info);
-[[noreturn]] void arch_enter_kernel(void* root_page_table, FlatPtr kernel_entry_vaddr, FlatPtr kernel_stack_pointer, FlatPtr boot_info_vaddr);
+[[noreturn]] void arch_enter_kernel(BootInfo const&, void* root_page_table, FlatPtr kernel_entry_vaddr, FlatPtr kernel_stack_pointer, FlatPtr boot_info_vaddr);
 
 }

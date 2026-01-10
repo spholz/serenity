@@ -12,6 +12,7 @@
 
 #include <Kernel/EFIPrekernel/Arch/Boot.h>
 #include <Kernel/EFIPrekernel/Arch/MMU.h>
+#include <Kernel/EFIPrekernel/GOP.h>
 #include <Kernel/EFIPrekernel/Panic.h>
 #include <Kernel/EFIPrekernel/Runtime.h>
 #include <Kernel/EFIPrekernel/VirtualMemoryLayout.h>
@@ -96,7 +97,7 @@ void arch_prepare_boot(void* root_page_table, BootInfo& boot_info)
     boot_info.boot_pd_kernel = PhysicalAddress { bit_cast<PhysicalPtr>(maybe_kernel_page_directory.value()) };
 }
 
-[[noreturn]] void arch_enter_kernel(void* root_page_table, FlatPtr kernel_entry_vaddr, FlatPtr kernel_stack_pointer, FlatPtr boot_info_vaddr)
+[[noreturn]] void arch_enter_kernel(BootInfo const& boot_info, void* root_page_table, FlatPtr kernel_entry_vaddr, FlatPtr kernel_stack_pointer, FlatPtr boot_info_vaddr)
 {
     // Current execution state (from https://uefi.org/specs/UEFI/2.11/02_Overview.html#aarch64-platforms):
     // * We are either in EL2 or EL1
@@ -197,6 +198,8 @@ void arch_prepare_boot(void* root_page_table, BootInfo& boot_info)
     // which means that the following code isn't allowed to access any memory that was previously written to,
     // as the firmware likely mapped it as cacheable memory.
     // Memory accesses with incompatible attributes can result in unexpected behavior.
+
+    draw_debug_square(boot_info.boot_framebuffer, 0xff'ff'ff'ff, UsingIdentityMapping::Yes);
 
     // Therefore, the following code is written in assembly to ensure that it doesn't access any memory (including the stack!).
 

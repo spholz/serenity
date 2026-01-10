@@ -12,4 +12,10 @@ namespace Kernel {
 
 void init_gop_and_populate_framebuffer_boot_info(BootInfo&);
 
+enum class UsingIdentityMapping {
+    No,
+    Yes,
+};
+void draw_debug_square(BootFramebufferInfo const&, u32 color, UsingIdentityMapping);
+
 }
