@@ -31,20 +31,27 @@ UNMAP_AFTER_INIT DeviceTreexHCIController::DeviceTreexHCIController(Memory::Type
 
 ErrorOr<OwnPtr<GenericInterruptHandler>> DeviceTreexHCIController::create_interrupter(u16 interrupter_id)
 {
-    return TRY(xHCIDeviceTreeInterrupter::create(*this, m_interrupt_number, interrupter_id));
+    (void)interrupter_id;
+    return nullptr;
+    // return TRY(xHCIDeviceTreeInterrupter::create(*this, m_interrupt_number, interrupter_id));
 }
 
 static constinit Array const compatibles_array = {
     "generic-xhci"sv,
+    "cdns,usbssp"sv,
 };
 
 DEVICETREE_DRIVER(DeviceTreexHCIControllerDriver, compatibles_array);
 
 // https://www.kernel.org/doc/Documentation/devicetree/bindings/usb/generic-xhci.yaml
-ErrorOr<void> DeviceTreexHCIControllerDriver::probe(DeviceTree::Device const& device, StringView) const
+ErrorOr<void> DeviceTreexHCIControllerDriver::probe(DeviceTree::Device const& device, StringView compatible) const
 {
-    auto registers_resource = TRY(device.get_resource(0));
-    auto interrupt_number = TRY(device.get_interrupt_number(0));
+    size_t registers_resource_index = 0;
+    if (compatible == "cdns,usbssp"sv)
+        registers_resource_index = 2;
+
+    auto registers_resource = TRY(device.get_resource(registers_resource_index));
+    auto interrupt_number = 0;
 
     auto controller = TRY(DeviceTreexHCIController::try_to_initialize(registers_resource, device.node_name(), interrupt_number));
     USB::USBManagement::the().add_controller(controller);

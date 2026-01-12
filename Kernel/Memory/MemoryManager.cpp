@@ -434,7 +434,8 @@ UNMAP_AFTER_INIT void MemoryManager::parse_memory_map_efi(MemoryManager::GlobalD
         case EFI::MemoryType::BootServicesCode:
         case EFI::MemoryType::BootServicesData:
         case EFI::MemoryType::Conventional:
-            global_data.physical_memory_ranges.try_append(PhysicalMemoryRange { PhysicalMemoryRangeType::Usable, start_paddr, length }).release_value_but_fixme_should_propagate_errors();
+            if ((start_paddr.get() != 0x80'0000'0000 || length != 0x8000'0000))
+                global_data.physical_memory_ranges.try_append(PhysicalMemoryRange { PhysicalMemoryRangeType::Usable, start_paddr, length }).release_value_but_fixme_should_propagate_errors();
             break;
         case EFI::MemoryType::Reserved:
         case EFI::MemoryType::LoaderCode:

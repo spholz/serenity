@@ -733,7 +733,6 @@ def set_up_network_hardware(config: Configuration):
     else:
         config.network_backend = f"user,id=breh,hostfwd=tcp:{config.host_ip}:8888-10.0.2.15:8888,\
 hostfwd=tcp:{config.host_ip}:8823-10.0.2.15:23,\
-hostfwd=tcp:{config.host_ip}:8000-10.0.2.15:8000,\
 hostfwd=tcp:{config.host_ip}:2222-10.0.2.15:22"
         config.network_default_device = f"{config.ethernet_device_type},netdev=breh"
 
