@@ -30,8 +30,8 @@ protected:
     MemoryBackedHostBridge(PCI::Domain const&, PhysicalAddress);
 
     // Memory-mapped access operations
-    void map_bus_region(BusNumber);
-    VirtualAddress get_device_configuration_memory_mapped_space(BusNumber, DeviceNumber, FunctionNumber);
+    ErrorOr<void> map_bus_region(BusNumber);
+    ErrorOr<VirtualAddress> get_device_configuration_memory_mapped_space(BusNumber, DeviceNumber, FunctionNumber);
     PhysicalAddress determine_memory_mapped_bus_base_address(BusNumber) const;
 
     // Data-members for accessing Memory mapped PCI devices' configuration spaces

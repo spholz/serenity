@@ -530,6 +530,7 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
         Arch/aarch64/Serial/PL011.cpp
 
         Arch/aarch64/PCI/Controller/BroadcomHostController.cpp
+        Arch/aarch64/PCI/Controller/CixSky1HostController.cpp
 
         Bus/PCI/Controller/GenericECAMHostController.cpp
         Bus/PCI/DeviceTreeHelpers.cpp

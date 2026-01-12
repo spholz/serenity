@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/GenericShorthands.h>
 #include <AK/MACAddress.h>
 #include <Kernel/Bus/PCI/API.h>
 #include <Kernel/Bus/PCI/IDs.h>
@@ -198,7 +199,7 @@ UNMAP_AFTER_INIT ErrorOr<bool> RTL8168NetworkAdapter::probe(PCI::DeviceIdentifie
 {
     if (pci_device_identifier.hardware_id().vendor_id != PCI::VendorID::Realtek)
         return false;
-    if (pci_device_identifier.hardware_id().device_id != 0x8168)
+    if (!first_is_one_of(pci_device_identifier.hardware_id().device_id, 0x8168, 0x8126))
         return false;
     return true;
 }
@@ -207,7 +208,29 @@ UNMAP_AFTER_INIT ErrorOr<NonnullRefPtr<NetworkAdapter>> RTL8168NetworkAdapter::c
 {
     u8 irq = pci_device_identifier.interrupt_line().value();
     auto interface_name = TRY(NetworkingManagement::generate_interface_name_from_pci_address(pci_device_identifier));
-    auto registers_io_window = TRY(IOWindow::create_for_pci_device_bar(pci_device_identifier, PCI::HeaderType0BaseRegister::BAR0));
+
+    Optional<PCI::HeaderType0BaseRegister> bar_index;
+
+    // Choose the first memory space BAR.
+    for (size_t i = 0; i <= to_underlying(PCI::HeaderType0BaseRegister::BAR5); i++) {
+        u32 bar = PCI::get_BAR(pci_device_identifier, static_cast<PCI::HeaderType0BaseRegister>(i));
+
+        if (bar == 0)
+            continue;
+
+        auto bar_space_type = PCI::get_BAR_space_type(bar);
+        if (bar_space_type == PCI::BARSpaceType::Memory16BitSpace
+            || bar_space_type == PCI::BARSpaceType::Memory32BitSpace
+            || bar_space_type == PCI::BARSpaceType::Memory64BitSpace) {
+            bar_index = static_cast<PCI::HeaderType0BaseRegister>(i);
+            break;
+        }
+    }
+
+    if (!bar_index.has_value())
+        return ENOENT;
+
+    auto registers_io_window = TRY(IOWindow::create_for_pci_device_bar(pci_device_identifier, *bar_index));
     return TRY(adopt_nonnull_ref_or_enomem(new (nothrow) RTL8168NetworkAdapter(interface_name.representable_view(), pci_device_identifier, irq, move(registers_io_window))));
 }
 

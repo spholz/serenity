@@ -160,8 +160,6 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
     }
 #endif
 
-    s_kernel_cmdline = "serial_debug root=block100:1"sv;
-
     setup_serial_debug();
 
     // We need to copy the command line before kmalloc is initialized,

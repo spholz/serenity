@@ -97,7 +97,7 @@ esac
 root_uuid=$(blkid -o export "${dev}p2" | grep ^PARTUUID | cut -d= -f2)
 
 cat <<EOF >esp/cmdline.txt
-root=PARTUUID:${root_uuid}
+serial_debug nvme_poll root=PARTUUID:${root_uuid}
 EOF
 
 mkdir -p esp/EFI/BOOT
