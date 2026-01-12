@@ -17,6 +17,8 @@ constexpr u64 INNER_SHAREABLE = 3 << 8;
 constexpr u64 PAGE_DESCRIPTOR = 0b11;
 constexpr u64 TABLE_DESCRIPTOR = 0b11;
 constexpr u64 NORMAL_MEMORY = 0 << 2;
+constexpr u64 DEVICE_MEMORY = 1 << 2;
+constexpr u64 NORMAL_NONCACHEABLE_MEMORY = 2 << 2;
 constexpr u64 ACCESS_PERMISSION_READONLY = 1 << 7;
 
 // UXN (Unprivileged Execute-never) and PXN (Privileged Execute-never)
@@ -88,7 +90,7 @@ EFIErrorOr<void*> get_or_insert_page_table(void* root_page_table, FlatPtr vaddr,
     return current_page_table;
 }
 
-static EFIErrorOr<void> map_single_page(void* root_page_table, FlatPtr vaddr, PhysicalPtr paddr, Access access)
+static EFIErrorOr<void> map_single_page(void* root_page_table, FlatPtr vaddr, PhysicalPtr paddr, Access access, Memory::MemoryType memory_type)
 {
     auto* page_table = TRY(get_or_insert_page_table(root_page_table, vaddr));
     u64* pte = get_pte(bit_cast<u64*>(page_table), vaddr, 0);
@@ -102,15 +104,22 @@ static EFIErrorOr<void> map_single_page(void* root_page_table, FlatPtr vaddr, Ph
     if (!has_flag(access, Access::Execute))
         flags |= EXECUTE_NEVER;
 
+    if (memory_type == Memory::MemoryType::Normal)
+        flags |= NORMAL_MEMORY;
+    else if (memory_type == Memory::MemoryType::NonCacheable)
+        flags |= NORMAL_NONCACHEABLE_MEMORY;
+    else if (memory_type == Memory::MemoryType::IO)
+        flags |= DEVICE_MEMORY;
+
     *pte = ((paddr >> PADDR_PAGE_FRAME_OFFSET) << PTE_PAGE_FRAME_OFFSET) | flags;
 
     return {};
 }
 
-EFIErrorOr<void> map_pages(void* root_page_table, FlatPtr start_vaddr, PhysicalPtr start_paddr, size_t page_count, Access access)
+EFIErrorOr<void> map_pages(void* root_page_table, FlatPtr start_vaddr, PhysicalPtr start_paddr, size_t page_count, Access access, Memory::MemoryType memory_type)
 {
     for (size_t i = 0; i < page_count; i++)
-        TRY(map_single_page(root_page_table, start_vaddr + i * PAGE_SIZE, start_paddr + i * PAGE_SIZE, access));
+        TRY(map_single_page(root_page_table, start_vaddr + i * PAGE_SIZE, start_paddr + i * PAGE_SIZE, access, memory_type));
 
     return {};
 }

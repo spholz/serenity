@@ -13,7 +13,7 @@
 namespace Kernel {
 
 // Kernel virtual memory layout:
-// Kernel stack | BootInfo | Quickmap page table | EFI memory map | Kernel cmdline | Kernel
+// Kernel stack | BootInfo | Quickmap page table | EFI memory map | Kernel cmdline | Boot framebuffer | Kernel
 // ^ KERNEL_MAPPING_BASE
 // NOTE: If the kernel cmdline overflows into the kernel memory range, we catch that in the map_pages function (a page is not allowed to be remapped)
 
@@ -31,5 +31,8 @@ static constexpr FlatPtr EFI_MEMORY_MAP_VADDR = QUICKMAP_PAGE_TABLE_VADDR + PAGE
 static constexpr size_t EFI_MEMORY_MAP_MAX_SIZE = 10uz * PAGE_SIZE;
 
 static constexpr FlatPtr KERNEL_CMDLINE_VADDR = EFI_MEMORY_MAP_VADDR + EFI_MEMORY_MAP_MAX_SIZE;
+static constexpr FlatPtr KERNEL_CMDLINE_SIZE = PAGE_SIZE;
+
+static constexpr FlatPtr KERNEL_BOOT_FRAMEBUFFER_VADDR = KERNEL_CMDLINE_VADDR + KERNEL_CMDLINE_SIZE;
 
 }

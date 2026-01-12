@@ -65,6 +65,7 @@ enum class BootFramebufferType {
 
 struct BootFramebufferInfo {
     PhysicalAddress paddr { 0 };
+    VirtualAddress vaddr { 0uz };
     size_t pitch { 0 };
     size_t width { 0 };
     size_t height { 0 };

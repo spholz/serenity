@@ -108,7 +108,7 @@ static EFIErrorOr<void> map_single_page(void* root_page_table, FlatPtr vaddr, Ph
     return {};
 }
 
-EFIErrorOr<void> map_pages(void* root_page_table, FlatPtr start_vaddr, PhysicalPtr start_paddr, size_t page_count, Access access)
+EFIErrorOr<void> map_pages(void* root_page_table, FlatPtr start_vaddr, PhysicalPtr start_paddr, size_t page_count, Access access, Memory::MemoryType)
 {
     for (size_t i = 0; i < page_count; i++)
         TRY(map_single_page(root_page_table, start_vaddr + i * PAGE_SIZE, start_paddr + i * PAGE_SIZE, access));

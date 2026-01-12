@@ -26,6 +26,7 @@ public:
     u8* unsafe_framebuffer_data() { return m_framebuffer_data; }
 
     BootFramebufferConsole(PhysicalAddress framebuffer_addr, size_t width, size_t height, size_t pitch);
+    BootFramebufferConsole(VirtualAddress framebuffer_addr, size_t width, size_t height, size_t pitch);
 
 private:
     virtual void set_cursor(size_t x, size_t y) override;

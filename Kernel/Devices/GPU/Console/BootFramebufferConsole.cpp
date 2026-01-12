@@ -21,6 +21,13 @@ BootFramebufferConsole::BootFramebufferConsole(PhysicalAddress framebuffer_addr,
     memset(m_framebuffer_data, 0, height * pitch);
 }
 
+BootFramebufferConsole::BootFramebufferConsole(VirtualAddress framebuffer_addr, size_t width, size_t height, size_t pitch)
+    : GenericFramebufferConsoleImpl(width, height, pitch)
+{
+    m_framebuffer_data = framebuffer_addr.as_ptr();
+    memset(m_framebuffer_data, 0, height * pitch);
+}
+
 void BootFramebufferConsole::clear(size_t x, size_t y, size_t length)
 {
     SpinlockLocker lock(m_lock);

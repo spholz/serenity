@@ -779,6 +779,8 @@ UNMAP_AFTER_INIT void MemoryManager::initialize_physical_pages(GlobalData& globa
             highest_physical_address = boot_framebuffer_paddr_end;
     }
 
+    dmesgln("MM: Highest physical address: {}", highest_physical_address);
+
     // Calculate how many total physical pages the array will have
     m_physical_page_entries_count = PhysicalAddress::physical_page_index(highest_physical_address.get()) + 1;
     VERIFY(m_physical_page_entries_count != 0);
@@ -856,6 +858,7 @@ UNMAP_AFTER_INIT void MemoryManager::initialize_physical_pages(GlobalData& globa
         __builtin_memset(pt, 0, PAGE_SIZE);
         for (size_t pte_index = 0; pte_index < PAGE_SIZE / sizeof(PageTableEntry); pte_index++) {
             auto& pte = pt[pte_index];
+            VERIFY(!pte.is_present()); // Nothing should be using this PTE yet
             pte.set_physical_page_base(physical_page_array_current_page);
             pte.set_user_allowed(false);
             pte.set_writable(true);
@@ -873,8 +876,6 @@ UNMAP_AFTER_INIT void MemoryManager::initialize_physical_pages(GlobalData& globa
         u32 page_directory_index = (virtual_page_base_for_this_pt >> 21) & 0x1ff;
         auto* pd = reinterpret_cast<PageDirectoryEntry*>(quickmap_page(g_boot_info.boot_pd_kernel));
         PageDirectoryEntry& pde = pd[page_directory_index];
-
-        VERIFY(!pde.is_present()); // Nothing should be using this PD yet
 
         // We can't use ensure_pte quite yet!
         pde.set_page_table_base(pt_paddr.get());
