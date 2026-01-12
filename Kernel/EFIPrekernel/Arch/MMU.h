@@ -10,6 +10,7 @@
 #include <AK/Types.h>
 
 #include <Kernel/Firmware/EFI/EFI.h>
+#include <Kernel/Memory/MemoryType.h>
 #include <Kernel/Memory/PhysicalAddress.h>
 
 #include <Kernel/EFIPrekernel/Error.h>
@@ -26,6 +27,6 @@ AK_ENUM_BITWISE_OPERATORS(Access);
 
 EFIErrorOr<void*> allocate_empty_root_page_table();
 EFIErrorOr<void*> get_or_insert_page_table(void* root_page_table, FlatPtr vaddr, size_t level = 0, bool has_to_be_new = false);
-EFIErrorOr<void> map_pages(void* root_page_table, FlatPtr start_vaddr, PhysicalPtr start_paddr, size_t page_count, Access access);
+EFIErrorOr<void> map_pages(void* root_page_table, FlatPtr start_vaddr, PhysicalPtr start_paddr, size_t page_count, Access access, Memory::MemoryType = Memory::MemoryType::Normal);
 
 }

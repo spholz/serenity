@@ -316,15 +316,17 @@ extern "C" EFIAPI EFI::Status init(EFI::Handle image_handle, EFI::SystemTable* s
     Bytes kernel_elf_image_data { bit_cast<u8*>(kernel_image_paddr), kernel_image_size };
     ELF::Image kernel_elf_image { kernel_elf_image_data };
 
+    // EFI_GRAPHICS_OUTPUT_PROTOCOL.SetMode() clears the screen, so do this as early as possible.
+    init_gop_and_populate_framebuffer_boot_info(*boot_info);
+
     // TODO: KASLR
-    FlatPtr default_kernel_load_base = KERNEL_MAPPING_BASE + 0x200000;
+    FlatPtr default_kernel_load_base = align_up_to(KERNEL_BOOT_FRAMEBUFFER_VADDR + (boot_info->boot_framebuffer.pitch * boot_info->boot_framebuffer.height), 2 * MiB);
 
     boot_info->kernel_mapping_base = KERNEL_MAPPING_BASE;
     boot_info->kernel_load_base = default_kernel_load_base;
     boot_info->physical_to_virtual_offset = boot_info->kernel_load_base - kernel_image_paddr;
 
-    // EFI_GRAPHICS_OUTPUT_PROTOCOL.SetMode() clears the screen, so do this as early as possible.
-    init_gop_and_populate_framebuffer_boot_info(*boot_info);
+    VERIFY(boot_info->kernel_load_base % (2 * MiB) == 0);
 
     EFI::FileProtocol* root_directory = nullptr;
     auto root_directory_or_error = open_root_directory(loaded_image_protocol);
@@ -335,6 +337,11 @@ extern "C" EFIAPI EFI::Status init(EFI::Handle image_handle, EFI::SystemTable* s
 
     dbgln("Mapping the kernel image...");
     map_kernel_image(root_page_table, kernel_elf_image, kernel_elf_image_data, boot_info->kernel_load_base);
+
+    dbgln("Mapping the boot framebuffer...");
+    if (auto result = map_pages(root_page_table, KERNEL_BOOT_FRAMEBUFFER_VADDR, boot_info->boot_framebuffer.paddr.get(), pages_needed(boot_info->boot_framebuffer.pitch * boot_info->boot_framebuffer.height), Access::Read | Access::Write, Memory::MemoryType::NonCacheable); result.is_error())
+        PANIC("Failed to map the boot framebuffer: {}", result.release_error());
+    boot_info->boot_framebuffer.vaddr = VirtualAddress { KERNEL_BOOT_FRAMEBUFFER_VADDR };
 
     dbgln("Performing relative relocations of the kernel image...");
     perform_kernel_relocations(kernel_elf_image, kernel_elf_image_data, boot_info->kernel_load_base);
