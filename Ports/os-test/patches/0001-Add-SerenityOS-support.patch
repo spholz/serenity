@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Tue, 10 Feb 2026 16:16:40 +0100
+Subject: [PATCH] Add SerenityOS support
+
+---
+ misc/GNUmakefile.shared | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/misc/GNUmakefile.shared b/misc/GNUmakefile.shared
+index b531bea01e40df6a6c2eb2c5d09700cf601e226f..f44d1762a640378a66ec732f8c8f370f7e1b5829 100644
+--- a/misc/GNUmakefile.shared
++++ b/misc/GNUmakefile.shared
+@@ -21,11 +21,13 @@ ifneq ($(OS),Haiku)
+ ifneq ($(OS),Minix)
+ ifneq ($(OS),Darwin)
+ ifneq ($(OS),OpenBSD)
++ifneq ($(OS),SerenityOS)
+   LDFLAGS += -lrt
+ endif
+ endif
+ endif
+ endif
++endif
+ ifeq ($(OS),AIX)
+   EXTRA_LDFLAGS += -latomic
+ endif
