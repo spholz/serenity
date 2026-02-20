@@ -175,6 +175,10 @@ extern "C" [[noreturn]] UNMAP_AFTER_INIT NO_SANITIZE_COVERAGE void init(BootInfo
 
     kmalloc_init();
 
+    if (!g_boot_info.boot_framebuffer.vaddr.is_null() && g_boot_info.boot_framebuffer.type == BootFramebufferType::BGRx8888) {
+        g_boot_console = &try_make_lock_ref_counted<Graphics::BootFramebufferConsole>(g_boot_info.boot_framebuffer.vaddr, g_boot_info.boot_framebuffer.width, g_boot_info.boot_framebuffer.height, g_boot_info.boot_framebuffer.pitch).value().leak_ref();
+    }
+
     load_kernel_symbol_table();
 
     bsp_processor().initialize(0);
