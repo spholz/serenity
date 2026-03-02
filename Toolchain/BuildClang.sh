@@ -230,7 +230,7 @@ pushd "$DIR/Build/clang"
             -DCMAKE_INSTALL_PREFIX="$PREFIX" \
             -C "$DIR/CMake/LLVMConfig.cmake" \
             ${link_lld:+"-DLLVM_ENABLE_LLD=ON"} \
-            ${dev:+"-DLLVM_CCACHE_BUILD=ON"} \
+            -DLLVM_CCACHE_BUILD=ON \
             ${ci:+"-DLLVM_CCACHE_BUILD=ON"} \
             ${ci:+"-DLLVM_CCACHE_DIR=$LLVM_CCACHE_DIR"}
 

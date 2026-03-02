@@ -35,10 +35,20 @@ case $1 in
         # Enable ACPI+Devicetree (default is only ACPI) and add the `tftp` command to the UEFI shell.
         EXTRA_BUILD_OPTIONS="--pcd gRaspberryPiTokenSpaceGuid.PcdSystemTableMode=1 -DINCLUDE_TFTP_COMMAND=TRUE"
         ;;
+    fvp)
+        TARGET_ARCH=AARCH64
+        SERENITY_ARCH=aarch64
+        PLATFORM_FILE="$_DIR/Tarballs/edk2-platforms/Platform/ARM/VExpressPkg/ArmVExpress-FVP-AArch64.dsc"
+        ;;
     aarch64-virt)
         TARGET_ARCH=AARCH64
         SERENITY_ARCH=aarch64
         PLATFORM_FILE="$_DIR/Tarballs/edk2/ArmVirtPkg/ArmVirtQemu.dsc"
+        ;;
+    sbsa)
+        TARGET_ARCH=AARCH64
+        SERENITY_ARCH=aarch64
+        PLATFORM_FILE="$_DIR/Tarballs/edk2-platforms/Platform/Qemu/SbsaQemu/SbsaQemu.dsc"
         ;;
     riscv64-virt)
         TARGET_ARCH=RISCV64

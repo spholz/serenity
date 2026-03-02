@@ -1,0 +1,170 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <sholz8530@gmail.com>
+Date: Sun, 1 Mar 2026 17:36:01 +0100
+Subject: [PATCH] [AArch64] Add barrier spammer pass
+
+---
+ llvm/lib/Target/AArch64/AArch64.h             |  2 +
+ .../Target/AArch64/AArch64BarrierSpammer.cpp  | 85 +++++++++++++++++++
+ .../Target/AArch64/AArch64TargetMachine.cpp   |  9 ++
+ llvm/lib/Target/AArch64/CMakeLists.txt        |  1 +
+ 4 files changed, 97 insertions(+)
+ create mode 100644 llvm/lib/Target/AArch64/AArch64BarrierSpammer.cpp
+
+diff --git a/llvm/lib/Target/AArch64/AArch64.h b/llvm/lib/Target/AArch64/AArch64.h
+index a8e15c338352a9f764bdf7f49b56434108de0f80..7d215da915a45484b1d45bf90ec4dbc78578be76 100644
+--- a/llvm/lib/Target/AArch64/AArch64.h
++++ b/llvm/lib/Target/AArch64/AArch64.h
+@@ -51,6 +51,7 @@ ModulePass *createAArch64PromoteConstantPass();
+ FunctionPass *createAArch64ConditionOptimizerPass();
+ FunctionPass *createAArch64A57FPLoadBalancing();
+ FunctionPass *createAArch64A53Fix835769();
++FunctionPass *createAArch64BarrierSpammerPass();
+ FunctionPass *createFalkorHWPFFixPass();
+ FunctionPass *createFalkorMarkStridedAccessesPass();
+ FunctionPass *createAArch64PointerAuthPass();
+@@ -82,6 +83,7 @@ void initializeAArch64A53Fix835769Pass(PassRegistry&);
+ void initializeAArch64A57FPLoadBalancingPass(PassRegistry&);
+ void initializeAArch64AdvSIMDScalarPass(PassRegistry&);
+ void initializeAArch64AsmPrinterPass(PassRegistry &);
++void initializeAArch64BarrierSpammerPass(PassRegistry &);
+ void initializeAArch64PointerAuthPass(PassRegistry&);
+ void initializeAArch64BranchTargetsPass(PassRegistry&);
+ void initializeAArch64CFIFixupPass(PassRegistry&);
+diff --git a/llvm/lib/Target/AArch64/AArch64BarrierSpammer.cpp b/llvm/lib/Target/AArch64/AArch64BarrierSpammer.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..b2fec876aafc0ee6210e1f57c89d049f932a0b99
+--- /dev/null
++++ b/llvm/lib/Target/AArch64/AArch64BarrierSpammer.cpp
+@@ -0,0 +1,85 @@
++#include "AArch64.h"
++#include "AArch64InstrInfo.h"
++#include "AArch64Subtarget.h"
++#include "llvm/CodeGen/MachineFunctionPass.h"
++#include "llvm/CodeGen/MachineInstrBuilder.h"
++#include "llvm/CodeGen/TargetRegisterInfo.h"
++
++using namespace llvm;
++
++namespace {
++
++class AArch64BarrierSpammer : public MachineFunctionPass {
++public:
++  static char ID;
++  explicit AArch64BarrierSpammer() : MachineFunctionPass(ID) {
++    initializeAArch64BarrierSpammerPass(*PassRegistry::getPassRegistry());
++  }
++
++  bool runOnMachineFunction(MachineFunction &F) override;
++
++  StringRef getPassName() const override { return "Barrier Spammer"; }
++};
++
++char AArch64BarrierSpammer::ID = 0;
++
++} // end anonymous namespace
++
++bool AArch64BarrierSpammer::runOnMachineFunction(MachineFunction &MF) {
++  auto &STI = MF.getSubtarget<AArch64Subtarget>();
++  auto *TII = STI.getInstrInfo();
++
++  for (auto &MBB : MF) {
++    bool InsertBarrierBeforeNextInstr = false;
++    MachineInstr *LastInstr = nullptr;
++
++    for (auto &MI : MBB) {
++      if (InsertBarrierBeforeNextInstr) {
++        DebugLoc DL = MI.getDebugLoc();
++        BuildMI(MBB, MI, DL, TII->get(AArch64::DSB)).addImm(0xf);
++        BuildMI(MBB, MI, DL, TII->get(AArch64::ISB)).addImm(0xf);
++        InsertBarrierBeforeNextInstr = false;
++      }
++
++#if 0
++      if (MI.mayLoad()) {
++        // Insert DSB SY; ISB before the current instruction.
++        DebugLoc DL = MI.getDebugLoc();
++        BuildMI(MBB, MI, DL, TII->get(AArch64::DSB)).addImm(0xf);
++        BuildMI(MBB, MI, DL, TII->get(AArch64::ISB)).addImm(0xf);
++      }
++
++      if (MI.mayStore()) {
++        // Insert DSB SY; ISB after the current instruction.
++        InsertBarrierBeforeNextInstr = true;
++      }
++#else
++      if (MI.mayLoad() || MI.mayStore() || MI.getOpcode() == AArch64::MSR ||
++          MI.getOpcode() == AArch64::MRS) {
++        DebugLoc DL = MI.getDebugLoc();
++        BuildMI(MBB, MI, DL, TII->get(AArch64::DSB)).addImm(0xf);
++        BuildMI(MBB, MI, DL, TII->get(AArch64::ISB)).addImm(0xf);
++        InsertBarrierBeforeNextInstr = true;
++      }
++#endif
++
++      LastInstr = &MI;
++    }
++
++    if (InsertBarrierBeforeNextInstr) {
++      assert(LastInstr != nullptr);
++      DebugLoc DL = LastInstr->getDebugLoc();
++      BuildMI(&MBB, DL, TII->get(AArch64::DSB)).addImm(0xf);
++      BuildMI(&MBB, DL, TII->get(AArch64::ISB)).addImm(0xf);
++    }
++  }
++
++  return false;
++}
++
++INITIALIZE_PASS(AArch64BarrierSpammer, "aarch64-barrier-spammer-pass",
++                "AArch64 barrier spammer", false, false)
++
++FunctionPass *llvm::createAArch64BarrierSpammerPass() {
++  return new AArch64BarrierSpammer();
++}
+diff --git a/llvm/lib/Target/AArch64/AArch64TargetMachine.cpp b/llvm/lib/Target/AArch64/AArch64TargetMachine.cpp
+index 1ec5a20cc0ce0261bf618431609d49307b0d8fbc..80a675aa158a8b9d7aba06225498d6b407a29fc4 100644
+--- a/llvm/lib/Target/AArch64/AArch64TargetMachine.cpp
++++ b/llvm/lib/Target/AArch64/AArch64TargetMachine.cpp
+@@ -227,6 +227,11 @@ static cl::opt<bool>
+                             cl::desc("Enable new lowering for the SME ABI"),
+                             cl::init(true), cl::Hidden);
+ 
++static cl::opt<bool>
++    EnableBarrierSpammer("aarch64-barrier-spammer",
++                         cl::desc("Enable AArch64 barrier spammer"),
++                         cl::init(false), cl::NotHidden);
++
+ extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void
+ LLVMInitializeAArch64Target() {
+   // Register the target.
+@@ -241,6 +246,7 @@ LLVMInitializeAArch64Target() {
+   initializeAArch64A57FPLoadBalancingPass(PR);
+   initializeAArch64AdvSIMDScalarPass(PR);
+   initializeAArch64AsmPrinterPass(PR);
++  initializeAArch64BarrierSpammerPass(PR);
+   initializeAArch64BranchTargetsPass(PR);
+   initializeAArch64CollectLOHPass(PR);
+   initializeAArch64CompressJumpTablesPass(PR);
+@@ -868,6 +874,9 @@ void AArch64PassConfig::addPreEmitPass() {
+ 
+   addPass(createAArch64A53Fix835769());
+ 
++  if (EnableBarrierSpammer)
++    addPass(createAArch64BarrierSpammerPass());
++
+   if (TM->getTargetTriple().isOSWindows()) {
+     // Identify valid longjmp targets for Windows Control Flow Guard.
+     addPass(createCFGuardLongjmpPass());
+diff --git a/llvm/lib/Target/AArch64/CMakeLists.txt b/llvm/lib/Target/AArch64/CMakeLists.txt
+index 3334b3689e03fbdc9a46dee2e2d4ac2a911cace1..de1dc245a7887b7ceea5c515c9d40517aba4941f 100644
+--- a/llvm/lib/Target/AArch64/CMakeLists.txt
++++ b/llvm/lib/Target/AArch64/CMakeLists.txt
+@@ -57,6 +57,7 @@ add_llvm_target(AArch64CodeGen
+   AArch64FalkorHWPFFix.cpp
+   AArch64FastISel.cpp
+   AArch64A53Fix835769.cpp
++  AArch64BarrierSpammer.cpp
+   AArch64FrameLowering.cpp
+   AArch64CompressJumpTables.cpp
+   AArch64ConditionOptimizer.cpp

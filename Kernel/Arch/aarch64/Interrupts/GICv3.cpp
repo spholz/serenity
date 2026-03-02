@@ -208,6 +208,13 @@ UNMAP_AFTER_INIT GICv3::GICv3(Memory::TypedMapping<DistributorRegisters volatile
 {
 }
 
+static void mmio_write32(u32 volatile* ptr, u32 value)
+{
+    asm volatile("" : "+r"(ptr)::"memory");
+    *ptr = value;
+    asm volatile("" : "+r"(ptr)::"memory");
+}
+
 UNMAP_AFTER_INIT ErrorOr<void> GICv3::initialize()
 {
     // https://developer.arm.com/documentation/198123/0302/Configuring-the-Arm-GIC
@@ -252,18 +259,18 @@ UNMAP_AFTER_INIT ErrorOr<void> GICv3::initialize()
     //    and GICR_IPRIORITYn masks low priority interrupts, and how it controls preemption.
     //    An interrupt controller is not required to implement all 8 priority bits. [...]"
     for (size_t i = SHARED_PERIPHERAL_INTERRUPT_RANGE_START / 4; i < max_spi_range_end / 4; i++)
-        m_distributor_registers->interrupt_priority[i] = 0x00'00'00'00; // highest priority
+        mmio_write32(&m_distributor_registers->interrupt_priority[i], 0x00'00'00'00); // highest priority
 
     for (size_t i = 0; i < PRIVATE_PERIPHERAL_INTERRUPT_RANGE_END / 8; i++)
-        m_redistributor_registers[m_boot_cpu_redistributor_index]->sgis_and_ppis.interrupt_priority[i] = 0x00'00'00'00; // highest priority
+        mmio_write32(&m_redistributor_registers[m_boot_cpu_redistributor_index]->sgis_and_ppis.interrupt_priority[i], 0x00'00'00'00); // highest priority
 
     // "• Group: GICD_IGROUPn, GICD_IGRPMODn, GICR_IGROUPn, GICR_IGRPMODn
     //    As described in Security model, an interrupt can be configured to belong to one of the three interrupt groups.
     //    These interrupt groups are Group 0, Secure Group 1 and Non-secure Group 1."
     // Configure all interrupts to non-secure group 1 by setting every group modifier bit to 0 and group status bit to 1.
     for (size_t i = SHARED_PERIPHERAL_INTERRUPT_RANGE_START / 32; i < max_spi_range_end / 32; i++) {
-        m_distributor_registers->interrupt_group[i] = 0xffff'ffff;
-        m_distributor_registers->interrupt_group_modifier[i] = 0x0000'0000;
+        mmio_write32(&m_distributor_registers->interrupt_group[i], 0xffff'ffff);
+        mmio_write32(&m_distributor_registers->interrupt_group_modifier[i], 0x0000'0000);
     }
 
     m_redistributor_registers[m_boot_cpu_redistributor_index]->sgis_and_ppis.interrupt_group[0] = 0xffff'ffff;
@@ -281,9 +288,9 @@ UNMAP_AFTER_INIT ErrorOr<void> GICv3::initialize()
     //    Arm recommends that the settings outlined in this section are configured before enabling the INTID."
     // Disable all interrupts by default.
     for (size_t i = SHARED_PERIPHERAL_INTERRUPT_RANGE_START / 32; i < max_spi_range_end / 32; i++)
-        m_distributor_registers->interrupt_clear_enable[i] = 0xffff'ffff;
+        mmio_write32(&m_distributor_registers->interrupt_clear_enable[i], 0xffff'ffff);
 
-    m_redistributor_registers[m_boot_cpu_redistributor_index]->sgis_and_ppis.interrupt_clear_enable[0] = 0xffff'ffff;
+    mmio_write32(&m_redistributor_registers[m_boot_cpu_redistributor_index]->sgis_and_ppis.interrupt_clear_enable[0], 0xffff'ffff);
 
     // "• Non-maskable: Interrupts configured as non-maskable are treated as higher priority than all other interrupts
     //    belonging to the same Group. That is, a non-maskable Non-secure Group 1 interrupt is treated as higher priority
@@ -302,7 +309,7 @@ UNMAP_AFTER_INIT ErrorOr<void> GICv3::initialize()
         | (static_cast<u64>(mpidr.Aff3) << DistributorRegisters::INTERRUPT_ROUTING_AFF3_OFFSET));
 
     for (size_t i = SHARED_PERIPHERAL_INTERRUPT_RANGE_START; i < max_spi_range_end; i++)
-        m_distributor_registers->interrupt_routing[i] = route;
+        mmio_write32(&m_distributor_registers->interrupt_routing[i], route);
 
     // Enable interrupts in non-secure group 1.
     m_distributor_registers->control |= DistributorRegisters::Control::EnableGroup1A;

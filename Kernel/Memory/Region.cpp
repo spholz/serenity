@@ -7,6 +7,7 @@
 #include <AK/StringView.h>
 #include <Kernel/Arch/PageDirectory.h>
 #include <Kernel/Arch/PageFault.h>
+#include <Kernel/Arch/aarch64/ASM_wrapper.h>
 #include <Kernel/Debug.h>
 #include <Kernel/FileSystem/Inode.h>
 #include <Kernel/Interrupts/InterruptDisabler.h>
@@ -302,6 +303,19 @@ void Region::unmap_with_locks_held(ShouldFlushTLB should_flush_tlb, SpinlockLock
     if (!m_page_directory)
         return;
     size_t count = page_count();
+
+    if (is_writable()) {
+        auto previous_page_directory = Memory::PageDirectory::find_current();
+
+        if (previous_page_directory != m_page_directory && m_page_directory != MM.kernel_page_directory())
+            Memory::activate_page_directory(*m_page_directory, Thread::current());
+
+        Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(vaddr().get()), PAGE_SIZE * count);
+
+        if (previous_page_directory != m_page_directory && m_page_directory != MM.kernel_page_directory())
+            Memory::activate_page_directory(*previous_page_directory, Thread::current());
+    }
+
     for (size_t i = 0; i < count; ++i) {
         auto vaddr = vaddr_from_page_index(i);
         MM.release_pte(*m_page_directory, vaddr, i == count - 1 ? MemoryManager::IsLastPTERelease::Yes : MemoryManager::IsLastPTERelease::No);
@@ -336,6 +350,19 @@ ErrorOr<void> Region::map_impl(PageDirectory& page_directory, ShouldLockVMObject
     if (page_index > 0) {
         if (should_flush_tlb == ShouldFlushTLB::Yes)
             MemoryManager::flush_tlb(m_page_directory, vaddr(), page_index);
+
+        if (is_writable()) {
+            auto previous_page_directory = Memory::PageDirectory::find_current();
+
+            if (previous_page_directory != m_page_directory && m_page_directory != MM.kernel_page_directory())
+                Memory::activate_page_directory(*m_page_directory, Thread::current());
+
+            Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(vaddr().get()), PAGE_SIZE * page_index);
+
+            if (previous_page_directory != m_page_directory && m_page_directory != MM.kernel_page_directory())
+                Memory::activate_page_directory(*previous_page_directory, Thread::current());
+        }
+
         if (page_index == page_count())
             return {};
     }

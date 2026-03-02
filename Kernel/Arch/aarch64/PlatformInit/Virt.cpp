@@ -26,4 +26,21 @@ void virt_platform_init(StringView)
     set_debug_console(&s_debug_console);
 }
 
+void vexpress_platform_init(StringView)
+{
+    // We have to use a raw pointer here because this variable will be set before global constructors are called.
+    static PL011* s_debug_console_uart;
+
+    static DebugConsole const s_debug_console {
+        .write_character = [](char character) {
+            if (character == '\n')
+                s_debug_console_uart->send('\r');
+            s_debug_console_uart->send(character);
+        },
+    };
+
+    s_debug_console_uart = MUST(PL011::initialize(PhysicalAddress { 0x1c09'0000 })).leak_ptr();
+    set_debug_console(&s_debug_console);
+}
+
 }

@@ -13,5 +13,6 @@ namespace Kernel {
 void raspberry_pi_3_4_platform_init(StringView compatible_string);
 void raspberry_pi_5_platform_init(StringView compatible_string);
 void virt_platform_init(StringView compatible_string);
+void vexpress_platform_init(StringView compatible_string);
 
 }

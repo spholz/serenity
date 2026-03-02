@@ -70,12 +70,18 @@ static ErrorOr<NonnullOwnPtr<TypedMapping<T>>> adopt_new_nonnull_own_typed_mappi
     return table;
 }
 
+template<size_t N>
+static constexpr StringView make_sv(char const (&string_literal)[N])
+{
+    return StringView { string_literal, N - 1 };
+}
+
 template<typename T>
 static ErrorOr<TypedMapping<T>> map_typed(PhysicalAddress paddr, size_t length, Region::Access access = Region::Access::Read)
 {
     TypedMapping<T> table;
     auto mapping_length = TRY(page_round_up(paddr.offset_in_page() + length));
-    table.region = TRY(MM.allocate_mmio_kernel_region(paddr.page_base(), mapping_length, {}, access));
+    table.region = TRY(MM.allocate_mmio_kernel_region(paddr.page_base(), mapping_length, make_sv(__PRETTY_FUNCTION__), access));
     table.offset = paddr.offset_in_page();
     table.paddr = paddr;
     table.length = length;

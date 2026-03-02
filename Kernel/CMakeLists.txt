@@ -802,12 +802,13 @@ if (ENABLE_KERNEL_UNDEFINED_SANITIZER)
     # Kernel Undefined Behavior Sanitizer (KUBSAN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
     set_source_files_properties(Security/UBSanitizer.cpp PROPERTIES COMPILE_FLAGS "-fno-sanitize=undefined")
-    
+
     if (ENABLE_KERNEL_UNDEFINED_SANITIZER_ALWAYS_DEADLY)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-sanitize-recover=undefined")
     endif()
-    add_compile_definitions(ENABLE_KERNEL_UNDEFINED_SANITIZER_ALWAYS_DEADLY=$<BOOL:${ENABLE_KERNEL_UNDEFINED_SANITIZER_ALWAYS_DEADLY}>)
 endif()
+
+add_compile_definitions(ENABLE_KERNEL_UNDEFINED_SANITIZER_ALWAYS_DEADLY=$<BOOL:${ENABLE_KERNEL_UNDEFINED_SANITIZER_ALWAYS_DEADLY}>)
 
 if (ENABLE_KERNEL_ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=kernel-address)
@@ -892,6 +893,10 @@ elseif ("${SERENITY_ARCH}" STREQUAL "x86_64")
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
         target_compile_options(Kernel PRIVATE -mstack-alignment=8)
     endif()
+endif()
+
+if("${SERENITY_ARCH}" STREQUAL "aarch64" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(Kernel PRIVATE -mllvm --aarch64-barrier-spammer=true)
 endif()
 
 if (ENABLE_KERNEL_LTO)

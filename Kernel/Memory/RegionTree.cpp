@@ -22,6 +22,7 @@ void RegionTree::delete_all_regions_assuming_they_are_unmapped()
     // FIXME: This could definitely be done in a more efficient manner.
     while (!m_regions.is_empty()) {
         auto& region = *m_regions.begin();
+        // VERIFY(!region.is_mapped());
         m_regions.remove(region.vaddr().get());
         delete &region;
     }

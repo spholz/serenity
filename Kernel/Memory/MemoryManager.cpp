@@ -13,6 +13,7 @@
 #include <Kernel/Arch/PageDirectory.h>
 #include <Kernel/Arch/PageFault.h>
 #include <Kernel/Arch/RegisterState.h>
+#include <Kernel/Arch/aarch64/ASM_wrapper.h>
 #include <Kernel/Boot/BootInfo.h>
 #include <Kernel/FileSystem/Inode.h>
 #include <Kernel/Firmware/DeviceTree/DeviceTree.h>
@@ -1388,7 +1389,9 @@ NonnullRefPtr<PhysicalRAMPage> MemoryManager::allocate_committed_physical_page(B
         // FIXME: To prevent aliasing memory with different memory types, this page should be mapped using the same memory type it will use later for the actual mapping.
         //        (See the comment above the memset in allocate_contiguous_physical_pages.)
         auto* ptr = quickmap_page(*page);
+        Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(ptr), PAGE_SIZE);
         memset(ptr, 0, PAGE_SIZE);
+        Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(ptr), PAGE_SIZE);
         unquickmap_page();
     }
     return page.release_nonnull();
@@ -1441,7 +1444,9 @@ ErrorOr<NonnullRefPtr<PhysicalRAMPage>> MemoryManager::allocate_physical_page(Sh
 
         if (should_zero_fill == ShouldZeroFill::Yes) {
             auto* ptr = quickmap_page(*page, memory_type_for_zero_fill);
+            Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(ptr), PAGE_SIZE);
             memset(ptr, 0, PAGE_SIZE);
+            Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(ptr), PAGE_SIZE);
             unquickmap_page();
         }
 
@@ -1477,7 +1482,9 @@ ErrorOr<Vector<NonnullRefPtr<PhysicalRAMPage>>> MemoryManager::allocate_contiguo
         // The memory_type_for_zero_fill argument ensures that the cleanup region is mapped using the same memory type as the subsequent actual mapping, preventing aliasing of physical memory with mismatched memory types.
         // On some architectures like ARM, aliasing memory with mismatched memory types can lead to unexpected behavior and potentially worse performance.
         auto cleanup_region = TRY(MM.allocate_kernel_region_with_physical_pages(physical_pages, {}, Region::Access::Read | Region::Access::Write, memory_type_for_zero_fill));
+        Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(cleanup_region->vaddr().get()), PAGE_SIZE * page_count);
         memset(cleanup_region->vaddr().as_ptr(), 0, PAGE_SIZE * page_count);
+        Aarch64::Asm::flush_data_cache(bit_cast<FlatPtr>(cleanup_region->vaddr().get()), PAGE_SIZE * page_count);
     }
     return physical_pages;
 }

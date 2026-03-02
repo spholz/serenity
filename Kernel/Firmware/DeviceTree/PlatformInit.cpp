@@ -23,6 +23,9 @@ struct PlatformInitTableEntry {
 
 static constinit auto const s_platform_init_table = to_array<PlatformInitTableEntry>({
 #if ARCH(AARCH64)
+    { "arm,fvp-base"sv, vexpress_platform_init },
+    { "arm,fvp-base-revc"sv, vexpress_platform_init },
+    { "arm,vexpress"sv, vexpress_platform_init },
     { "linux,dummy-virt"sv, virt_platform_init },
     { "raspberrypi,3-model-b"sv, raspberry_pi_3_4_platform_init },
     { "raspberrypi,4-model-b"sv, raspberry_pi_3_4_platform_init },
