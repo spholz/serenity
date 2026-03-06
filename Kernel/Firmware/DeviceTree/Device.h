@@ -44,6 +44,8 @@ public:
     };
     ErrorOr<Resource> get_resource(size_t index) const;
 
+    bool is_dma_cache_coherent() const;
+
     // FIXME: Add support for the "interrupt-names" property to resolve interrupts by name.
     ErrorOr<size_t> get_interrupt_number(size_t index) const;
 
