@@ -24,6 +24,7 @@ public:
 protected:
     // ^SDHostController
     virtual SD::HostControlRegisterMap volatile* get_register_map_base_address() override { return m_registers.ptr(); }
+    virtual ErrorOr<Memory::ContiguousDMABuffer> allocate_contiguous_dma_buffer(StringView name, Memory::Region::Access access, size_t size) override;
 
 private:
     PCISDHostController(PCI::DeviceIdentifier const& device_identifier, Memory::TypedMapping<SD::HostControlRegisterMap volatile>);

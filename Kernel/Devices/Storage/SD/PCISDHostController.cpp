@@ -38,4 +38,9 @@ PCISDHostController::PCISDHostController(PCI::DeviceIdentifier const& device_ide
 {
 }
 
+ErrorOr<Memory::ContiguousDMABuffer> PCISDHostController::allocate_contiguous_dma_buffer(StringView name, Memory::Region::Access access, size_t size)
+{
+    return PCI::Device::allocate_contiguous_dma_buffer(name, access, size);
+}
+
 }

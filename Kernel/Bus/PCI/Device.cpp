@@ -213,4 +213,18 @@ void Device::disable_interrupt(u8 irq)
     }
 }
 
+ErrorOr<Memory::ContiguousDMABuffer> Device::allocate_contiguous_dma_buffer(StringView name, Memory::Region::Access access, size_t size) const
+{
+    bool is_cache_coherent = is_dma_cache_coherent(m_pci_identifier);
+    auto memory_type = is_cache_coherent ? Memory::MemoryType::Normal : Memory::MemoryType::NonCacheable;
+
+    auto dma_region = TRY(MM.allocate_dma_buffer_pages(size, name, access, memory_type));
+
+    // FIXME: Support non-identity mapped DMA address translation.
+    //        On devicetree systems, the DMA address mapping is described by the "dma-ranges" property.
+    auto bus_address = dma_region->physical_page(0)->paddr().get();
+
+    return Memory::ContiguousDMABuffer(move(dma_region), bus_address, is_cache_coherent);
+}
+
 }

@@ -119,12 +119,12 @@ ErrorOr<void> SDHostController::initialize()
 void SDHostController::try_enable_dma()
 {
     if (m_registers->capabilities.adma2) {
-        auto maybe_dma_buffer = MM.allocate_dma_buffer_pages(dma_region_size, "SDHC DMA Buffer"sv, Memory::Region::Access::ReadWrite);
-        if (maybe_dma_buffer.is_error()) {
-            dmesgln("Could not allocate DMA pages for SDHC: {}", maybe_dma_buffer.error());
+        auto dma_buffer_or_error = allocate_contiguous_dma_buffer("SDHC DMA Buffer"sv, Memory::Region::Access::ReadWrite, dma_region_size);
+        if (dma_buffer_or_error.is_error()) {
+            dmesgln("Could not allocate DMA pages for SDHC: {}", dma_buffer_or_error.error());
         } else {
-            m_dma_region = maybe_dma_buffer.release_value();
-            dbgln("Allocated SDHC DMA buffer at {}", m_dma_region->physical_page(0)->paddr());
+            m_dma_buffer = dma_buffer_or_error.release_value();
+            dbgln("Allocated SDHC DMA buffer at {}", m_dma_buffer->bus_address());
             // FIXME: This check does not seem to work, qemu supports 64 bit addressing, but we don't seem to detect it
             // FIXME: Hardcoding to use the 64 bit mode leads to transfer timeouts, without any errors reported from qemu
             if (host_version() != SD::HostVersion::Version3 && m_registers->capabilities.dma_64_bit_addressing_v3) {
@@ -133,8 +133,8 @@ void SDHostController::try_enable_dma()
                 m_registers->host_configuration_0 = m_registers->host_configuration_0 | dma_select_adma2_64;
             } else {
                 // FIXME: Use a way that guarantees memory addresses below the 32 bit threshold
-                VERIFY(m_dma_region->physical_page(0)->paddr().get() >> 32 == 0);
-                VERIFY(m_dma_region->physical_page(dma_region_size / PAGE_SIZE - 1)->paddr().get() >> 32 == 0);
+                VERIFY(m_dma_buffer->bus_address() >> 32 == 0);
+                VERIFY((m_dma_buffer->bus_address() + m_dma_buffer->size() - 1) >> 32 == 0);
 
                 dbgln("Setting SDHostController to operate using ADMA2 with 32 bit addressing");
                 m_mode = OperatingMode::ADMA2_32;
@@ -689,10 +689,10 @@ u32 SDHostController::make_adma_descriptor_table(u32 block_count)
     //        This might cost us more descriptor entries but avoids the memcpy at the end
     //        of each read cycle
 
-    FlatPtr adma_descriptor_physical = m_dma_region->physical_page(0)->paddr().get();
+    FlatPtr adma_descriptor_physical = m_dma_buffer->bus_address();
     FlatPtr adma_dma_region_physical = adma_descriptor_physical + PAGE_SIZE;
 
-    FlatPtr adma_descriptor_virtual = m_dma_region->vaddr().get();
+    FlatPtr adma_descriptor_virtual = m_dma_buffer->virtual_address().get();
 
     u32 offset = 0;
     u32 blocks_transferred = 0;
@@ -793,9 +793,9 @@ ErrorOr<void> SDHostController::transfer_blocks_adma2(u32 block_address, u32 blo
 {
     using enum OperatingMode;
 
-    FlatPtr adma_descriptor_physical = m_dma_region->physical_page(0)->paddr().get();
+    FlatPtr adma_descriptor_physical = m_dma_buffer->bus_address();
 
-    FlatPtr adma_descriptor_virtual = m_dma_region->vaddr().get();
+    FlatPtr adma_descriptor_virtual = m_dma_buffer->virtual_address().get();
     FlatPtr adma_dma_region_virtual = adma_descriptor_virtual + PAGE_SIZE;
 
     AK::ArmedScopeGuard abort_guard {

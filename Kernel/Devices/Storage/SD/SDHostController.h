@@ -36,6 +36,7 @@ public:
 protected:
     virtual SD::HostControlRegisterMap volatile* get_register_map_base_address() = 0;
     virtual ErrorOr<u32> retrieve_sd_clock_frequency();
+    virtual ErrorOr<Memory::ContiguousDMABuffer> allocate_contiguous_dma_buffer(StringView, Memory::Region::Access, size_t) { return ENOTIMPL; }
 
 private:
     ErrorOr<NonnullRefPtr<SDMemoryCard>> try_initialize_inserted_card();
@@ -104,7 +105,7 @@ private:
     // FIXME: Investigate the average usage and adjust this
     constexpr static size_t dma_rw_buffer_size = 16 * PAGE_SIZE;
     constexpr static size_t dma_region_size = PAGE_SIZE + dma_rw_buffer_size;
-    OwnPtr<Memory::Region> m_dma_region;
+    Optional<Memory::ContiguousDMABuffer> m_dma_buffer;
 };
 
 }

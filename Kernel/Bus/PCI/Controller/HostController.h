@@ -103,7 +103,7 @@ public:
     ErrorOr<void> add_host_to_bus_io_space_window(Window const&);
 
     void set_dma_cache_coherent(bool);
-    bool is_dma_cache_coherent();
+    bool is_dma_cache_coherent() const;
 
 private:
     void enumerate_bus(Function<void(EnumerableDeviceIdentifier const&)> const& callback, Function<void(EnumerableDeviceIdentifier const&)>& post_bridge_callback, BusNumber, bool recursive_search_into_bridges);

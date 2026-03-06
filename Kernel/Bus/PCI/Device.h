@@ -11,6 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Types.h>
 #include <Kernel/Bus/PCI/Definitions.h>
+#include <Kernel/Memory/DMA.h>
 
 namespace Kernel::PCI {
 
@@ -57,6 +58,8 @@ public:
     PCI::InterruptType get_interrupt_type();
     void enable_interrupt(u8 irq);
     void disable_interrupt(u8 irq);
+
+    ErrorOr<Memory::ContiguousDMABuffer> allocate_contiguous_dma_buffer(StringView name, Memory::Region::Access access, size_t size) const;
 
 protected:
     explicit Device(DeviceIdentifier const& pci_identifier);

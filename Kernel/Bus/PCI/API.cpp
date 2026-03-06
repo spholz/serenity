@@ -316,4 +316,9 @@ ErrorOr<PhysicalAddress> translate_bus_address_to_host_address(DeviceIdentifier 
     return Access::the().translate_bus_address_to_host_address(identifier, address_space_type, bus_address);
 }
 
+bool is_dma_cache_coherent(DeviceIdentifier const& identifier)
+{
+    return Access::the().is_dma_cache_coherent(identifier);
+}
+
 }

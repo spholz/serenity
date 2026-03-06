@@ -49,5 +49,6 @@ void disable_memory_space(DeviceIdentifier const&);
 DeviceIdentifier const& get_device_identifier(Address address);
 
 ErrorOr<PhysicalAddress> translate_bus_address_to_host_address(DeviceIdentifier const&, BARSpaceType, u64);
+bool is_dma_cache_coherent(DeviceIdentifier const&);
 
 }

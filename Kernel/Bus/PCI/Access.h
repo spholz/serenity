@@ -53,6 +53,7 @@ public:
     u32 read32_field(DeviceIdentifier const&, u32 field);
 
     ErrorOr<PhysicalAddress> translate_bus_address_to_host_address(DeviceIdentifier const&, BARSpaceType, u64);
+    bool is_dma_cache_coherent(DeviceIdentifier const&) const;
 
     // FIXME: Remove this once we can use PCI::Capability with inline buffer
     // so we don't need this method

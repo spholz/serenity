@@ -10,12 +10,22 @@
 #include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
 #include <Kernel/Memory/PhysicalAddress.h>
+#include <Kernel/Memory/Region.h>
 #include <LibDeviceTree/DeviceTree.h>
 
 namespace Kernel::DeviceTree {
 
 class Driver;
 class Management;
+
+class ContiguousDMABuffer {
+public:
+    u64 bus_address() const;
+    VirtualAddress virtual_address() const;
+
+private:
+    NonnullOwnPtr<Memory::Region> m_region;
+};
 
 class Device {
     AK_MAKE_NONCOPYABLE(Device);
@@ -45,6 +55,8 @@ public:
     ErrorOr<Resource> get_resource(size_t index) const;
 
     bool is_dma_cache_coherent() const;
+
+    ErrorOr<ContiguousDMABuffer> allocate_contiguous_dma_buffer(StringView name, Memory::Region::Access access, size_t size) const;
 
     // FIXME: Add support for the "interrupt-names" property to resolve interrupts by name.
     ErrorOr<size_t> get_interrupt_number(size_t index) const;

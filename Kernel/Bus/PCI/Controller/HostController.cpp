@@ -34,7 +34,7 @@ void HostController::set_dma_cache_coherent(bool cache_coherent)
     m_is_dma_cache_coherent = cache_coherent ? TriState::True : TriState::False;
 }
 
-bool HostController::is_dma_cache_coherent()
+bool HostController::is_dma_cache_coherent() const
 {
     VERIFY(m_is_dma_cache_coherent != TriState::Unknown);
     return m_is_dma_cache_coherent == TriState::True;

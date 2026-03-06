@@ -310,4 +310,11 @@ ErrorOr<PhysicalAddress> Access::translate_bus_address_to_host_address(DeviceIde
     return controller.translate_bus_address_to_host_address(address_space_type, bus_address);
 }
 
+bool Access::is_dma_cache_coherent(DeviceIdentifier const& identifier) const
+{
+    VERIFY(m_host_controllers.contains(identifier.address().domain()));
+    auto const& controller = *m_host_controllers.get(identifier.address().domain()).value();
+    return controller.is_dma_cache_coherent();
+}
+
 }
