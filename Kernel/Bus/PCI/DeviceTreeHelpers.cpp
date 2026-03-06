@@ -118,7 +118,7 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
                 !pci_address.non_relocatable);
 
             if (pci_address.space_type == OpenFirmwareAddress::SpaceType::Memory32BitSpace) {
-                TRY(host_controller.add_memory_space_window(HostController::Window {
+                TRY(host_controller.add_host_to_bus_memory_space_window(HostController::Window {
                     .host_address = PhysicalAddress { cpu_physical_address },
                     .bus_address = pci_address.io_or_memory_space_address,
                     .size = range_size,
@@ -132,7 +132,7 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
                 pci_32bit_mmio_base = pci_address.io_or_memory_space_address;
                 pci_32bit_mmio_size = range_size;
             } else if (pci_address.space_type == OpenFirmwareAddress::SpaceType::Memory64BitSpace) {
-                TRY(host_controller.add_memory_space_window(HostController::Window {
+                TRY(host_controller.add_host_to_bus_memory_space_window(HostController::Window {
                     .host_address = PhysicalAddress { cpu_physical_address },
                     .bus_address = pci_address.io_or_memory_space_address,
                     .size = range_size,
@@ -144,7 +144,7 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
                 pci_64bit_mmio_base = pci_address.io_or_memory_space_address;
                 pci_64bit_mmio_size = range_size;
             } else if (pci_address.space_type == OpenFirmwareAddress::SpaceType::IOSpace) {
-                TRY(host_controller.add_io_space_window(HostController::Window {
+                TRY(host_controller.add_host_to_bus_io_space_window(HostController::Window {
                     .host_address = PhysicalAddress { cpu_physical_address },
                     .bus_address = pci_address.io_or_memory_space_address,
                     .size = range_size,
