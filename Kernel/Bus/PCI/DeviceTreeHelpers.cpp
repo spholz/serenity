@@ -8,6 +8,7 @@
 #include <Kernel/Bus/PCI/Controller/HostController.h>
 #include <Kernel/Bus/PCI/DeviceTreeHelpers.h>
 #include <Kernel/Firmware/DeviceTree/Management.h>
+#include <Kernel/Firmware/DeviceTree/DeviceTree.h>
 #include <Kernel/Library/StdLib.h>
 #include <LibDeviceTree/DeviceTree.h>
 
@@ -74,8 +75,10 @@ ErrorOr<Domain> determine_pci_domain_for_devicetree_node(::DeviceTree::Node cons
     };
 }
 
-ErrorOr<void> configure_devicetree_host_controller(HostController& host_controller, ::DeviceTree::Node const& node, StringView node_name)
+ErrorOr<void> configure_devicetree_host_controller(HostController& host_controller, DeviceTree::Device const& device)
 {
+    auto const& node = device.node();
+
     FlatPtr pci_32bit_mmio_base = 0;
     u32 pci_32bit_mmio_size = 0;
     FlatPtr pci_64bit_mmio_base = 0;
@@ -94,7 +97,7 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
 
     auto maybe_ranges = node.ranges();
     if (!maybe_ranges.is_error()) {
-        dbgln("PCI: Address mapping for {}:", node_name);
+        dbgln("PCI: Address mapping for {}:", device.node_name());
 
         for (auto range : maybe_ranges.release_value()) {
             auto pci_address = TRY(range.child_bus_address().as<OpenFirmwareAddress>());
@@ -277,6 +280,8 @@ ErrorOr<void> configure_devicetree_host_controller(HostController& host_controll
     } else {
         dmesgln("PCI: No MMIO ranges found - assuming pre-configured by bootloader");
     }
+
+    host_controller.set_dma_cache_coherent(device.is_dma_cache_coherent());
 
     return {};
 }

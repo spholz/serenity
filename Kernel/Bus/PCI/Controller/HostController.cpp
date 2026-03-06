@@ -29,6 +29,17 @@ ErrorOr<void> HostController::add_host_to_bus_io_space_window(Window const& wind
     return m_host_to_bus_io_space_windows.try_append(window);
 }
 
+void HostController::set_dma_cache_coherent(bool cache_coherent)
+{
+    m_is_dma_cache_coherent = cache_coherent ? TriState::True : TriState::False;
+}
+
+bool HostController::is_dma_cache_coherent()
+{
+    VERIFY(m_is_dma_cache_coherent != TriState::Unknown);
+    return m_is_dma_cache_coherent == TriState::True;
+}
+
 ErrorOr<PhysicalAddress> HostController::translate_bus_address_to_host_address(BARSpaceType space_type, u64 bus_address) const
 {
     Vector<Window> const* windows = &m_host_to_bus_memory_space_windows;

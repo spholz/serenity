@@ -280,7 +280,7 @@ ErrorOr<void> BroadcomPCIeHostControllerDriver::probe(DeviceTree::Device const& 
 
     auto host_controller = TRY(BroadcomHostController::create(device, model));
 
-    TRY(configure_devicetree_host_controller(*host_controller, device.node(), device.node_name()));
+    TRY(configure_devicetree_host_controller(*host_controller, device));
     Access::the().add_host_controller(move(host_controller));
 
     return {};
