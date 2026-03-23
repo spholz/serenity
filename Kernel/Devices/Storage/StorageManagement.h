@@ -20,7 +20,11 @@
 namespace Kernel {
 
 class AHCIController;
-class NVMeController;
+
+namespace NVMe {
+class PCIeController;
+};
+
 class StorageManagement {
 
 public:
@@ -37,7 +41,7 @@ public:
 
     static u32 generate_controller_id();
 
-    static u32 generate_relative_nvme_controller_id(Badge<NVMeController>);
+    static u32 generate_relative_nvme_controller_id(Badge<NVMe::PCIeController>);
     static u32 generate_relative_ahci_controller_id(Badge<AHCIController>);
     static u32 generate_relative_sd_controller_id(Badge<SDHostController>);
 

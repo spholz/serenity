@@ -36,8 +36,14 @@ void HostController::set_dma_cache_coherent(bool cache_coherent)
 
 bool HostController::is_dma_cache_coherent() const
 {
+#if ARCH(X86_64)
+    // FIXME: Detect cache coherency via ACPI.
+    // XXX: For now, assume that QEMU is cache coherent, everything else isn't.
+    return false;
+#else
     VERIFY(m_is_dma_cache_coherent != TriState::Unknown);
     return m_is_dma_cache_coherent == TriState::True;
+#endif
 }
 
 ErrorOr<PhysicalAddress> HostController::translate_bus_address_to_host_address(BARSpaceType space_type, u64 bus_address) const

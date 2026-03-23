@@ -17,7 +17,7 @@
 #include <Kernel/Devices/BlockDevice.h>
 #include <Kernel/Devices/Device.h>
 #include <Kernel/Devices/Storage/AHCI/Controller.h>
-#include <Kernel/Devices/Storage/NVMe/NVMeController.h>
+#include <Kernel/Devices/Storage/NVMe/PCIeController.h>
 #include <Kernel/Devices/Storage/SD/PCISDHostController.h>
 #include <Kernel/Devices/Storage/SD/SDHostController.h>
 #include <Kernel/Devices/Storage/StorageManagement.h>
@@ -57,7 +57,7 @@ UNMAP_AFTER_INIT StorageManagement::StorageManagement()
 {
 }
 
-u32 StorageManagement::generate_relative_nvme_controller_id(Badge<NVMeController>)
+u32 StorageManagement::generate_relative_nvme_controller_id(Badge<NVMe::PCIeController>)
 {
     auto controller_id = s_relative_nvme_controller_id.load();
     s_relative_nvme_controller_id++;
@@ -123,7 +123,8 @@ UNMAP_AFTER_INIT void StorageManagement::enumerate_pci_controllers(bool nvme_pol
                     dmesgln("Unable to initialize AHCI controller: {}", ahci_controller_or_error.error());
             }
             if (subclass_code == SubclassID::NVMeController) {
-                auto controller = NVMeController::try_initialize(device_identifier, nvme_poll);
+                // XXX: Check programming interface.
+                auto controller = NVMe::PCIeController::create(device_identifier, nvme_poll);
                 if (controller.is_error()) {
                     dmesgln("Unable to initialize NVMe controller: {}", controller.error());
                 } else {

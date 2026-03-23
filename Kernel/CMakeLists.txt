@@ -121,11 +121,8 @@ set(KERNEL_SOURCES
     Devices/Storage/AHCI/Controller.cpp
     Devices/Storage/AHCI/InterruptHandler.cpp
     Devices/Storage/AHCI/Port.cpp
-    Devices/Storage/NVMe/NVMeController.cpp
-    Devices/Storage/NVMe/NVMeNameSpace.cpp
-    Devices/Storage/NVMe/NVMeInterruptQueue.cpp
-    Devices/Storage/NVMe/NVMePollQueue.cpp
-    Devices/Storage/NVMe/NVMeQueue.cpp
+    Devices/Storage/NVMe/PCIeController.cpp
+    Devices/Storage/NVMe/Queue.cpp
     Devices/Storage/SD/PCISDHostController.cpp
     Devices/Storage/SD/SDHostController.cpp
     Devices/Storage/SD/SDMemoryCard.cpp
