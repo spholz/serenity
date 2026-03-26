@@ -63,8 +63,10 @@ ErrorOr<CompletionQueueEntry> CompletionQueue::dequeue()
 
     m_head_index++;
 
-    if (m_head_index >= m_size)
+    if (m_head_index >= m_size) {
+        m_expected_phase_tag = !m_expected_phase_tag;
         m_head_index = 0;
+    }
 
     return dequeued_entry;
 }

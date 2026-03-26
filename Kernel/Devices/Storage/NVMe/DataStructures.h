@@ -47,14 +47,8 @@ struct PhysicalRegionPageEntry {
 
 union DataPointer {
     struct {
-        union {
-            PhysicalRegionPageEntry physical_region_page_entry;
-            u64 physical_region_page_list_pointer;
-        } entry_1; // PRP1
-        union {
-            PhysicalRegionPageEntry physical_region_page_entry;
-            u64 physical_region_page_list_pointer;
-        } entry_2; // PRP2
+        u64 entry_1; // PRP1
+        u64 entry_2; // PRP2
     } physical_region_page;
     struct {
         u8 entry_1[16]; // SGL1
@@ -78,6 +72,32 @@ struct AdminOrIOCommandSubmissionQueueEntry : CommandDword0 {
 };
 static_assert(AssertSize<AdminOrIOCommandSubmissionQueueEntry, 64>());
 
+// Figure 101: Status Code – Status Code Type Values
+enum class StatusCodeType : u32 {
+    GenericCommandStatus = 0x0,
+    CommandSpecificStatus = 0x1,
+    MediaAndDataIntegrityErrors = 0x2,
+    PathRelatedStatus = 0x3,
+};
+
+// Figure 100: Completion Queue Entry: Status Field
+struct Status {
+    bool is_success() const
+    {
+        // 4.2.3 Status Field Definition
+        // "A value of 0h for the Status field indicates a successful command completion,
+        //  with no fatal or non-fatal error conditions."
+        return bit_cast<u32>(*this) == 0;
+    }
+
+    u32 status_code : 8;
+    StatusCodeType status_code_type : 3;
+    u32 command_retry_delay : 2;
+    u32 more : 1;
+    u32 do_not_retry : 1;
+};
+static_assert(AssertSize<Status, 4>());
+
 // Figure 96: Common Completion Queue Entry Layout – Admin and All I/O Command Sets
 struct AdminOrIOCommandCompletionQueueEntry {
     u8 command_specific[8];
@@ -93,7 +113,7 @@ static_assert(AssertSize<AdminOrIOCommandCompletionQueueEntry, 16>());
 // This list is zero-terminated.
 template<size_t N>
 struct NamespaceList {
-    u32 namespace_identifier[N];
+    u32 namespace_identifiers[N];
 };
 
 }

@@ -6,6 +6,7 @@
 
 #include <Kernel/Arch/MemoryFences.h>
 #include <Kernel/Bus/PCI/BarMapping.h>
+#include <Kernel/Devices/Storage/NVMe/NVMCommandSet.h>
 #include <Kernel/Devices/Storage/NVMe/PCIeController.h>
 #include <Kernel/Devices/Storage/StorageManagement.h>
 
@@ -85,6 +86,58 @@ void PCIeController::ring_completion_queue_head_doorbell(size_t queue_identifier
     auto doorbell_offset = 0x1000 + (doorbell_index * m_doorbell_stride);
 
     *reinterpret_cast<u32 volatile*>(m_registers.ptr() + doorbell_offset) = new_head_value;
+}
+
+ErrorOr<void> PCIeController::admin_cmd_identify(Memory::ContiguousDMABuffer& dma_buffer, ControllerOrNamespaceStructure cns, u32 namespace_identifier, Optional<CommandSetIdentifier> csi, u16 cns_specific_identifier, u16 controller_identifier, u8 uuid_index)
+{
+    SubmissionQueueEntry submission {};
+    submission.identify_command.opcode = to_underlying(AdminOpcode::Identify);
+    submission.identify_command.fused_operation = CommandDword0::FusedOperation::NormalOperation;
+    submission.identify_command.prp_or_sgl_for_data_transfer = CommandDword0::PhysicalRegionPageOrScatterGatherListForDataTransfer::PhysicalRegionPageUsed;
+
+    static u16 s_next_command_identifier = 0x42;
+
+    u16 command_identifier = s_next_command_identifier++;
+
+    submission.identify_command.command_identifier = command_identifier;
+
+    submission.identify_command.namespace_identifier = namespace_identifier;
+    submission.identify_command.data_pointer.physical_region_page.entry_1 = dma_buffer.bus_address();
+    submission.identify_command.data_pointer.physical_region_page.entry_2 = 0;
+    submission.identify_command.controller_or_namespace_structure = cns;
+    submission.identify_command.controller_identifier = controller_identifier;
+    submission.identify_command.controller_or_namespace_specific_identifier = cns_specific_identifier;
+    submission.identify_command.command_set_identifier = csi.value_or(static_cast<CommandSetIdentifier>(0));
+    submission.identify_command.uuid_index = uuid_index;
+
+    TRY(m_admin_submission_queue->submit(submission));
+
+    store_memory_fence();
+
+    ring_submission_queue_tail_doorbell(0, m_admin_submission_queue->current_tail_index());
+
+    while (m_admin_completion_queue->is_empty())
+        Processor::pause();
+
+    load_memory_fence();
+
+    auto completion = TRY(m_admin_completion_queue->dequeue());
+
+    m_admin_submission_queue->update_head_index(completion.common.submission_queue_head_pointer);
+
+    ring_completion_queue_head_doorbell(0, m_admin_completion_queue->current_head_index());
+
+    if (completion.common.command_identifier != command_identifier) {
+        dbgln("NVMe: Incorrect command identifer received: {:#x}, expected: {:#x}", completion.common.command_identifier, command_identifier);
+        return EIO;
+    }
+
+    if (completion.common.status != 0) {
+        dbgln("NVMe: status: {:#x}", bit_cast<u32>(completion.common.status));
+        return EIO;
+    }
+
+    return {};
 }
 
 ErrorOr<void> PCIeController::initialize()
@@ -187,38 +240,13 @@ ErrorOr<void> PCIeController::initialize()
     while (get_property<ControllerStatus>().ready == 0)
         Processor::pause();
 
+    m_identify_dma_buffer = TRY(allocate_contiguous_dma_buffer("NVMe Identify Command Buffer"sv, Memory::Region::Access::Read, sizeof(IdentifyControllerDataStrucutre)));
+    dbgln("NVMe: Identify DMA Buffer @ {:#x}", m_identify_dma_buffer->bus_address());
+
     {
-        SubmissionQueueEntry submission {};
-        submission.identify_command.opcode = to_underlying(AdminOpcode::Identify);
-        submission.identify_command.fused_operation = CommandDword0::FusedOperation::NormalOperation;
-        submission.identify_command.prp_or_sgl_for_data_transfer = CommandDword0::PhysicalRegionPageOrScatterGatherListForDataTransfer::PhysicalRegionPageUsed;
-        submission.identify_command.command_identifier = 0;
+        TRY(admin_cmd_identify(*m_identify_dma_buffer, ControllerOrNamespaceStructure::IdentifyControllerDataStructure));
 
-        auto identify_dma_buffer = TRY(allocate_contiguous_dma_buffer("NVMe Identify Command Buffer"sv, Memory::Region::Access::Read, sizeof(IdentifyControllerDataStrucutre)));
-        dbgln("NVMe: Identify DMA Buffer @ {:#x}", identify_dma_buffer.bus_address());
-
-        submission.identify_command.data_pointer.physical_region_page.entry_1.physical_region_page_entry.page_base_address_and_offset = identify_dma_buffer.bus_address();
-        submission.identify_command.data_pointer.physical_region_page.entry_2.physical_region_page_entry.page_base_address_and_offset = 0;
-        submission.identify_command.controller_identifier = 0;
-        submission.identify_command.controller_or_namespace_structure = ControllerOrNamespaceStructure::IdentifyControllerDataStructure;
-        submission.identify_command.command_set_identifier = CommandSetIdentifier::NVMCommandSet;
-
-        // dbgln("{:hex-dump}", ReadonlyBytes { &submission, sizeof(submission) });
-
-        store_memory_fence();
-
-        TRY(m_admin_submission_queue->submit(submission));
-
-        ring_submission_queue_tail_doorbell(0, m_admin_submission_queue->current_tail_index());
-
-        while (m_admin_completion_queue->is_empty())
-            Processor::pause();
-
-        auto completion = TRY(m_admin_completion_queue->dequeue());
-        load_memory_fence(); // XXX <- wrong
-        dbgln("status: {:#x}", completion.common.status);
-
-        auto const* controller_data_structure = reinterpret_cast<IdentifyControllerDataStrucutre const*>(identify_dma_buffer.virtual_address().as_ptr());
+        auto const* controller_data_structure = reinterpret_cast<IdentifyControllerDataStrucutre const*>(m_identify_dma_buffer->virtual_address().as_ptr());
 
         auto nvme_ascii_string = []<size_t N>(char const(&nvme_string)[N]) {
             // "If padding is necessary, then the string shall be padded with spaces (i.e., ASCII character 20h)
@@ -232,8 +260,71 @@ ErrorOr<void> PCIeController::initialize()
             nvme_ascii_string(controller_data_structure->model_number),
             nvme_ascii_string(controller_data_structure->serial_number),
             nvme_ascii_string(controller_data_structure->firmware_revision));
+    }
 
-        ring_completion_queue_head_doorbell(0, m_admin_completion_queue->current_head_index());
+    Vector<u32, 4> namespace_ids;
+
+    {
+        // XXX: Not supported by old NVMe spec versions.
+        TRY(admin_cmd_identify(*m_identify_dma_buffer, ControllerOrNamespaceStructure::IOCommandSetSpecificActiveNamespaceIDList, 0, CommandSetIdentifier::NVMCommandSet));
+
+        auto const* namespace_id_list = reinterpret_cast<IOCommandSetSpecificActiveNamespaceIDList const*>(m_identify_dma_buffer->virtual_address().as_ptr());
+
+        for (u32 namespace_id : namespace_id_list->list.namespace_identifiers) {
+            if (namespace_id == 0)
+                break;
+
+            dbgln("NVMe: Found active namespace with ID: {}", namespace_id);
+            TRY(namespace_ids.try_append(namespace_id));
+        }
+    }
+
+    for (u32 namespace_id : namespace_ids) {
+        TRY(admin_cmd_identify(*m_identify_dma_buffer, ControllerOrNamespaceStructure::IdentifyNamespaceDataStructure, namespace_id, CommandSetIdentifier::NVMCommandSet));
+
+        auto const* namespace_data_structure = reinterpret_cast<NVMCommandSetIdentifyNamespaceDataStructure const*>(m_identify_dma_buffer->virtual_address().as_ptr());
+
+        auto namespace_size_in_logical_blocks = namespace_data_structure->namespace_size;
+
+        // "The total number of LBA formats supported is the sum of the values represented by the NLBAF field and
+        //  the NULBAF field. A Format Index is valid if the value is less than the sum of the values represented by the
+        //  NLBAF field and the NULBAF field."
+        // NLBAF is a 0's based value, so we need to add one here.
+        u16 total_number_of_supported_lba_formats = 1 + namespace_data_structure->number_of_lba_formats + namespace_data_structure->number_of_unique_attribute_lba_formats;
+
+        dbgln("NVMe: Total number of supported LBA formats: {}", total_number_of_supported_lba_formats);
+
+        u8 lba_format_index = 0;
+
+        // "Format Index Lower (FIDXL): This field indicates the least-significant 4
+        //  bits of the Format Index that was used to format the namespace."
+        lba_format_index |= namespace_data_structure->formatted_lba_size.format_index_lower;
+
+        // "Format Index Upper (FIDXU): This field indicates the most-significant 2
+        //  bits of the Format Index that was used to format the namespace. If the total
+        //  number of LBA formats supported (refer to section 5.5) is less than or equal
+        //  to 16, then the host should ignore this field."
+        if (total_number_of_supported_lba_formats > 16)
+            lba_format_index |= (namespace_data_structure->formatted_lba_size.format_index_upper) << 4;
+
+        if (lba_format_index >= total_number_of_supported_lba_formats) {
+            dmesgln("NVMe: Invalid LBA format index: {}", lba_format_index);
+            continue;
+        }
+
+        auto lba_format = namespace_data_structure->lba_format_support[lba_format_index];
+
+        // "LBA Data Size (LBADS): This field indicates the LBA data size supported. The value is reported in terms
+        //  of a power of two (2^n). A non-zero value less than 9 (i.e., 512 bytes) is not supported. If the value
+        //  reported is 0h, then the LBA format is not currently available (refer to section 5.5)."
+        if (lba_format.lba_data_size == 0) {
+            dmesgln("NVMe: Used LBA format ({}) is currently not available", lba_format_index);
+            continue;
+        }
+
+        auto lba_data_size = 1 << lba_format.lba_data_size;
+
+        dbgln("NVMe: LBA data size={}, namespace size in bytes={}", lba_data_size, namespace_size_in_logical_blocks * lba_data_size);
     }
 
     return {};

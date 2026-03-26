@@ -70,6 +70,8 @@ private:
     void ring_submission_queue_tail_doorbell(size_t queue_identifier, u32 new_tail_value);
     void ring_completion_queue_head_doorbell(size_t queue_identifier, u32 new_head_value);
 
+    ErrorOr<void> admin_cmd_identify(Memory::ContiguousDMABuffer&, ControllerOrNamespaceStructure, u32 namespace_identifier = 0, Optional<CommandSetIdentifier> = {}, u16 cns_specific_identifier = 0, u16 controller_identifier = 0, u8 uuid_index = 0);
+
     ErrorOr<void> initialize();
 
     // XXX: Make TypedMapping requires volatile || const
@@ -79,6 +81,8 @@ private:
 
     OwnPtr<SubmissionQueue> m_admin_submission_queue;
     OwnPtr<CompletionQueue> m_admin_completion_queue;
+
+    Optional<Memory::ContiguousDMABuffer> m_identify_dma_buffer;
 
     size_t m_doorbell_stride { 0 };
 };

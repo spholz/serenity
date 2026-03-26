@@ -29,6 +29,7 @@ enum class ControllerOrNamespaceStructure : u32 {
     IdentifyNamespaceDataStructure = 0x00,
     IdentifyControllerDataStructure = 0x01,
     ActiveNamespaceIDList = 0x02,
+    IOCommandSetSpecificActiveNamespaceIDList = 0x07,
 };
 
 // Figure 327: Command Set Identifiers
@@ -76,6 +77,12 @@ struct ActiveNamespaceIDList {
     NamespaceList<1024> list;
 };
 static_assert(AssertSize<ActiveNamespaceIDList, 4096>());
+
+// 5.2.13.2.7 Active Namespace ID list (CNS 02h)
+struct IOCommandSetSpecificActiveNamespaceIDList {
+    NamespaceList<1024> list;
+};
+static_assert(AssertSize<IOCommandSetSpecificActiveNamespaceIDList, 4096>());
 
 struct IdentifyCommand : CommandDword0 {
     u32 namespace_identifier; // NSID
