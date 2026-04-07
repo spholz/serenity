@@ -19,7 +19,6 @@ RemoveSemicolon: true
 RequiresClausePosition: WithFollowing
 RequiresExpressionIndentation: OuterScope
 SpaceAfterTemplateKeyword: false
-SpaceInEmptyBraces: Block
 
 ---
 Language: ObjC

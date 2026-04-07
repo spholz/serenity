@@ -90,14 +90,14 @@ void PCIeController::ring_completion_queue_head_doorbell(size_t queue_identifier
 
 ErrorOr<void> PCIeController::admin_cmd_identify(Memory::ContiguousDMABuffer& dma_buffer, ControllerOrNamespaceStructure cns, u32 namespace_identifier, Optional<CommandSetIdentifier> csi, u16 cns_specific_identifier, u16 controller_identifier, u8 uuid_index)
 {
+    static u16 s_next_command_identifier = 0x42;
+
+    u16 command_identifier = s_next_command_identifier++;
+
     SubmissionQueueEntry submission {};
     submission.identify_command.opcode = to_underlying(AdminOpcode::Identify);
     submission.identify_command.fused_operation = CommandDword0::FusedOperation::NormalOperation;
     submission.identify_command.prp_or_sgl_for_data_transfer = CommandDword0::PhysicalRegionPageOrScatterGatherListForDataTransfer::PhysicalRegionPageUsed;
-
-    static u16 s_next_command_identifier = 0x42;
-
-    u16 command_identifier = s_next_command_identifier++;
 
     submission.identify_command.command_identifier = command_identifier;
 
@@ -109,6 +109,9 @@ ErrorOr<void> PCIeController::admin_cmd_identify(Memory::ContiguousDMABuffer& dm
     submission.identify_command.controller_or_namespace_specific_identifier = cns_specific_identifier;
     submission.identify_command.command_set_identifier = csi.value_or(static_cast<CommandSetIdentifier>(0));
     submission.identify_command.uuid_index = uuid_index;
+
+    while (m_admin_submission_queue->is_full())
+        Processor::pause();
 
     TRY(m_admin_submission_queue->submit(submission));
 
@@ -122,6 +125,8 @@ ErrorOr<void> PCIeController::admin_cmd_identify(Memory::ContiguousDMABuffer& dm
     load_memory_fence();
 
     auto completion = TRY(m_admin_completion_queue->dequeue());
+
+    dbgln("NVMe: Completion: SQHD={:#x}, SQID={:#x}, CID={:#x}, STATUS={:#x}", completion.common.submission_queue_head_pointer, completion.common.submission_queue_identifier, completion.common.command_identifier, completion.common.status);
 
     m_admin_submission_queue->update_head_index(completion.common.submission_queue_head_pointer);
 
@@ -209,12 +214,12 @@ ErrorOr<void> PCIeController::initialize()
     }
 
     auto admin_submission_queue_dma_buffer = TRY(allocate_contiguous_dma_buffer("NVMe Admin Submission Queue"sv, Memory::Region::Access::Write, PAGE_SIZE));
-    m_admin_submission_queue = TRY(try_make<SubmissionQueue>(move(admin_submission_queue_dma_buffer), 2, 64));
+    m_admin_submission_queue = TRY(try_make<SubmissionQueue>(move(admin_submission_queue_dma_buffer), 3, 64));
 
     dbgln("NVMe: Admin Submission Queue @ {:#x}", m_admin_submission_queue->dma_base_address());
 
     auto admin_completion_queue_dma_buffer = TRY(allocate_contiguous_dma_buffer("NVMe Admin Completion Queue"sv, Memory::Region::Access::Read, PAGE_SIZE));
-    m_admin_completion_queue = TRY(try_make<CompletionQueue>(move(admin_completion_queue_dma_buffer), 2, 16));
+    m_admin_completion_queue = TRY(try_make<CompletionQueue>(move(admin_completion_queue_dma_buffer), 3, 16));
 
     dbgln("NVMe: Admin Completion Queue @ {:#x}", m_admin_completion_queue->dma_base_address());
 
@@ -266,7 +271,7 @@ ErrorOr<void> PCIeController::initialize()
 
     {
         // XXX: Not supported by old NVMe spec versions.
-        TRY(admin_cmd_identify(*m_identify_dma_buffer, ControllerOrNamespaceStructure::IOCommandSetSpecificActiveNamespaceIDList, 0, CommandSetIdentifier::NVMCommandSet));
+        TRY(admin_cmd_identify(*m_identify_dma_buffer, ControllerOrNamespaceStructure::ActiveNamespaceIDList, 0, CommandSetIdentifier::NVMCommandSet));
 
         auto const* namespace_id_list = reinterpret_cast<IOCommandSetSpecificActiveNamespaceIDList const*>(m_identify_dma_buffer->virtual_address().as_ptr());
 
@@ -319,6 +324,11 @@ ErrorOr<void> PCIeController::initialize()
         //  reported is 0h, then the LBA format is not currently available (refer to section 5.5)."
         if (lba_format.lba_data_size == 0) {
             dmesgln("NVMe: Used LBA format ({}) is currently not available", lba_format_index);
+            continue;
+        }
+
+        if (lba_format.lba_data_size < 9) {
+            dmesgln("NVMe: Used LBA format ({}) has invalid LBADS value: {}", lba_format_index, lba_format.lba_data_size);
             continue;
         }
 
