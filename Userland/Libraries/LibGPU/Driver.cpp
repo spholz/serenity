@@ -39,8 +39,10 @@ ErrorOr<NonnullRefPtr<Driver>> Driver::try_create(StringView driver_name)
         return Error::from_string_literal("The requested GPU driver was not found in the list of allowed driver libraries");
 
     auto lib = dlopen(it->value, RTLD_NOW);
-    if (!lib)
+    if (!lib) {
+        warnln("dlopen: {}", dlerror());
         return Error::from_string_literal("The library for the requested GPU driver could not be opened");
+    }
 
     auto serenity_gpu_create_device = reinterpret_cast<serenity_gpu_create_device_t>(dlsym(lib, "serenity_gpu_create_device"));
     if (!serenity_gpu_create_device) {
