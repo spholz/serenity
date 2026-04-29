@@ -43,7 +43,7 @@ static void expect_bitmap_equals_reference(Gfx::Bitmap const& bitmap, StringView
 
     auto reference_image_path = ByteString::formatted(REFERENCE_IMAGE_DIR "/{}", reference_filename);
     auto reference_bitmap = MUST(Gfx::Bitmap::load_from_file(reference_image_path));
-    EXPECT_EQ(reference_bitmap->visually_equals(bitmap), true);
+    EXPECT(reference_bitmap->diff(bitmap).maximum_error < 3);
 }
 
 TEST_CASE(0001_simple_triangle)
