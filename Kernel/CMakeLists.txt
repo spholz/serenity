@@ -492,6 +492,8 @@ elseif("${SERENITY_ARCH}" STREQUAL "aarch64")
         Arch/aarch64/RPi/RP1/xHCI.cpp
         Arch/aarch64/RPi/SDHostController.cpp
         Arch/aarch64/RPi/Timer.cpp
+        Arch/aarch64/RPi/V3D/V3D.cpp
+        Arch/aarch64/RPi/V3D/GPU3DDevice.cpp
         Arch/aarch64/RPi/Watchdog.cpp
     )
     set(SOURCES_RUNNING_WITHOUT_MMU
