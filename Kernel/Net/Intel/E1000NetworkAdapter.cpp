@@ -35,7 +35,8 @@ namespace Kernel {
 #define REG_TXDESCHEAD 0x3810
 #define REG_TXDESCTAIL 0x3818
 #define REG_RDTR 0x2820             // RX Delay Timer Register
-#define REG_RXDCTL 0x3828           // RX Descriptor Control
+#define REG_RXDCTL 0x2828           // RX Descriptor Control
+#define REG_TXDCTL 0x3828           // TX Descriptor Control
 #define REG_RADV 0x282C             // RX Int. Absolute Delay Timer
 #define REG_RSRPD 0x2C00            // RX Small Packet Detect Interrupt
 #define REG_TIPG 0x0410             // Transmit Inter Packet Gap
@@ -340,9 +341,13 @@ UNMAP_AFTER_INIT void E1000NetworkAdapter::initialize_rx_descriptors()
     out32(REG_RXDESCHI, 0);
     out32(REG_RXDESCLEN, number_of_rx_descriptors * sizeof(RxDescriptor));
     out32(REG_RXDESCHEAD, 0);
+
+    auto rxdctl = in32(REG_RXDCTL);
+    out32(REG_RXDCTL, rxdctl | (1u << 25)); // ENABLE
+
     out32(REG_RXDESCTAIL, number_of_rx_descriptors - 1);
 
-    out32(REG_RCTRL, RCTL_EN | RCTL_SBP | RCTL_UPE | RCTL_MPE | RCTL_LBM_NONE | RTCL_RDMTS_HALF | RCTL_BAM | RCTL_SECRC | RCTL_BSIZE_8192);
+    out32(REG_RCTRL, RCTL_EN | RCTL_SBP | RCTL_UPE | RCTL_MPE | RCTL_LBM_NONE | RTCL_RDMTS_HALF | RCTL_BAM | RCTL_SECRC | RCTL_BSIZE_2048);
 }
 
 UNMAP_AFTER_INIT void E1000NetworkAdapter::initialize_tx_descriptors()
@@ -362,6 +367,9 @@ UNMAP_AFTER_INIT void E1000NetworkAdapter::initialize_tx_descriptors()
     out32(REG_TXDESCLEN, number_of_tx_descriptors * sizeof(TxDescriptor));
     out32(REG_TXDESCHEAD, 0);
     out32(REG_TXDESCTAIL, 0);
+
+    auto txdctl = in32(REG_TXDCTL);
+    out32(REG_TXDCTL, txdctl | (1u << 25)); // ENABLE
 
     out32(REG_TCTRL, in32(REG_TCTRL) | TCTL_EN | TCTL_PSP);
     out32(REG_TIPG, 0x0060200A);

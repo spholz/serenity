@@ -264,11 +264,6 @@ UNMAP_AFTER_INIT ErrorOr<void> E1000ENetworkAdapter::initialize(Badge<Networking
     dmesgln("E1000e: MAC address: {}", mac.to_string());
 
     if (true) {
-        u8 phy_addr = 1;
-        for (u8 reg_addr = 0; reg_addr < 32; reg_addr++) {
-            dbgln("PHY {:#x} MII reg {:#x}: {:#x}", phy_addr, reg_addr, read_phy_reg(phy_addr, reg_addr));
-        }
-
         auto [mii_process, _] = TRY(Process::create_kernel_process("MII"sv, [this]() {
             enum class State {
                 ResetStarted,
@@ -284,7 +279,6 @@ UNMAP_AFTER_INIT ErrorOr<void> E1000ENetworkAdapter::initialize(Badge<Networking
             State state = State::ResetStarted;
 
             while (!Process::current().is_dying()) {
-                dbgln("state: {}", to_underlying(state));
                 switch (state) {
                 case State::ResetStarted: {
                     u16 status_register = read_phy_reg(1, 1);
