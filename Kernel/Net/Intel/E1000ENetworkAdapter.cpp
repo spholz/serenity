@@ -10,6 +10,7 @@
 #include <Kernel/Net/Intel/E1000ENetworkAdapter.h>
 #include <Kernel/Net/NetworkingManagement.h>
 #include <Kernel/Sections.h>
+#include <Kernel/Tasks/Process.h>
 
 namespace Kernel {
 
@@ -20,11 +21,32 @@ namespace Kernel {
 
 #define EECD_PRES 0x100
 
+#define REG_MDIC 0x20
+#define REG_MDICNFG 0xe04
+
+#define REG_MDIC_DATA_MASK (0xffff << 0)
+#define REG_MDIC_DATA_OFFSET 0
+#define REG_MDIC_REGADD_OFFSET 16
+#define REG_MDIC_R (1 << 28)
+#define REG_MDIC_OP_WRITE (0b01 << 26)
+#define REG_MDIC_OP_READ (0b10 << 26)
+
+#define REG_CTRL 0x0000
+#define REG_CTRL_SLU (1 << 6)
+
+// Reserved on I211
+#define REG_MDIC_PHYADD_OFFSET 21
+
+#define REG_RAL0 0x5400
+#define REG_RAH0 0x5404
+
 static bool is_valid_device_id(u16 device_id)
 {
     // Note: All ids listed here are valid, but only the ones that are verified working are set to 'true'
     switch (device_id) {
     case 0x10D3: // 82574L
+    case 0x10C9: // 82576
+    case 0x1539: // I211_COPPER
         return true;
     case 0x1000: // 82542
     case 0x0438: // DH89XXCC_SGMII
@@ -97,7 +119,6 @@ static bool is_valid_device_id(u16 device_id)
     case 0x10C3: // ICH9_IFE_GT
     case 0x10C4: // ICH8_IFE_GT
     case 0x10C5: // ICH8_IFE_G
-    case 0x10C9: // 82576
     case 0x10CA: // 82576_VF
     case 0x10CB: // ICH9_IGP_M_V
     case 0x10CC: // ICH10_R_BM_LM
@@ -147,7 +168,6 @@ static bool is_valid_device_id(u16 device_id)
     case 0x1536: // I210_FIBER
     case 0x1537: // I210_SERDES
     case 0x1538: // I210_SGMII
-    case 0x1539: // I211_COPPER
     case 0x153A: // PCH_LPT_I217_LM
     case 0x153B: // PCH_LPT_I217_V
     case 0x1546: // I350_DA4
@@ -222,9 +242,111 @@ UNMAP_AFTER_INIT ErrorOr<void> E1000ENetworkAdapter::initialize(Badge<Networking
     dmesgln("E1000e: Interrupt line: {}", interrupt_number());
     detect_eeprom();
     dmesgln("E1000e: Has EEPROM? {}", m_has_eeprom.was_set());
-    read_mac_address();
+
+    bool is_i211 = device_identifier().hardware_id().device_id == 0x1539;
+
+    if (is_i211) {
+        auto ral0 = in32(REG_RAL0);
+        auto rah0 = in32(REG_RAH0);
+        MACAddress mac(
+            (ral0 >> 0) & 0xff,
+            (ral0 >> 8) & 0xff,
+            (ral0 >> 16) & 0xff,
+            (ral0 >> 24) & 0xff,
+            (rah0 >> 0) & 0xff,
+            (rah0 >> 8) & 0xff);
+        set_mac_address(mac);
+    } else {
+        read_mac_address();
+    }
+
     auto const& mac = mac_address();
     dmesgln("E1000e: MAC address: {}", mac.to_string());
+
+    if (true) {
+        u8 phy_addr = 1;
+        for (u8 reg_addr = 0; reg_addr < 32; reg_addr++) {
+            dbgln("PHY {:#x} MII reg {:#x}: {:#x}", phy_addr, reg_addr, read_phy_reg(phy_addr, reg_addr));
+        }
+
+        auto [mii_process, _] = TRY(Process::create_kernel_process("MII"sv, [this]() {
+            enum class State {
+                ResetStarted,
+                LinkDown,
+                AutoNegotiationStarted,
+                AutoNegotiationComplete,
+                LinkUp,
+            };
+
+            // reset
+            write_phy_reg(1, 0, 1 << 15);
+
+            State state = State::ResetStarted;
+
+            while (!Process::current().is_dying()) {
+                dbgln("state: {}", to_underlying(state));
+                switch (state) {
+                case State::ResetStarted: {
+                    u16 status_register = read_phy_reg(1, 1);
+                    u16 reset = 1 << 15;
+                    if ((status_register & reset) == 0) {
+                        state = State::LinkDown;
+                        continue;
+                    }
+                    break;
+                }
+                case State::LinkDown: {
+                    // advertise 10h, 10f, 100h, 100f, csma
+                    write_phy_reg(1, 4, 0x01e1);
+
+                    u16 control_register = read_phy_reg(1, 0);
+
+                    control_register |= 1 << 12; // Auto-negotiation enabled
+                    control_register |= 1 << 9;  // Restart auto-negotiation
+                    write_phy_reg(1, 0, control_register);
+
+                    state = State::AutoNegotiationStarted;
+                    continue;
+                }
+                case State::AutoNegotiationStarted: {
+                    u16 status_register = read_phy_reg(1, 1);
+                    u16 auto_negotiation_complete = 1 << 5;
+                    if ((status_register & auto_negotiation_complete) != 0) {
+                        state = State::AutoNegotiationComplete;
+                        continue;
+                    }
+                    break;
+                }
+                case State::AutoNegotiationComplete: {
+                    u16 status_register = read_phy_reg(1, 1);
+                    u16 link_up = 1 << 2;
+                    if ((status_register & link_up) != 0) {
+                        state = State::LinkUp;
+
+                        auto ctrl = in32(REG_CTRL);
+                        ctrl |= REG_CTRL_SLU;
+                        out32(REG_CTRL, ctrl);
+
+                        continue;
+                    }
+                    break;
+                }
+                case State::LinkUp:
+                    u16 status_register = read_phy_reg(1, 1);
+                    u16 link_up = 1 << 2;
+                    if ((status_register & link_up) == 0) {
+                        state = State::LinkDown;
+                        continue;
+                    }
+                    break;
+                }
+
+                (void)Thread::current()->sleep(Duration::from_milliseconds(500));
+            }
+            Thread::current()->exit();
+            VERIFY_NOT_REACHED();
+        }));
+    }
 
     initialize_rx_descriptors();
     initialize_tx_descriptors();
@@ -267,6 +389,33 @@ UNMAP_AFTER_INIT u32 E1000ENetworkAdapter::read_eeprom(u8 address)
         Processor::wait_check();
     data = (tmp >> 16) & 0xffff;
     return data;
+}
+
+u16 E1000ENetworkAdapter::read_phy_reg(u8 phy_id, u8 address)
+{
+    (void)phy_id;
+
+    out32(REG_MDIC, REG_MDIC_OP_READ | (address << REG_MDIC_REGADD_OFFSET) | (phy_id << REG_MDIC_PHYADD_OFFSET));
+
+    for (;;) {
+        u32 mdic = in32(REG_MDIC);
+        if ((mdic & REG_MDIC_R) == 0) {
+            Processor::wait_check();
+            continue;
+        }
+
+        return (mdic & REG_MDIC_DATA_MASK) >> REG_MDIC_DATA_OFFSET;
+    }
+}
+
+void E1000ENetworkAdapter::write_phy_reg(u8 phy_id, u8 address, u16 value)
+{
+    (void)phy_id;
+
+    out32(REG_MDIC, REG_MDIC_OP_WRITE | (address << REG_MDIC_REGADD_OFFSET) | (value << REG_MDIC_DATA_OFFSET) | (phy_id << REG_MDIC_PHYADD_OFFSET));
+
+    while ((in32(REG_MDIC) & REG_MDIC_R) == 0)
+        Processor::wait_check();
 }
 
 }

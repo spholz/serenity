@@ -38,5 +38,8 @@ private:
 
     virtual void detect_eeprom() override;
     virtual u32 read_eeprom(u8 address) override;
+
+    u16 read_phy_reg(u8 phy_id, u8 address);
+    void write_phy_reg(u8 phy_id, u8 address, u16 value);
 };
 }
