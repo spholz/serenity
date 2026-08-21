@@ -7,10 +7,14 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/Format.h>
 #include <AK/Span.h>
+#include <AK/StringBuilder.h>
 #include <AK/Types.h>
 
 #include "Buffer.h"
+
+// XXX: Put in namespace, same for BufferObject, and everything else
 
 class ControlList {
 public:
@@ -62,4 +66,13 @@ private:
     BufferObject m_bo;
     Span<u8> m_buffer;
     size_t m_offset = 0;
+};
+
+template<>
+struct AK::Formatter<ControlList> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, ControlList const& control_list)
+    {
+        builder.builder().appendff("ControlList {{ buffer_object = {} }}", control_list.buffer_object());
+        return {};
+    }
 };

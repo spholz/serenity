@@ -18,23 +18,35 @@ namespace Kernel::RPi::V3D {
 
 struct HubRegisters;
 struct CoreRegisters;
-struct GPU3DDevice;
+class GPU3DDevice;
+
+struct PageTable {
+    NonnullOwnPtr<Memory::Region> region;
+};
 
 class V3D final : public AtomicRefCounted<V3D> {
 public:
     static ErrorOr<NonnullRefPtr<V3D>> create(DeviceTree::Device::Resource hub_registers_resource, DeviceTree::Device::Resource core_0_registers_resource, InterruptNumber hub_interrupt_number, Optional<InterruptNumber> core_interrupt_number);
+    ErrorOr<PageTable> allocate_page_table();
+    // void free_page_table(PageTable&&);
+
+    // FIXME: GPUVirtualAddress type?
+    void insert_page_table_entries_for_buffer(PageTable&, u32 gpu_vaddr, Memory::VMObject const&);
+    void remove_page_table_entries_for_buffer(PageTable&, u32 gpu_vaddr, Memory::VMObject const&);
 
     struct AddressRange {
         Memory::VMObject& vmobject;
-        FlatPtr start;
-        size_t size;
+        FlatPtr gpu_vaddr;
     };
-    ErrorOr<void> submit_job(V3DJob const&, Span<AddressRange const> addresses_to_map);
+    ErrorOr<void> submit_job(PageTable const&, V3DJob const&);
 
 private:
     V3D(Memory::TypedMapping<HubRegisters volatile>, Memory::TypedMapping<CoreRegisters volatile>, InterruptNumber hub_interrupt_number, Optional<InterruptNumber> core_interrupt_number);
 
     ErrorOr<void> initialize();
+
+    void flush_mmuc_and_tlb();
+    void activate_page_table(PageTable const&);
 
     bool handle_interrupt();
 
@@ -43,7 +55,6 @@ private:
 
     RefPtr<GPU3DDevice> m_3d_device;
 
-    NonnullOwnPtr<Memory::Region> m_page_table;
     NonnullRefPtr<Memory::PhysicalRAMPage> m_illegal_vaddr_target_page;
 
     class InterruptHandler : public IRQHandler {
@@ -66,6 +77,8 @@ private:
 
     InterruptHandler m_hub_interrupt_handler;
     Optional<InterruptHandler> m_core_interrupt_handler;
+
+    SpinlockProtected<bool, LockRank::None> m_mmu_faulted { false };
 
     SpinlockProtected<bool, LockRank::None> m_current_binning_job_finished { false };
     WaitQueue m_current_binning_job_finished_wait_queue;

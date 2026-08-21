@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/Noncopyable.h>
+#include <AK/StringBuilder.h>
 #include <AK/Types.h>
 #include <sys/types.h>
 
@@ -70,4 +72,14 @@ private:
     off_t m_mmap_offset { 0 };
 
     void* m_mmap_address { nullptr };
+};
+
+template<>
+struct AK::Formatter<BufferObject> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, BufferObject const& buffer_object)
+    {
+        builder.builder().appendff("BufferObject {{ handle = {}, size = {:#x}, address = {:#08x} }}",
+            buffer_object.handle(), buffer_object.size(), buffer_object.address());
+        return {};
+    }
 };

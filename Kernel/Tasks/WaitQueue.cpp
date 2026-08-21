@@ -5,6 +5,7 @@
  */
 
 #include <AK/Badge.h>
+#include <Kernel/KSyms.h>
 #include <Kernel/Library/Panic.h>
 #include <Kernel/Tasks/Scheduler.h>
 #include <Kernel/Tasks/WaitQueue.h>
@@ -41,7 +42,12 @@ void WaitQueue::Waiter::notify(Badge<WaitQueue>)
 
     // The thread might already be runnable if it has already
     // been notified, but has not yet been scheduled again.
-    if (thread.state() == Thread::State::Runnable)
+    if (thread.state() == Thread::State::Running) {
+        dbgln("XXX: Running!");
+        dump_backtrace();
+    }
+
+    if (thread.state() == Thread::State::Runnable || thread.state() == Thread::State::Running)
         return;
 
     VERIFY(thread.state() == Thread::State::Blocked);

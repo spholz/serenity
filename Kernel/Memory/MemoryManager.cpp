@@ -1458,7 +1458,7 @@ ErrorOr<Vector<NonnullRefPtr<PhysicalRAMPage>>> MemoryManager::allocate_contiguo
     VERIFY(!(size % PAGE_SIZE));
     size_t page_count = ceil_div(size, static_cast<size_t>(PAGE_SIZE));
 
-    auto physical_pages = TRY(m_global_data.with([&](auto& global_data) -> ErrorOr<Vector<NonnullRefPtr<PhysicalRAMPage>>> {
+    auto physical_pages_or_error = m_global_data.with([&](auto& global_data) -> ErrorOr<Vector<NonnullRefPtr<PhysicalRAMPage>>> {
         // We need to make sure we don't touch pages that we have committed to
         if (global_data.system_memory_info.physical_pages_uncommitted < page_count)
             return ENOMEM;
@@ -1473,7 +1473,14 @@ ErrorOr<Vector<NonnullRefPtr<PhysicalRAMPage>>> MemoryManager::allocate_contiguo
         }
         dmesgln("MM: no contiguous physical pages available");
         return ENOMEM;
-    }));
+    });
+
+    if (physical_pages_or_error.is_error()) {
+        Process::current().address_space().with([](auto& space) { space->dump_regions(); });
+        return physical_pages_or_error.release_error();
+    }
+
+    auto physical_pages = physical_pages_or_error.release_value();
 
     {
         // The memory_type_for_zero_fill argument ensures that the cleanup region is mapped using the same memory type as the subsequent actual mapping, preventing aliasing of physical memory with mismatched memory types.

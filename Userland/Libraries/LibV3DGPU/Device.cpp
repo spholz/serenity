@@ -750,7 +750,31 @@ void Device::blit_from_color_buffer(Gfx::Bitmap& front_buffer)
         .rendering_control_list_size = static_cast<u32>(m_render_control_list.control_list.data().size()),
     };
 
-    MUST(Core::System::ioctl(g_v3d_fd, V3D_SUBMIT_JOB, &kernel_job));
+    auto submit_job_result = Core::System::ioctl(g_v3d_fd, V3D_SUBMIT_JOB, &kernel_job);
+    if (submit_job_result.is_error()) {
+        dbgln("LibV3DGPU: Job submission failed: {}", submit_job_result.error());
+
+        dbgln("Framebuffer: {}", m_framebuffer);
+
+        dbgln("Tile state data array: {}", m_tile_state_data_array_bo);
+        dbgln("Tile alloc memory: {}", m_tile_alloc_memory_bo);
+
+        dbgln("Shader state records:");
+        for (auto const& shader_state_record : m_shader_state_records) {
+            dbgln("  - Control list: {}", shader_state_record.control_list);
+            dbgln("    Uniforms list: {}", shader_state_record.uniforms_list);
+            dbgln("    Vertex data buffer: {}", shader_state_record.vertex_data_buffer);
+            dbgln("    Shaders buffer: {}", shader_state_record.shaders_buffer);
+        }
+
+        dbgln("Binner control list: {}", m_binner_control_list);
+
+        dbgln("Render control list:");
+        dbgln("  Control list: {}", m_render_control_list.control_list);
+        dbgln("  Tile list: {}", m_render_control_list.tile_list);
+
+        TODO(); // FIXME: Propagate errors.
+    }
 
     VERIFY(front_buffer.pitch() == m_framebuffer_size.width() * sizeof(u32)); // XXX: Add support for other pitches
     VERIFY(front_buffer.data_size() == m_framebuffer_size.area() * sizeof(u32));

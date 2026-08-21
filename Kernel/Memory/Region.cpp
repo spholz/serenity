@@ -59,6 +59,9 @@ Region::Region(VirtualRange const& range, NonnullLockRefPtr<VMObject> vmobject, 
 
 Region::~Region()
 {
+    if (!m_vmobject)
+        return;
+
     if (is_writable() && vmobject().is_shared_inode())
         (void)static_cast<SharedInodeVMObject&>(vmobject()).sync_before_destroying();
 

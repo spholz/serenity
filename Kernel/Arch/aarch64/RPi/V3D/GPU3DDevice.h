@@ -6,12 +6,14 @@
 
 #pragma once
 
+#include <Kernel/API/V3D.h>
+#include <Kernel/Arch/aarch64/RPi/V3D/V3D.h>
 #include <Kernel/Devices/CharacterDevice.h>
 #include <Kernel/Memory/AnonymousVMObject.h>
+#include <Kernel/Memory/RegionTree.h>
 
 namespace Kernel::RPi::V3D {
 
-class V3D;
 class GPU3DDevice final : public CharacterDevice {
     friend class Device;
 
@@ -22,6 +24,7 @@ public:
     virtual bool can_write(OpenFileDescription const&, u64) const override { return false; }
 
     virtual ErrorOr<void> attach(OpenFileDescription&) override;
+    virtual void detach(OpenFileDescription&) override;
 
     virtual ErrorOr<size_t> read(OpenFileDescription&, u64, UserOrKernelBuffer&, size_t) override { return ENOTSUP; }
     virtual ErrorOr<size_t> write(OpenFileDescription&, u64, UserOrKernelBuffer const&, size_t) override { return ENOTSUP; }
@@ -33,36 +36,48 @@ public:
 private:
     GPU3DDevice(V3D&);
 
-    struct PerContextState : public AtomicRefCounted<PerContextState> {
-        friend class GPU3DDevice;
-
-        PerContextState(OpenFileDescription& file_description)
-            : attached_file_description(file_description)
+    struct Context : public AtomicRefCounted<Context> {
+        // XXX: Remove constructor. this is a struct!
+        Context(OpenFileDescription& file_description, PageTable page_table)
+            : page_table(move(page_table))
+            , region_tree(Memory::VirtualRange { VirtualAddress { 0x1000 }, 4 * GiB })
+            , associated_description(file_description)
         {
         }
 
         struct Buffer {
             NonnullLockRefPtr<Memory::AnonymousVMObject> vmobject;
             u64 mmap_offset;
+            u32 gpu_vaddr;
             u32 id;
+            NonnullOwnPtr<Memory::Region> region;
         };
 
         Vector<Buffer> buffers;
 
         off_t next_buffer_mmap_offset { 0 };
-        u32 next_id { 0 };
+        u32 next_buffer_id { 0 };
 
-        // NOTE: We clean this whole object when the file description is closed, therefore we need to hold
-        // a raw reference here instead of a strong reference pointer (e.g. RefPtr, which will make it
-        // possible to leak the attached OpenFileDescription for a context in this device).
-        OpenFileDescription& attached_file_description;
+        PageTable page_table;
 
-        IntrusiveListNode<PerContextState, NonnullRefPtr<PerContextState>> list_node;
+        Memory::RegionTree region_tree;
+
+        // PerContextState is destroyed once OpenFileDescription's destructor calls File::detach() on GPU3DDevice,
+        // so this struct will never outlive the lifetime of this associated OpenFileDescription.
+        // It's therefore safe and necessary to use a raw reference here.
+        // Otherwise we would leak a reference on the description here, causing OpenFileDescription's
+        // destructor to never be called.
+        OpenFileDescription& associated_description;
+
+        IntrusiveListNode<Context, NonnullRefPtr<Context>> list_node;
     };
 
-    using ContextList = IntrusiveListRelaxedConst<&PerContextState::list_node>;
+    ErrorOr<void> allocate_buffer(Context&, V3DBuffer&);
+    ErrorOr<void> free_buffer(Context&, u32 id);
 
-    SpinlockProtected<ContextList, LockRank::None> m_context_state_list;
+    using ContextList = IntrusiveList<&Context::list_node>;
+
+    SpinlockProtected<ContextList, LockRank::None> m_context_list;
     NonnullRefPtr<V3D> m_v3d;
 };
 
