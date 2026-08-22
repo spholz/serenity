@@ -16,7 +16,7 @@ ErrorOr<NonnullRefPtr<GPU3DDevice>> GPU3DDevice::create(V3D& v3d)
 
 ErrorOr<void> GPU3DDevice::attach(OpenFileDescription& description)
 {
-    auto page_table = TRY(m_v3d->allocate_page_table());
+    auto page_table = TRY(PageTable::create());
     auto context = make_ref_counted<Context>(description, move(page_table));
 
     m_context_list.with([&context](auto& context_list) {
@@ -31,17 +31,15 @@ void GPU3DDevice::detach(OpenFileDescription& description)
     m_context_list.with([&description, this](auto& list) {
         for (auto& context : list) {
             if (&context.associated_description == &description) {
-                // m_v3d->free_page_table(context.page_table);
-
                 // XXX: Or should we put this in the PerContextState destructor?
                 //      And make it a class then?
 
-                Vector<u32> buffer_ids;
+                Vector<u32> buffer_gpu_vaddrs;
                 for (auto const& buffer : context.buffers)
-                    buffer_ids.try_append(buffer.id).release_value_but_fixme_should_propagate_errors();
+                    buffer_gpu_vaddrs.try_append(buffer.gpu_vaddr).release_value_but_fixme_should_propagate_errors();
 
-                for (u32 buffer_id : buffer_ids)
-                    MUST(free_buffer(context, buffer_id)); // MUST() because the id should always be valid.
+                for (u32 buffer_gpu_vaddr : buffer_gpu_vaddrs)
+                    MUST(free_buffer(context, buffer_gpu_vaddr)); // MUST() because the id should always be valid.
 
                 context.list_node.remove();
                 return;
@@ -80,8 +78,8 @@ ErrorOr<void> GPU3DDevice::ioctl(OpenFileDescription& description, unsigned requ
     }
 
     case V3D_FREE_BUFFER: {
-        u32 id = static_cast<u32>(arg.ptr());
-        return with_context_for_description(description, [id, this](Context& context) { return free_buffer(context, id); });
+        auto buffer_gpu_vaddr = arg.ptr();
+        return with_context_for_description(description, [buffer_gpu_vaddr, this](Context& context) { return free_buffer(context, buffer_gpu_vaddr); });
     }
 
     case V3D_SUBMIT_JOB: {
@@ -146,7 +144,7 @@ ErrorOr<File::VMObjectAndMemoryType> GPU3DDevice::vmobject_and_memory_type_for_m
 
     TRY(with_context_for_description(description, [offset, &vmobject](Context& context) -> ErrorOr<void> {
         for (auto const& buffer : context.buffers) {
-            if (buffer.mmap_offset == offset) {
+            if (buffer.gpu_vaddr == offset) {
                 vmobject = buffer.vmobject;
                 return {};
             }
@@ -184,43 +182,36 @@ ErrorOr<void> GPU3DDevice::allocate_buffer(Context& context, V3DBuffer& buffer_c
 
     auto gpu_vaddr = region->vaddr();
 
-    buffer_create_info.id = context.next_buffer_id;
-    buffer_create_info.mmap_offset = context.next_buffer_mmap_offset;
-    buffer_create_info.address = gpu_vaddr.get();
+    buffer_create_info.gpu_virtual_address = gpu_vaddr.get();
     // buffer_create_info.address = vmobject->physical_pages()[0]->paddr().get(); // XXX: Add IOMMU support
 
     // FIXME: This requires special handling if V3D page size != PAGE_SIZE.
 
     // dbgln("V3D: create buffer: id={}, mmap_offset={:#x}, address={:#x}, size={:#x}", buffer_create_info.id, buffer_create_info.mmap_offset, buffer_create_info.address, buffer_create_info.size);
 
-    m_v3d->insert_page_table_entries_for_buffer(context.page_table, gpu_vaddr.get(), vmobject);
+    m_v3d->map_buffer(context.page_table, gpu_vaddr.get(), vmobject);
 
     context.buffers.try_append({
                                    .vmobject = move(vmobject),
-                                   .mmap_offset = buffer_create_info.mmap_offset,
                                    .gpu_vaddr = static_cast<u32>(gpu_vaddr.get()),
-                                   .id = buffer_create_info.id,
                                    .region = move(region),
                                })
         .release_value_but_fixme_should_propagate_errors();
 
-    context.next_buffer_mmap_offset += buffer_create_info.size;
-    context.next_buffer_id++;
-
     return {};
 }
 
-ErrorOr<void> GPU3DDevice::free_buffer(Context& context, u32 id)
+ErrorOr<void> GPU3DDevice::free_buffer(Context& context, FlatPtr buffer_gpu_vaddr)
 {
     // XXX: Should we allow freeing buffers if they are still mmap()ed?
     //      If we allow that, the buffer will stay alive because the Region will keep the refcount of the VMObject nonzero.
-    auto buffer_index = context.buffers.find_first_index_if([id](auto const& buffer) { return buffer.id == id; });
+    auto buffer_index = context.buffers.find_first_index_if([buffer_gpu_vaddr](Context::Buffer const& buffer) { return buffer.gpu_vaddr == buffer_gpu_vaddr; });
     if (!buffer_index.has_value())
         return EINVAL;
 
     auto const& buffer = context.buffers[*buffer_index];
 
-    m_v3d->remove_page_table_entries_for_buffer(context.page_table, buffer.gpu_vaddr, *buffer.vmobject);
+    m_v3d->unmap_buffer(context.page_table, buffer.gpu_vaddr, *buffer.vmobject);
 
     context.region_tree.remove(*buffer.region);
     context.buffers.remove(*buffer_index);

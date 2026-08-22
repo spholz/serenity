@@ -13,9 +13,9 @@
 
 extern int g_v3d_fd;
 
-BufferObject::~BufferObject()
+Buffer::~Buffer()
 {
-    if (m_handle == 0xffff'ffff)
+    if (m_size == 0)
         return; // XXX: Remove once no-arg constructor is removed.
 
     if (m_mmap_address != nullptr) {
@@ -23,31 +23,35 @@ BufferObject::~BufferObject()
             dbgln("~BufferObject(): munmap({}, {:#x}) failed: {}", m_mmap_address, m_size, result.release_error());
     }
 
-    if (auto result = Core::System::ioctl(g_v3d_fd, V3D_FREE_BUFFER, m_handle); result.is_error())
-        dbgln("~BufferObject(): ioctl({}, V3D_FREE_BUFFER, {}) failed: {}", g_v3d_fd, m_handle, result.release_error());
+    VERIFY(m_gpu_virtual_address != 0);
+
+    if (auto result = Core::System::ioctl(g_v3d_fd, V3D_FREE_BUFFER, m_gpu_virtual_address); result.is_error())
+        dbgln("~BufferObject(): ioctl({}, V3D_FREE_BUFFER, {:#x}) failed: {}", g_v3d_fd, m_gpu_virtual_address, result.release_error());
 }
 
-ErrorOr<BufferObject> BufferObject::create(u32 size)
+ErrorOr<Buffer> Buffer::create(u32 size)
 {
     V3DBuffer buffer = {
         .size = size,
 
-        // Will be filled by the kernel
-        .id = 0,
-        .address = 0,
-        .mmap_offset = 0,
+        // Will be filled by the kernel.
+        .gpu_virtual_address = 0,
     };
 
     TRY(Core::System::ioctl(g_v3d_fd, V3D_ALLOCATE_BUFFER, &buffer));
 
-    return BufferObject(buffer.id, buffer.size, buffer.address, static_cast<off_t>(buffer.mmap_offset));
+    VERIFY(buffer.gpu_virtual_address != 0);
+
+    return Buffer(buffer.gpu_virtual_address, buffer.size);
 }
 
-ErrorOr<void*> BufferObject::map()
+ErrorOr<void*> Buffer::map()
 {
     // Each BufferObject should only be mapped once!
     VERIFY(m_mmap_address == nullptr);
 
-    m_mmap_address = TRY(Core::System::mmap(nullptr, m_size, PROT_READ | PROT_WRITE, MAP_SHARED, g_v3d_fd, m_mmap_offset, 0, "V3D Buffer"sv));
+    VERIFY(m_gpu_virtual_address != 0);
+
+    m_mmap_address = TRY(Core::System::mmap(nullptr, m_size, PROT_READ | PROT_WRITE, MAP_SHARED, g_v3d_fd, m_gpu_virtual_address, 0, "V3D Buffer"sv));
     return m_mmap_address;
 }

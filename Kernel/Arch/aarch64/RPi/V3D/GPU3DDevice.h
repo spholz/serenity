@@ -47,16 +47,11 @@ private:
 
         struct Buffer {
             NonnullLockRefPtr<Memory::AnonymousVMObject> vmobject;
-            u64 mmap_offset;
             u32 gpu_vaddr;
-            u32 id;
             NonnullOwnPtr<Memory::Region> region;
         };
 
         Vector<Buffer> buffers;
-
-        off_t next_buffer_mmap_offset { 0 };
-        u32 next_buffer_id { 0 };
 
         PageTable page_table;
 
@@ -73,7 +68,7 @@ private:
     };
 
     ErrorOr<void> allocate_buffer(Context&, V3DBuffer&);
-    ErrorOr<void> free_buffer(Context&, u32 id);
+    ErrorOr<void> free_buffer(Context&, FlatPtr buffer_gpu_vaddr);
 
     using ContextList = IntrusiveList<&Context::list_node>;
 

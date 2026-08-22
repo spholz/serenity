@@ -22,7 +22,7 @@ public:
 
     static ErrorOr<ControlList> create(u32 size)
     {
-        auto buffer_object = TRY(BufferObject::create(size));
+        auto buffer_object = TRY(Buffer::create(size));
         void* mapped_buffer = TRY(buffer_object.map());
 
         auto buffer = Bytes { mapped_buffer, buffer_object.size() };
@@ -34,37 +34,37 @@ public:
     template<typename T>
     void append(T const& packet)
     {
-        VERIFY(m_offset + sizeof(T) <= m_buffer.size());
-        memcpy(m_buffer.data() + m_offset, &packet, sizeof(T));
+        VERIFY(m_offset + sizeof(T) <= m_data.size());
+        memcpy(m_data.data() + m_offset, &packet, sizeof(T));
         m_offset += sizeof(T);
     }
 
     // XXX: Or clear_with_capacity()?
     void clear()
     {
-        m_buffer.fill(0);
+        m_data.fill(0);
         m_offset = 0;
     }
 
     Bytes data() const
     {
-        return m_buffer.slice(0, m_offset);
+        return m_data.slice(0, m_offset);
     }
 
-    BufferObject const& buffer_object() const
+    Buffer const& buffer() const
     {
-        return m_bo;
+        return m_buffer;
     }
 
 private:
-    ControlList(BufferObject bo, Bytes buffer)
-        : m_bo(move(bo))
-        , m_buffer(buffer)
+    ControlList(Buffer buffer, Bytes data)
+        : m_buffer(move(buffer))
+        , m_data(data)
     {
     }
 
-    BufferObject m_bo;
-    Span<u8> m_buffer;
+    Buffer m_buffer;
+    Span<u8> m_data;
     size_t m_offset = 0;
 };
 
@@ -72,7 +72,7 @@ template<>
 struct AK::Formatter<ControlList> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, ControlList const& control_list)
     {
-        builder.builder().appendff("ControlList {{ buffer_object = {} }}", control_list.buffer_object());
+        builder.builder().appendff("ControlList {{ buffer_object = {} }}", control_list.buffer());
         return {};
     }
 };

@@ -29,7 +29,7 @@ static void dump_hub_registers(HubRegisters const volatile& registers)
     dbgln("  Interrupt status: {:#08x}", (u32)registers.interrupt_status);
     dbgln("  Interrupt mask: {:#08x}", (u32)registers.interrupt_mask);
     dbgln("MMU 0:");
-    dbgln("  MMUC control: {:#08x}", (u32)registers.mmu_0.mmuc_control);
+    dbgln("  MMUC control: {:#08x}", (u32)registers.mmu_0.mmu_cache_control);
     dbgln("  Control: {:#08x}", (u32)registers.mmu_0.control);
     dbgln("  Page table base paddr: {:#08x}", (u32)registers.mmu_0.page_table_base_page_index);
     dbgln("  Fault AXI ID: {:#08x}", (u32)registers.mmu_0.fault_axi_id);
@@ -98,81 +98,24 @@ ErrorOr<NonnullRefPtr<V3D>> V3D::create(DeviceTree::Device::Resource hub_registe
     return v3d;
 }
 
-static constexpr size_t PAGE_TABLE_ENTRY_COUNT = (4uz * GiB) / (4uz * KiB);
-
-static constexpr u32 PAGE_TABLE_ENTRY_WRITABLE = 1u << 29;
-static constexpr u32 PAGE_TABLE_ENTRY_VALID = 1u << 28;
-
-ErrorOr<PageTable> V3D::allocate_page_table()
+void V3D::map_buffer(PageTable& page_table, u32 gpu_vaddr, Memory::VMObject const& vmobject)
 {
-    return PageTable {
-        .region = TRY(MM.allocate_contiguous_kernel_region(PAGE_TABLE_ENTRY_COUNT * sizeof(u32), "V3D Page Table"sv, Memory::Region::Access::ReadWrite, Memory::MemoryType::IO)),
-    };
+    page_table.insert_entries_for_buffer({}, gpu_vaddr, vmobject);
 }
 
-// void V3D::free_page_table(PageTable&&)
-// {
-// }
-
-void V3D::insert_page_table_entries_for_buffer(PageTable& page_table, u32 gpu_vaddr, Memory::VMObject const& vmobject)
+void V3D::unmap_buffer(PageTable& page_table, u32 gpu_vaddr, Memory::VMObject const& vmobject)
 {
-    VERIFY(static_cast<u64>(gpu_vaddr) + vmobject.size() < 4 * GiB);
-
-    auto gpu_vaddr_start_page_index = gpu_vaddr / 4096;
-    auto page_count = vmobject.size() / 4096;
-    auto gpu_vaddr_end_page_index = gpu_vaddr_start_page_index + page_count;
-
-    static_assert(PAGE_SIZE == 4096);
-
-    auto volatile* page_table_entries = reinterpret_cast<u32 volatile*>(page_table.region->vaddr().as_ptr());
-
-    for (size_t page_index = gpu_vaddr_start_page_index; page_index < gpu_vaddr_end_page_index; page_index++) {
-        auto page_index_in_vmobject = page_index - gpu_vaddr_start_page_index;
-
-        auto paddr = vmobject.physical_pages()[page_index_in_vmobject]->paddr();
-
-        VERIFY(page_index < PAGE_TABLE_ENTRY_COUNT);
-        page_table_entries[page_index] = (paddr.get() / 4096) | PAGE_TABLE_ENTRY_VALID | PAGE_TABLE_ENTRY_WRITABLE;
-    }
-
-    flush_mmuc_and_tlb();
-}
-
-void V3D::remove_page_table_entries_for_buffer(PageTable& page_table, u32 gpu_vaddr, Memory::VMObject const& vmobject)
-{
-    VERIFY(static_cast<u64>(gpu_vaddr) + vmobject.size() < 4 * GiB);
-
-    auto gpu_vaddr_start_page_index = gpu_vaddr / 4096;
-    auto page_count = vmobject.size() / 4096;
-    auto gpu_vaddr_end_page_index = gpu_vaddr_start_page_index + page_count;
-
-    static_assert(PAGE_SIZE == 4096);
-
-    auto volatile* page_table_entries = reinterpret_cast<u32 volatile*>(page_table.region->vaddr().as_ptr());
-
-    for (size_t page_index = gpu_vaddr_start_page_index; page_index < gpu_vaddr_end_page_index; page_index++) {
-        VERIFY(page_index < PAGE_TABLE_ENTRY_COUNT);
-        page_table_entries[page_index] = 0;
-    }
-
-    flush_mmuc_and_tlb();
+    page_table.remove_entries_for_buffer({}, gpu_vaddr, vmobject);
+    flush_mmu_cache_and_tlb();
 }
 
 ErrorOr<void> V3D::submit_job(PageTable const& page_table, V3DJob const& job)
 {
-    auto flush_caches = [this] {
-        // m_core_0_registers->l2_cache_control = 0b101;
-        m_core_0_registers->texture_cache_flush_start_addr = 0;
-        m_core_0_registers->texture_cache_flush_end_addr = 0xffff'ffff;
-        m_core_0_registers->texture_cache_control = 1;
-        m_core_0_registers->slices_cache_control = 0xffff'ffff;
-    };
+    MutexLocker locker { m_job_mutex };
 
     // Ensure that the bottom bits are 0 so we can set the enable bit correctly.
     if ((job.tile_state_data_array_base_address % 4096) != 0)
         return EINVAL;
-
-    // (void)addresses_to_map;
 
     activate_page_table(page_table);
 
@@ -263,7 +206,7 @@ ErrorOr<void> V3D::submit_job(PageTable const& page_table, V3DJob const& job)
 V3D::V3D(Memory::TypedMapping<HubRegisters volatile> hub_registers, Memory::TypedMapping<CoreRegisters volatile> core_0_registers, InterruptNumber hub_interrupt_number, Optional<InterruptNumber> core_interrupt_number)
     : m_hub_registers(move(hub_registers))
     , m_core_0_registers(move(core_0_registers))
-    , m_illegal_vaddr_target_page(MM.allocate_physical_page(Memory::MemoryManager::ShouldZeroFill::Yes, nullptr, Memory::MemoryType::IO).release_value_but_fixme_should_propagate_errors())
+    , m_illegal_vaddr_target_page(MM.allocate_physical_page(Memory::MemoryManager::ShouldZeroFill::Yes, nullptr, Memory::MemoryType::NonCacheable).release_value_but_fixme_should_propagate_errors())
     , m_hub_interrupt_handler(*this, hub_interrupt_number)
 {
     full_memory_fence(); // Ensure zeroing is visible.
@@ -292,38 +235,25 @@ ErrorOr<void> V3D::initialize()
         | HubRegisters::MMUControl::CapExceededInterrupt
         | HubRegisters::MMUControl::CapExceededAbort;
 
-    flush_mmuc_and_tlb();
+    flush_mmu_cache_and_tlb();
 
-    // m_hub_registers->mmu_0.tlb_control = static_cast<HubRegisters::TLBControl>(0);
+    m_hub_registers->interrupt_mask_set = ~(HubRegisters::Interrupt::MMUCapExceeded
+        | HubRegisters::Interrupt::MMUPageTableInvalid
+        | HubRegisters::Interrupt::MMUWriteViolation);
 
-    // Just identity map everything for now, except for page 0.
-    // auto volatile* page_table = reinterpret_cast<u32 volatile*>(m_page_table->vaddr().as_ptr());
-    // for (size_t i = 1; i < PAGE_TABLE_ENTRY_COUNT; i++)
-    //     page_table[i] = PAGE_TABLE_ENTRY_VALID | PAGE_TABLE_ENTRY_WRITABLE | i;
+    m_hub_registers->interrupt_mask_clear = HubRegisters::Interrupt::MMUCapExceeded
+        | HubRegisters::Interrupt::MMUPageTableInvalid
+        | HubRegisters::Interrupt::MMUWriteViolation;
 
-    // m_hub_registers->interrupt_mask_set = ~(HubRegisters::Interrupt::MMUCapExceeded
-    //     | HubRegisters::Interrupt::MMUPageTableInvalid
-    //     | HubRegisters::Interrupt::MMUWriteViolation);
-    //
-    // m_hub_registers->interrupt_mask_clear = HubRegisters::Interrupt::MMUCapExceeded
-    //     | HubRegisters::Interrupt::MMUPageTableInvalid
-    //     | HubRegisters::Interrupt::MMUWriteViolation;
-    //
-    // m_core_0_registers->interrupt_mask_set = ~(CoreRegisters::Interrupt::RenderModeFrameDone
-    //     | CoreRegisters::Interrupt::BinningModeFlushDone
-    //     | CoreRegisters::Interrupt::BinnerOutOfMemory
-    //     | CoreRegisters::Interrupt::BinnerOverspillMemoryInUse);
-    //
-    // m_core_0_registers->interrupt_mask_clear = CoreRegisters::Interrupt::RenderModeFrameDone
-    //     | CoreRegisters::Interrupt::BinningModeFlushDone
-    //     | CoreRegisters::Interrupt::BinnerOutOfMemory
-    //     | CoreRegisters::Interrupt::BinnerOverspillMemoryInUse;
+    m_core_0_registers->interrupt_mask_set = ~(CoreRegisters::Interrupt::RenderModeFrameDone
+        | CoreRegisters::Interrupt::BinningModeFlushDone
+        | CoreRegisters::Interrupt::BinnerOutOfMemory
+        | CoreRegisters::Interrupt::BinnerOverspillMemoryInUse);
 
-    m_hub_registers->interrupt_mask_set = static_cast<HubRegisters::Interrupt>(~0xffff'ffff);
-    m_hub_registers->interrupt_mask_clear = static_cast<HubRegisters::Interrupt>(0xffff'ffff);
-
-    m_core_0_registers->interrupt_mask_set = static_cast<CoreRegisters::Interrupt>(~0xffff'ffff);
-    m_core_0_registers->interrupt_mask_clear = static_cast<CoreRegisters::Interrupt>(0xffff'ffff);
+    m_core_0_registers->interrupt_mask_clear = CoreRegisters::Interrupt::RenderModeFrameDone
+        | CoreRegisters::Interrupt::BinningModeFlushDone
+        | CoreRegisters::Interrupt::BinnerOutOfMemory
+        | CoreRegisters::Interrupt::BinnerOverspillMemoryInUse;
 
     dbgln("Registers after initialize:");
     dump_hub_registers(*m_hub_registers);
@@ -332,10 +262,10 @@ ErrorOr<void> V3D::initialize()
     return {};
 }
 
-void V3D::flush_mmuc_and_tlb()
+void V3D::flush_mmu_cache_and_tlb()
 {
-    m_hub_registers->mmu_0.mmuc_control = HubRegisters::MMUCControl::Enable | HubRegisters::MMUCControl::Flush;
-    while (has_flag(m_hub_registers->mmu_0.mmuc_control, HubRegisters::MMUCControl::Flushing))
+    m_hub_registers->mmu_0.mmu_cache_control = HubRegisters::MMUCacheControl::Enable | HubRegisters::MMUCacheControl::Flush;
+    while (has_flag(m_hub_registers->mmu_0.mmu_cache_control, HubRegisters::MMUCacheControl::Flushing))
         Processor::wait_check();
 
     m_hub_registers->mmu_0.control |= HubRegisters::MMUControl::TLBClear;
@@ -343,9 +273,18 @@ void V3D::flush_mmuc_and_tlb()
         Processor::wait_check();
 }
 
+void V3D::flush_caches()
+{
+    m_core_0_registers->texture_cache_flush_start_addr = 0;
+    m_core_0_registers->texture_cache_flush_end_addr = 0xffff'ffff;
+    m_core_0_registers->texture_cache_control = 1;
+
+    m_core_0_registers->slices_cache_control = 0xffff'ffff;
+}
+
 void V3D::activate_page_table(PageTable const& page_table)
 {
-    auto page_table_physical_page_index = page_table.region->physical_page(0)->paddr().get() >> 12;
+    auto page_table_physical_page_index = page_table.physical_address().get() >> 12;
 
     if (m_hub_registers->mmu_0.page_table_base_page_index == page_table_physical_page_index) {
         // Already active, nothing to do.
@@ -353,7 +292,7 @@ void V3D::activate_page_table(PageTable const& page_table)
     }
 
     m_hub_registers->mmu_0.page_table_base_page_index = page_table_physical_page_index;
-    flush_mmuc_and_tlb();
+    flush_mmu_cache_and_tlb();
 }
 
 bool V3D::handle_interrupt()
@@ -362,11 +301,7 @@ bool V3D::handle_interrupt()
 
     m_hub_registers->interrupt_clear_pending = hub_interrupts;
 
-    if (to_underlying(hub_interrupts
-            & (HubRegisters::Interrupt::MMUCapExceeded
-                | HubRegisters::Interrupt::MMUPageTableInvalid
-                | HubRegisters::Interrupt::MMUWriteViolation))
-        != 0) {
+    if (has_any_flag(hub_interrupts, HubRegisters::Interrupt::MMUCapExceeded | HubRegisters::Interrupt::MMUPageTableInvalid | HubRegisters::Interrupt::MMUWriteViolation)) {
         dbgln("V3D: Page fault!");
 
         if (has_flag(hub_interrupts, HubRegisters::Interrupt::MMUCapExceeded))
@@ -378,12 +313,8 @@ bool V3D::handle_interrupt()
 
         auto vaddr = m_hub_registers->mmu_0.fault_vaddr << 4;
 
-        dbgln("V3D: Fault vaddr: {:#08x}", vaddr);
+        dbgln("V3D: Fault GPU virtual address: {:#08x}", vaddr);
         dbgln("V3D: Fault AXI ID: {:#08x}", m_hub_registers->mmu_0.fault_axi_id);
-
-        // auto volatile* page_table = reinterpret_cast<u32 volatile*>(m_page_table->vaddr().as_ptr());
-        // auto page_table_entry = page_table[vaddr / 4096];
-        // dbgln("V3D: Associated page table entry: {:#08x}", page_table_entry);
 
         // "Cancel" any running jobs.
         m_mmu_faulted.with([](bool& mmu_faulted) { mmu_faulted = true; });
@@ -391,8 +322,6 @@ bool V3D::handle_interrupt()
         m_current_binning_job_finished_wait_queue.notify_one();
         m_current_render_job_finished.with([](bool& job_finished) { job_finished = true; });
         m_current_render_job_finished_wait_queue.notify_one();
-    } else if (to_underlying(hub_interrupts) != 0) {
-        dbgln("V3D: Unknown hub interrupt(s): {:#b}", to_underlying(hub_interrupts));
     }
 
     auto core_interrupts = m_core_0_registers->interrupt_status;
@@ -412,15 +341,6 @@ bool V3D::handle_interrupt()
     }
     if (has_flag(core_interrupts, CoreRegisters::Interrupt::BinnerOverspillMemoryInUse)) {
         dbgln("V3D: Binner overspill memory in use");
-    }
-
-    if (to_underlying(core_interrupts
-            & ~(CoreRegisters::Interrupt::BinningModeFlushDone
-                | CoreRegisters::Interrupt::RenderModeFrameDone
-                | CoreRegisters::Interrupt::BinnerOutOfMemory
-                | CoreRegisters::Interrupt::BinnerOverspillMemoryInUse))
-        != 0) {
-        dbgln("V3D: Unknown core 0 interrupt(s): {:#b}", to_underlying(core_interrupts));
     }
 
     return to_underlying(hub_interrupts) != 0 || to_underlying(core_interrupts) != 0;

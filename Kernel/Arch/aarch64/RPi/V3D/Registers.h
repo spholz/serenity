@@ -19,7 +19,7 @@ struct HubRegisters {
         MMUWriteViolation = 1u << 5,
     };
 
-    enum class MMUCControl : u32 {
+    enum class MMUCacheControl : u32 {
         Enable = 1u << 0,
         Flush = 1u << 1,
         Flushing = 1u << 2,
@@ -59,7 +59,7 @@ struct HubRegisters {
     u8 _[0xf98];
 
     struct {
-        MMUCControl mmuc_control;
+        MMUCacheControl mmu_cache_control;
 
         u8 _[0x1fc];
 
@@ -78,14 +78,14 @@ struct HubRegisters {
 };
 static_assert(AssertSize<HubRegisters, 0x4000>());
 static_assert(__builtin_offsetof(HubRegisters, interrupt_status) == 0x50);
-static_assert(__builtin_offsetof(HubRegisters, mmu_0.mmuc_control) == 0x1000);
+static_assert(__builtin_offsetof(HubRegisters, mmu_0.mmu_cache_control) == 0x1000);
 static_assert(__builtin_offsetof(HubRegisters, mmu_0.control) == 0x1200);
 static_assert(__builtin_offsetof(HubRegisters, mmu_0.fault_axi_id) == 0x122c);
 static_assert(__builtin_offsetof(HubRegisters, mmu_0.illegal_vaddr_target_paddr) == 0x1230);
 static_assert(__builtin_offsetof(HubRegisters, mmu_0.fault_vaddr) == 0x1234);
 static_assert(__builtin_offsetof(HubRegisters, mmu_0.debug_info) == 0x1238);
 
-AK_ENUM_BITWISE_OPERATORS(HubRegisters::MMUCControl)
+AK_ENUM_BITWISE_OPERATORS(HubRegisters::MMUCacheControl)
 AK_ENUM_BITWISE_OPERATORS(HubRegisters::MMUControl)
 AK_ENUM_BITWISE_OPERATORS(HubRegisters::Interrupt)
 

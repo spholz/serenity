@@ -9,10 +9,11 @@
 #include <AK/Types.h>
 
 struct V3DBuffer {
+    // Set by userspace.
     u32 size;
-    u32 id;
-    u32 address; // In V3D address space
-    u64 mmap_offset;
+
+    // Set by the kernel.
+    u32 gpu_virtual_address;
 };
 
 struct V3DJob {

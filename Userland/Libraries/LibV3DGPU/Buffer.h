@@ -13,73 +13,62 @@
 #include <AK/Types.h>
 #include <sys/types.h>
 
-class BufferObject {
-    AK_MAKE_NONCOPYABLE(BufferObject);
+class Buffer {
+    AK_MAKE_NONCOPYABLE(Buffer);
 
 public:
-    ~BufferObject();
+    ~Buffer();
 
     // XXX: Remove this constructor.
-    BufferObject() { }
+    Buffer() { }
 
-    BufferObject(BufferObject&& other)
-        : m_handle(other.m_handle)
+    Buffer(Buffer&& other)
+        : m_gpu_virtual_address(other.m_gpu_virtual_address)
         , m_size(other.m_size)
-        , m_address(other.m_address)
-        , m_mmap_offset(other.m_mmap_offset)
         , m_mmap_address(other.m_mmap_address)
     {
-        other.m_handle = 0xffff'ffff;
+        other.m_gpu_virtual_address = 0;
         other.m_size = 0;
-        other.m_address = 0;
-        other.m_mmap_offset = 0;
         other.m_mmap_address = nullptr;
     }
 
-    BufferObject& operator=(BufferObject&& other)
+    Buffer& operator=(Buffer&& other)
     {
         if (this != &other) {
-            this->~BufferObject();
-            m_handle = exchange(other.m_handle, 0xffff'ffff);
+            this->~Buffer();
             m_size = exchange(other.m_size, 0);
-            m_address = exchange(other.m_address, 0);
-            m_mmap_offset = exchange(other.m_mmap_offset, 0);
+            m_gpu_virtual_address = exchange(other.m_gpu_virtual_address, 0);
             m_mmap_address = exchange(other.m_mmap_address, nullptr);
         }
         return *this;
     }
 
-    static ErrorOr<BufferObject> create(u32 size);
+    static ErrorOr<Buffer> create(u32 size);
 
     ErrorOr<void*> map();
 
-    u32 handle() const { return m_handle; }
     u32 size() const { return m_size; }
-    u32 address() const { return m_address; }
+    u32 gpu_virtual_address() const { return m_gpu_virtual_address; }
 
 private:
-    BufferObject(u32 handle, u32 size, u32 address, off_t mmap_offset)
-        : m_handle(handle)
+    Buffer(u32 address, u32 size)
+        : m_gpu_virtual_address(address)
         , m_size(size)
-        , m_address(address)
-        , m_mmap_offset(mmap_offset)
     {
     }
 
-    u32 m_handle { 0xffff'ffff };
+    u32 m_gpu_virtual_address { 0 };
     u32 m_size { 0 };
-    u32 m_address { 0 };
-    off_t m_mmap_offset { 0 };
 
     void* m_mmap_address { nullptr };
 };
 
 template<>
-struct AK::Formatter<BufferObject> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, BufferObject const& buffer_object)
+struct AK::Formatter<Buffer> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Buffer const& buffer_object)
     {
-        builder.builder().appendff("BufferObject {{ handle = {}, size = {:#x}, address = {:#08x} }}",
-            buffer_object.handle(), buffer_object.size(), buffer_object.address());
+        builder.builder().appendff("BufferObject {{ size = {:#x}, GPU address = {:#08x} }}",
+            buffer_object.size(), buffer_object.gpu_virtual_address());
         return {};
     }
 };

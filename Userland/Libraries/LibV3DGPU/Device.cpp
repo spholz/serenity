@@ -50,7 +50,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     // [struct.unpack('!f', bytes.fromhex(uniform[2:]))[0] for line in uniform_data.splitlines() for uniform in line.split()]
 
     // Vertex shader uniforms
-    u32 vertex_shader_uniforms_address = uniforms_list.buffer_object().address() + uniforms_list.data().size();
+    u32 vertex_shader_uniforms_address = uniforms_list.buffer().gpu_virtual_address() + uniforms_list.data().size();
     uniforms_list.append(model_view_projection_matrix(0, 0));
     uniforms_list.append(model_view_projection_matrix(1, 0));
     uniforms_list.append(model_view_projection_matrix(2, 0));
@@ -80,7 +80,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     VERIFY(uniforms_list.data().size() == 0x50);
 
     // Coordinate shader uniforms
-    u32 coordinate_shader_uniforms_address = uniforms_list.buffer_object().address() + uniforms_list.data().size();
+    u32 coordinate_shader_uniforms_address = uniforms_list.buffer().gpu_virtual_address() + uniforms_list.data().size();
     uniforms_list.append(model_view_projection_matrix(0, 0));
     uniforms_list.append(model_view_projection_matrix(1, 0));
     uniforms_list.append(model_view_projection_matrix(2, 0));
@@ -111,7 +111,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
 
     auto const vertex_data_size_in_bytes = vertex_array.size() * sizeof(vertex_array[0]);
 
-    auto vertex_data_buffer_object = TRY(BufferObject::create(align_up_to(vertex_data_size_in_bytes, PAGE_SIZE)));
+    auto vertex_data_buffer_object = TRY(Buffer::create(align_up_to(vertex_data_size_in_bytes, PAGE_SIZE)));
 
     void* vertex_data_buffer_object_data = TRY(vertex_data_buffer_object.map());
     memcpy(vertex_data_buffer_object_data, vertex_array.data(), vertex_data_size_in_bytes);
@@ -128,7 +128,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     static constexpr size_t SHADERS_BUFFER_VERTEX_SHADER_OFFSET = FRAGMENT_SHADER_SIZE;
     static constexpr size_t SHADERS_BUFFER_COORDINATE_SHADER_OFFSET = FRAGMENT_SHADER_SIZE + VERTEX_SHADER_SIZE;
 
-    auto shaders_buffer_object = TRY(BufferObject::create(align_up_to(SHADERS_BUFFER_SIZE, PAGE_SIZE)));
+    auto shaders_buffer_object = TRY(Buffer::create(align_up_to(SHADERS_BUFFER_SIZE, PAGE_SIZE)));
 
     u8* shaders_buffer_object_data = reinterpret_cast<u8*>(TRY(shaders_buffer_object.map()));
     memcpy(shaders_buffer_object_data + SHADERS_BUFFER_FRAGMENT_SHADER_OFFSET, FRAGMENT_SHADER.data(), FRAGMENT_SHADER_SIZE);
@@ -171,23 +171,23 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .fragment_shader_4_way_threadable = 1,
         .fragment_shader_start_in_final_thread_section = 0,
         .fragment_shader_propagate_nans = 0,
-        .fragment_shader_code_address = (shaders_buffer_object.address() + SHADERS_BUFFER_FRAGMENT_SHADER_OFFSET) >> 3,
+        .fragment_shader_code_address = (shaders_buffer_object.gpu_virtual_address() + SHADERS_BUFFER_FRAGMENT_SHADER_OFFSET) >> 3,
         .fragment_shader_uniforms_address = vertex_shader_uniforms_address,
         .vertex_shader_4_way_threadable = 1,
         .vertex_shader_start_in_final_thread_section = 1,
         .vertex_shader_propagate_nans = 0,
-        .vertex_shader_code_address = (shaders_buffer_object.address() + SHADERS_BUFFER_VERTEX_SHADER_OFFSET) >> 3,
+        .vertex_shader_code_address = (shaders_buffer_object.gpu_virtual_address() + SHADERS_BUFFER_VERTEX_SHADER_OFFSET) >> 3,
         .vertex_shader_uniforms_address = vertex_shader_uniforms_address,
         .coordinate_shader_4_way_threadable = 1,
         .coordinate_shader_start_in_final_thread_section = 1,
         .coordinate_shader_propagate_nans = 0,
-        .coordinate_shader_code_address = (shaders_buffer_object.address() + SHADERS_BUFFER_COORDINATE_SHADER_OFFSET) >> 3,
+        .coordinate_shader_code_address = (shaders_buffer_object.gpu_virtual_address() + SHADERS_BUFFER_COORDINATE_SHADER_OFFSET) >> 3,
         .coordinate_shader_uniforms_address = coordinate_shader_uniforms_address,
     };
     control_list.append(gl_shader_state_record);
 
     ControlRecord::GLShaderStateAttributeRecord pos_attribute_record = {
-        .address = vertex_data_buffer_object.address(),
+        .address = vertex_data_buffer_object.gpu_virtual_address(),
         .vec_size = 3,
         .type = 2,
         .signed_int_type = 0,
@@ -202,7 +202,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     control_list.append(pos_attribute_record);
 
     ControlRecord::GLShaderStateAttributeRecord color_attribute_record = {
-        .address = static_cast<u32>(vertex_data_buffer_object.address() + (3 * sizeof(float))),
+        .address = static_cast<u32>(vertex_data_buffer_object.gpu_virtual_address() + (3 * sizeof(float))),
         .vec_size = 3,
         .type = 2,
         .signed_int_type = 0,
@@ -420,7 +420,7 @@ ErrorOr<Device::RenderControlList> Device::generate_render_control_list(u32 targ
 
     ControlRecord::MulticoreRenderingTileListSetBase multicore_rendering_tile_list_set_base {};
     multicore_rendering_tile_list_set_base.tile_list_set_number = 0;
-    multicore_rendering_tile_list_set_base.address = m_tile_alloc_memory_bo.address() >> 6;
+    multicore_rendering_tile_list_set_base.address = m_tile_alloc_memory_buffer.gpu_virtual_address() >> 6;
     control_list.append(multicore_rendering_tile_list_set_base);
 
     ControlRecord::MulticoreRenderingSupertileCfg multicore_rendering_supertile_cfg {};
@@ -496,8 +496,8 @@ ErrorOr<Device::RenderControlList> Device::generate_render_control_list(u32 targ
     auto tile_list = TRY(generate_tile_list(target_buffer_pitch, target_buffer_address));
 
     ControlRecord::StartAddressOfGenericTileList generic_tile_list {};
-    generic_tile_list.start = tile_list.buffer_object().address();
-    generic_tile_list.end = tile_list.buffer_object().address() + tile_list.data().size();
+    generic_tile_list.start = tile_list.buffer().gpu_virtual_address();
+    generic_tile_list.end = tile_list.buffer().gpu_virtual_address() + tile_list.data().size();
     control_list.append(generic_tile_list);
 
     for (int row_number_in_supertiles = 0; row_number_in_supertiles < ceil_div(m_framebuffer_size.height(), tile_height); row_number_in_supertiles++) {
@@ -550,16 +550,16 @@ ErrorOr<void> Device::initialize_context(Gfx::IntSize min_size)
 {
     m_framebuffer_size = min_size;
 
-    m_framebuffer = TRY(BufferObject::create(align_up_to(m_framebuffer_size.area() * sizeof(u32), PAGE_SIZE)));
+    m_framebuffer = TRY(Buffer::create(align_up_to(m_framebuffer_size.area() * sizeof(u32), PAGE_SIZE)));
     m_framebuffer_data = TRY(m_framebuffer.map());
 
     m_binner_control_list = TRY(generate_initial_binner_control_list());
 
-    m_tile_alloc_memory_bo = TRY(BufferObject::create(TILE_ALLOC_MEMORY_SIZE));
+    m_tile_alloc_memory_buffer = TRY(Buffer::create(TILE_ALLOC_MEMORY_SIZE));
 
-    m_render_control_list = TRY(generate_render_control_list(m_framebuffer_size.width() * sizeof(u32), m_framebuffer.address(), TILE_WIDTH, TILE_HEIGHT, m_clear_color));
+    m_render_control_list = TRY(generate_render_control_list(m_framebuffer_size.width() * sizeof(u32), m_framebuffer.gpu_virtual_address(), TILE_WIDTH, TILE_HEIGHT, m_clear_color));
 
-    m_tile_state_data_array_bo = TRY(BufferObject::create(0x5000));
+    m_tile_state_data_array_buffer = TRY(Buffer::create(0x5000));
 
     return {};
 }
@@ -695,7 +695,7 @@ void Device::draw_primitives(GPU::PrimitiveType primitive_type, Vector<GPU::Vert
 
     ControlRecord::GLShaderState gl_shader_state {};
     gl_shader_state.number_of_attribute_arrays = 2;
-    gl_shader_state.address = shader_state_record.control_list.buffer_object().address() >> 5;
+    gl_shader_state.address = shader_state_record.control_list.buffer().gpu_virtual_address() >> 5;
     m_binner_control_list.append(gl_shader_state);
 
     ControlRecord::VertexArrayPrims vertex_array_prims {};
@@ -739,14 +739,14 @@ void Device::blit_from_color_buffer(Gfx::Bitmap& front_buffer)
     m_binner_control_list.append(flush);
 
     V3DJob kernel_job = {
-        .tile_state_data_array_base_address = m_tile_state_data_array_bo.address(),
-        .tile_allocation_memory_base_address = m_tile_alloc_memory_bo.address(),
-        .tile_allocation_memory_size = m_tile_alloc_memory_bo.size(),
+        .tile_state_data_array_base_address = m_tile_state_data_array_buffer.gpu_virtual_address(),
+        .tile_allocation_memory_base_address = m_tile_alloc_memory_buffer.gpu_virtual_address(),
+        .tile_allocation_memory_size = m_tile_alloc_memory_buffer.size(),
 
-        .binning_control_list_address = m_binner_control_list.buffer_object().address(),
+        .binning_control_list_address = m_binner_control_list.buffer().gpu_virtual_address(),
         .binning_control_list_size = static_cast<u32>(m_binner_control_list.data().size()),
 
-        .rendering_control_list_address = m_render_control_list.control_list.buffer_object().address(),
+        .rendering_control_list_address = m_render_control_list.control_list.buffer().gpu_virtual_address(),
         .rendering_control_list_size = static_cast<u32>(m_render_control_list.control_list.data().size()),
     };
 
@@ -756,8 +756,8 @@ void Device::blit_from_color_buffer(Gfx::Bitmap& front_buffer)
 
         dbgln("Framebuffer: {}", m_framebuffer);
 
-        dbgln("Tile state data array: {}", m_tile_state_data_array_bo);
-        dbgln("Tile alloc memory: {}", m_tile_alloc_memory_bo);
+        dbgln("Tile state data array: {}", m_tile_state_data_array_buffer);
+        dbgln("Tile alloc memory: {}", m_tile_alloc_memory_buffer);
 
         dbgln("Shader state records:");
         for (auto const& shader_state_record : m_shader_state_records) {

@@ -70,8 +70,8 @@ private:
     struct ShaderStateRecord {
         ControlList control_list;
         ControlList uniforms_list;
-        BufferObject vertex_data_buffer;
-        BufferObject shaders_buffer;
+        Buffer vertex_data_buffer;
+        Buffer shaders_buffer;
     };
     ErrorOr<ShaderStateRecord> generate_shader_state_record(Vector<VertexData> const& vertex_array, Gfx::FloatMatrix4x4 const& model_view_projection_matrix);
 
@@ -85,7 +85,7 @@ private:
 
     Gfx::IntSize m_framebuffer_size { 0, 0 };
     void const* m_framebuffer_data;
-    BufferObject m_framebuffer;
+    Buffer m_framebuffer;
 
     NonnullOwnPtr<Core::File> m_gpu_file;
 
@@ -94,8 +94,8 @@ private:
 
     Vector<ShaderStateRecord> m_shader_state_records;
 
-    BufferObject m_tile_alloc_memory_bo;
-    BufferObject m_tile_state_data_array_bo;
+    Buffer m_tile_alloc_memory_buffer;
+    Buffer m_tile_state_data_array_buffer;
 
     u32 m_clear_color { 0xff00'0000 };
     f32 m_clear_depth { 0.0f };
