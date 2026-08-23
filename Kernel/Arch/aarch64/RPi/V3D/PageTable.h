@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <Kernel/Arch/aarch64/RPi/V3D/GPUVirtualAddress.h>
 #include <Kernel/Memory/TypedMapping.h>
 #include <Kernel/Memory/VMObject.h>
 
@@ -18,8 +19,8 @@ class PageTable {
 public:
     static ErrorOr<PageTable> create();
 
-    void insert_entries_for_buffer(Badge<V3D>, u32 gpu_vaddr, Memory::VMObject const&);
-    void remove_entries_for_buffer(Badge<V3D>, u32 gpu_vaddr, Memory::VMObject const&);
+    void insert_entries_for_buffer(Badge<V3D>, GPUVirtualAddress, Memory::VMObject const&);
+    void remove_entries_for_buffer(Badge<V3D>, GPUVirtualAddress, Memory::VMObject const&);
 
     PhysicalAddress physical_address() const { return m_entries.paddr; }
 

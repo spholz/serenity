@@ -14,7 +14,7 @@
 
 #include "Buffer.h"
 
-// XXX: Put in namespace, same for BufferObject, and everything else
+// XXX: Put in namespace, same for Buffer, and everything else
 
 class ControlList {
 public:

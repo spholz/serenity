@@ -15,11 +15,11 @@ ErrorOr<PageTable> PageTable::create()
     return PageTable { move(entries) };
 }
 
-void PageTable::insert_entries_for_buffer(Badge<V3D>, u32 gpu_vaddr, Memory::VMObject const& vmobject)
+void PageTable::insert_entries_for_buffer(Badge<V3D>, GPUVirtualAddress gpu_vaddr, Memory::VMObject const& vmobject)
 {
-    VERIFY(static_cast<u64>(gpu_vaddr) + vmobject.size() < 4 * GiB);
+    VERIFY(static_cast<u64>(gpu_vaddr.value()) + vmobject.size() < 4 * GiB);
 
-    auto gpu_vaddr_start_page_index = gpu_vaddr / 4096;
+    auto gpu_vaddr_start_page_index = gpu_vaddr.value() / 4096;
     auto page_count = vmobject.size() / 4096;
     auto gpu_vaddr_end_page_index = gpu_vaddr_start_page_index + page_count;
 
@@ -35,11 +35,11 @@ void PageTable::insert_entries_for_buffer(Badge<V3D>, u32 gpu_vaddr, Memory::VMO
     }
 }
 
-void PageTable::remove_entries_for_buffer(Badge<V3D>, u32 gpu_vaddr, Memory::VMObject const& vmobject)
+void PageTable::remove_entries_for_buffer(Badge<V3D>, GPUVirtualAddress gpu_vaddr, Memory::VMObject const& vmobject)
 {
-    VERIFY(static_cast<u64>(gpu_vaddr) + vmobject.size() < 4 * GiB);
+    VERIFY(static_cast<u64>(gpu_vaddr.value()) + vmobject.size() < 4 * GiB);
 
-    auto gpu_vaddr_start_page_index = gpu_vaddr / 4096;
+    auto gpu_vaddr_start_page_index = gpu_vaddr.value() / 4096;
     auto page_count = vmobject.size() / 4096;
     auto gpu_vaddr_end_page_index = gpu_vaddr_start_page_index + page_count;
 

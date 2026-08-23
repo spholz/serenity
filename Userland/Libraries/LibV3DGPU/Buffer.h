@@ -67,7 +67,7 @@ template<>
 struct AK::Formatter<Buffer> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Buffer const& buffer_object)
     {
-        builder.builder().appendff("BufferObject {{ size = {:#x}, GPU address = {:#08x} }}",
+        builder.builder().appendff("Buffer {{ size = {:#x}, GPU address = {:#08x} }}",
             buffer_object.size(), buffer_object.gpu_virtual_address());
         return {};
     }

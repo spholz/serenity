@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <Kernel/Arch/aarch64/RPi/V3D/GPUVirtualAddress.h>
 #include <Kernel/Arch/aarch64/RPi/V3D/PageTable.h>
 #include <Kernel/Firmware/DeviceTree/Device.h>
 #include <Kernel/Interrupts/IRQHandler.h>
@@ -26,13 +27,9 @@ public:
     static ErrorOr<NonnullRefPtr<V3D>> create(DeviceTree::Device::Resource hub_registers_resource, DeviceTree::Device::Resource core_0_registers_resource, InterruptNumber hub_interrupt_number, Optional<InterruptNumber> core_interrupt_number);
 
     // FIXME: GPUVirtualAddress type?
-    void map_buffer(PageTable&, u32 gpu_vaddr, Memory::VMObject const&);
-    void unmap_buffer(PageTable&, u32 gpu_vaddr, Memory::VMObject const&);
+    void map_buffer(PageTable&, GPUVirtualAddress, Memory::VMObject const&);
+    void unmap_buffer(PageTable&, GPUVirtualAddress, Memory::VMObject const&);
 
-    struct AddressRange {
-        Memory::VMObject& vmobject;
-        FlatPtr gpu_vaddr;
-    };
     ErrorOr<void> submit_job(PageTable const&, V3DJob const&);
 
 private:
@@ -51,7 +48,7 @@ private:
 
     RefPtr<GPU3DDevice> m_3d_device;
 
-    NonnullRefPtr<Memory::PhysicalRAMPage> m_illegal_vaddr_target_page;
+    RefPtr<Memory::PhysicalRAMPage> m_illegal_vaddr_target_page;
 
     class InterruptHandler : public IRQHandler {
     public:

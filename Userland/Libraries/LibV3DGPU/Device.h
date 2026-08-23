@@ -83,11 +83,13 @@ private:
 
     ErrorOr<ControlList> generate_tile_list(u32 target_buffer_pitch, u32 target_buffer_address);
 
+    // This member should be before any Buffers (or anything containing Buffers, like ControlLists)
+    // to ensure that its destructor gets called last.
+    NonnullOwnPtr<Core::File> m_gpu_file;
+
     Gfx::IntSize m_framebuffer_size { 0, 0 };
     void const* m_framebuffer_data;
     Buffer m_framebuffer;
-
-    NonnullOwnPtr<Core::File> m_gpu_file;
 
     ControlList m_binner_control_list;
     RenderControlList m_render_control_list;

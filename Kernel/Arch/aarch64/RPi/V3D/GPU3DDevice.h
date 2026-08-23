@@ -7,6 +7,7 @@
 #pragma once
 
 #include <Kernel/API/V3D.h>
+#include <Kernel/Arch/aarch64/RPi/V3D/GPUVirtualAddress.h>
 #include <Kernel/Arch/aarch64/RPi/V3D/V3D.h>
 #include <Kernel/Devices/CharacterDevice.h>
 #include <Kernel/Memory/AnonymousVMObject.h>
@@ -47,7 +48,7 @@ private:
 
         struct Buffer {
             NonnullLockRefPtr<Memory::AnonymousVMObject> vmobject;
-            u32 gpu_vaddr;
+            GPUVirtualAddress gpu_vaddr;
             NonnullOwnPtr<Memory::Region> region;
         };
 
@@ -57,7 +58,7 @@ private:
 
         Memory::RegionTree region_tree;
 
-        // PerContextState is destroyed once OpenFileDescription's destructor calls File::detach() on GPU3DDevice,
+        // Context is destroyed once OpenFileDescription's destructor calls File::detach() on GPU3DDevice,
         // so this struct will never outlive the lifetime of this associated OpenFileDescription.
         // It's therefore safe and necessary to use a raw reference here.
         // Otherwise we would leak a reference on the description here, causing OpenFileDescription's
@@ -67,8 +68,22 @@ private:
         IntrusiveListNode<Context, NonnullRefPtr<Context>> list_node;
     };
 
-    ErrorOr<void> allocate_buffer(Context&, V3DBuffer&);
-    ErrorOr<void> free_buffer(Context&, FlatPtr buffer_gpu_vaddr);
+    ErrorOr<GPUVirtualAddress> allocate_buffer(Context&, size_t);
+    ErrorOr<void> free_buffer(Context&, GPUVirtualAddress buffer_gpu_vaddr);
+
+    NonnullRefPtr<Context> context_for_description(OpenFileDescription& description)
+    {
+        return m_context_list.with([&description](auto& context_list) -> NonnullRefPtr<Context> {
+            for (auto& context : context_list) {
+                if (&context.associated_description == &description) {
+                    // Ensure that the ref count is incremented while we still hold the lock.
+                    return NonnullRefPtr { context };
+                }
+            }
+
+            VERIFY_NOT_REACHED();
+        });
+    }
 
     using ContextList = IntrusiveList<&Context::list_node>;
 

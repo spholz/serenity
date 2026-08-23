@@ -20,13 +20,13 @@ Buffer::~Buffer()
 
     if (m_mmap_address != nullptr) {
         if (auto result = Core::System::munmap(m_mmap_address, m_size); result.is_error())
-            dbgln("~BufferObject(): munmap({}, {:#x}) failed: {}", m_mmap_address, m_size, result.release_error());
+            dbgln("~Buffer(): munmap({}, {:#x}) failed: {}", m_mmap_address, m_size, result.release_error());
     }
 
-    VERIFY(m_gpu_virtual_address != 0);
-
-    if (auto result = Core::System::ioctl(g_v3d_fd, V3D_FREE_BUFFER, m_gpu_virtual_address); result.is_error())
-        dbgln("~BufferObject(): ioctl({}, V3D_FREE_BUFFER, {:#x}) failed: {}", g_v3d_fd, m_gpu_virtual_address, result.release_error());
+    if (auto result = Core::System::ioctl(g_v3d_fd, V3D_FREE_BUFFER, m_gpu_virtual_address); result.is_error()) {
+        VERIFY_NOT_REACHED();
+        dbgln("~Buffer(): ioctl({}, V3D_FREE_BUFFER, {:#x}) failed: {}", g_v3d_fd, m_gpu_virtual_address, result.release_error());
+    }
 }
 
 ErrorOr<Buffer> Buffer::create(u32 size)
@@ -47,10 +47,8 @@ ErrorOr<Buffer> Buffer::create(u32 size)
 
 ErrorOr<void*> Buffer::map()
 {
-    // Each BufferObject should only be mapped once!
+    // Each Buffer should only be mapped once!
     VERIFY(m_mmap_address == nullptr);
-
-    VERIFY(m_gpu_virtual_address != 0);
 
     m_mmap_address = TRY(Core::System::mmap(nullptr, m_size, PROT_READ | PROT_WRITE, MAP_SHARED, g_v3d_fd, m_gpu_virtual_address, 0, "V3D Buffer"sv));
     return m_mmap_address;

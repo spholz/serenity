@@ -98,12 +98,12 @@ ErrorOr<NonnullRefPtr<V3D>> V3D::create(DeviceTree::Device::Resource hub_registe
     return v3d;
 }
 
-void V3D::map_buffer(PageTable& page_table, u32 gpu_vaddr, Memory::VMObject const& vmobject)
+void V3D::map_buffer(PageTable& page_table, GPUVirtualAddress gpu_vaddr, Memory::VMObject const& vmobject)
 {
     page_table.insert_entries_for_buffer({}, gpu_vaddr, vmobject);
 }
 
-void V3D::unmap_buffer(PageTable& page_table, u32 gpu_vaddr, Memory::VMObject const& vmobject)
+void V3D::unmap_buffer(PageTable& page_table, GPUVirtualAddress gpu_vaddr, Memory::VMObject const& vmobject)
 {
     page_table.remove_entries_for_buffer({}, gpu_vaddr, vmobject);
     flush_mmu_cache_and_tlb();
@@ -111,6 +111,12 @@ void V3D::unmap_buffer(PageTable& page_table, u32 gpu_vaddr, Memory::VMObject co
 
 ErrorOr<void> V3D::submit_job(PageTable const& page_table, V3DJob const& job)
 {
+    // FIXME: Make job submission asynchrnous. This requires some userspace API to wait until the job is finished.
+    //        Currently, we just use a Mutex to ensure that only one thread can run a job at a time.
+    //        This thread will be blocked until the job is finished.
+    //        Once we make job submission asynchronous, we need to ensure that the Context and Buffers used by this job
+    //        stay alive until this job is finished (maybe by using `RefPtr`s?).
+
     MutexLocker locker { m_job_mutex };
 
     // Ensure that the bottom bits are 0 so we can set the enable bit correctly.
@@ -206,7 +212,6 @@ ErrorOr<void> V3D::submit_job(PageTable const& page_table, V3DJob const& job)
 V3D::V3D(Memory::TypedMapping<HubRegisters volatile> hub_registers, Memory::TypedMapping<CoreRegisters volatile> core_0_registers, InterruptNumber hub_interrupt_number, Optional<InterruptNumber> core_interrupt_number)
     : m_hub_registers(move(hub_registers))
     , m_core_0_registers(move(core_0_registers))
-    , m_illegal_vaddr_target_page(MM.allocate_physical_page(Memory::MemoryManager::ShouldZeroFill::Yes, nullptr, Memory::MemoryType::NonCacheable).release_value_but_fixme_should_propagate_errors())
     , m_hub_interrupt_handler(*this, hub_interrupt_number)
 {
     full_memory_fence(); // Ensure zeroing is visible.
@@ -224,6 +229,8 @@ ErrorOr<void> V3D::initialize()
     m_3d_device = TRY(GPU3DDevice::create(*this));
 
     full_memory_fence();
+
+    m_illegal_vaddr_target_page = TRY(MM.allocate_physical_page(Memory::MemoryManager::ShouldZeroFill::Yes, nullptr, Memory::MemoryType::NonCacheable));
 
     m_hub_registers->mmu_0.illegal_vaddr_target_paddr = (m_illegal_vaddr_target_page->paddr().get() >> 12) | (1u << 31);
     m_hub_registers->mmu_0.control = HubRegisters::MMUControl::Enable
