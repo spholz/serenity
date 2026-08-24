@@ -53,12 +53,12 @@ private:
     {
         auto x_offset = sin(MonotonicTime::now().milliseconds() / 1000.f);
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(0.2f, 0.0f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-        glTranslatef(0, 0, -4);
+        glTranslatef(0, 0, -8.5);
         glRotatef(x_offset * 50, 0, 1, 0);
 
         glMatrixMode(GL_PROJECTION);
@@ -162,6 +162,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto context = TRY(GL::create_context(*bitmap));
     GL::make_context_current(context);
 
+    glFrontFace(GL_CCW);
+    glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
 
     window->set_title("LibGL Test");

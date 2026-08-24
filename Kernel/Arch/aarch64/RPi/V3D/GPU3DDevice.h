@@ -38,7 +38,6 @@ private:
     GPU3DDevice(V3D&);
 
     struct Context : public AtomicRefCounted<Context> {
-        // XXX: Remove constructor. this is a struct!
         Context(OpenFileDescription& file_description, PageTable page_table)
             : page_table(move(page_table))
             , region_tree(Memory::VirtualRange { VirtualAddress { 0x1000 }, 4 * GiB })
@@ -51,6 +50,9 @@ private:
             GPUVirtualAddress gpu_vaddr;
             NonnullOwnPtr<Memory::Region> region;
         };
+
+        // Protects the entire Context state.
+        Mutex mutex;
 
         Vector<Buffer> buffers;
 
@@ -71,13 +73,12 @@ private:
     ErrorOr<GPUVirtualAddress> allocate_buffer(Context&, size_t);
     ErrorOr<void> free_buffer(Context&, GPUVirtualAddress buffer_gpu_vaddr);
 
-    NonnullRefPtr<Context> context_for_description(OpenFileDescription& description)
+    Context& context_for_description(OpenFileDescription& description)
     {
-        return m_context_list.with([&description](auto& context_list) -> NonnullRefPtr<Context> {
+        return m_context_list.with([&description](auto& context_list) -> Context& {
             for (auto& context : context_list) {
                 if (&context.associated_description == &description) {
-                    // Ensure that the ref count is incremented while we still hold the lock.
-                    return NonnullRefPtr { context };
+                    return context;
                 }
             }
 

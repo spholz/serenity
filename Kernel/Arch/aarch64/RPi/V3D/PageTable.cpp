@@ -19,11 +19,11 @@ void PageTable::insert_entries_for_buffer(Badge<V3D>, GPUVirtualAddress gpu_vadd
 {
     VERIFY(static_cast<u64>(gpu_vaddr.value()) + vmobject.size() < 4 * GiB);
 
-    auto gpu_vaddr_start_page_index = gpu_vaddr.value() / 4096;
-    auto page_count = vmobject.size() / 4096;
+    auto gpu_vaddr_start_page_index = gpu_vaddr.value() / V3D_PAGE_SIZE;
+    auto page_count = vmobject.size() / V3D_PAGE_SIZE;
     auto gpu_vaddr_end_page_index = gpu_vaddr_start_page_index + page_count;
 
-    static_assert(PAGE_SIZE == 4096);
+    static_assert(PAGE_SIZE == V3D_PAGE_SIZE);
 
     for (size_t page_index = gpu_vaddr_start_page_index; page_index < gpu_vaddr_end_page_index; page_index++) {
         auto page_index_in_vmobject = page_index - gpu_vaddr_start_page_index;
@@ -31,7 +31,7 @@ void PageTable::insert_entries_for_buffer(Badge<V3D>, GPUVirtualAddress gpu_vadd
         auto paddr = vmobject.physical_pages()[page_index_in_vmobject]->paddr();
 
         VERIFY(page_index < PAGE_TABLE_ENTRY_COUNT);
-        m_entries[page_index] = (paddr.get() / 4096) | PAGE_TABLE_ENTRY_VALID | PAGE_TABLE_ENTRY_WRITABLE;
+        m_entries[page_index] = (paddr.get() / V3D_PAGE_SIZE) | PAGE_TABLE_ENTRY_VALID | PAGE_TABLE_ENTRY_WRITABLE;
     }
 }
 
@@ -39,11 +39,11 @@ void PageTable::remove_entries_for_buffer(Badge<V3D>, GPUVirtualAddress gpu_vadd
 {
     VERIFY(static_cast<u64>(gpu_vaddr.value()) + vmobject.size() < 4 * GiB);
 
-    auto gpu_vaddr_start_page_index = gpu_vaddr.value() / 4096;
-    auto page_count = vmobject.size() / 4096;
+    auto gpu_vaddr_start_page_index = gpu_vaddr.value() / V3D_PAGE_SIZE;
+    auto page_count = vmobject.size() / V3D_PAGE_SIZE;
     auto gpu_vaddr_end_page_index = gpu_vaddr_start_page_index + page_count;
 
-    static_assert(PAGE_SIZE == 4096);
+    static_assert(PAGE_SIZE == V3D_PAGE_SIZE);
 
     for (size_t page_index = gpu_vaddr_start_page_index; page_index < gpu_vaddr_end_page_index; page_index++) {
         VERIFY(page_index < PAGE_TABLE_ENTRY_COUNT);

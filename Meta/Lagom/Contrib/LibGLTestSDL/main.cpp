@@ -65,6 +65,8 @@ ErrorOr<int> serenity_main(Main::Arguments)
     auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
     auto mesh = TRY(mesh_loader.load(path, move(file)));
 
+    glFrontFace(GL_CCW);
+    glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
 
     static constexpr u32 UPDATE_FRAMERATE_EVERY_FRAMES = 30;

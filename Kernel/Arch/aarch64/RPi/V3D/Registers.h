@@ -15,7 +15,7 @@ namespace Kernel::RPi::V3D {
 struct HubRegisters {
     enum class Interrupt : u32 {
         MMUCapExceeded = 1u << 3,
-        MMUPageTableInvalid = 1u << 4,
+        MMUPageTableEntryInvalid = 1u << 4,
         MMUWriteViolation = 1u << 5,
     };
 
@@ -31,9 +31,9 @@ struct HubRegisters {
         TLBClearing = 1u << 7,
         WriteViolationInterrupt = 1u << 10,
         WriteViolationAbort = 1u << 11,
-        InvalidPageTableEnable = 1u << 16,
-        InvalidPageTableInterrupt = 1u << 18,
-        InvalidPageTableAbort = 1u << 19,
+        InvalidPageTableEntryEnable = 1u << 16,
+        InvalidPageTableEntryInterrupt = 1u << 18,
+        InvalidPageTableEntryAbort = 1u << 19,
         CapExceededInterrupt = 1u << 25,
         CapExceededAbort = 1u << 26,
     };

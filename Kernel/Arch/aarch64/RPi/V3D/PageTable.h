@@ -15,6 +15,9 @@ namespace Kernel::RPi::V3D {
 
 class V3D;
 
+static constexpr size_t V3D_PAGE_SHIFT = 12;
+static constexpr size_t V3D_PAGE_SIZE = 1uz << V3D_PAGE_SHIFT;
+
 class PageTable {
 public:
     static ErrorOr<PageTable> create();

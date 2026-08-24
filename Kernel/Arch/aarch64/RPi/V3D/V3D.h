@@ -73,8 +73,6 @@ private:
 
     Mutex m_job_mutex;
 
-    SpinlockProtected<bool, LockRank::None> m_mmu_faulted { false };
-
     SpinlockProtected<bool, LockRank::None> m_current_binning_job_finished { false };
     WaitQueue m_current_binning_job_finished_wait_queue;
 
