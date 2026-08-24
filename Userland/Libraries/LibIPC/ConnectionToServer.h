@@ -6,23 +6,25 @@
 
 #pragma once
 
+#include <LibCore/Environment.h>
 #include <LibCore/SessionManagement.h>
 #include <LibIPC/Connection.h>
 
 namespace IPC {
 
-#define IPC_CLIENT_CONNECTION(klass, socket_path)                                                      \
-    C_OBJECT_ABSTRACT(klass)                                                                           \
-public:                                                                                                \
-    template<typename Klass = klass, class... Args>                                                    \
-    static ErrorOr<NonnullRefPtr<klass>> try_create(Args&&... args)                                    \
-    {                                                                                                  \
-        auto parsed_socket_path = TRY(Core::SessionManagement::parse_path_with_sid(socket_path));      \
-        auto socket = TRY(Core::LocalSocket::connect(move(parsed_socket_path)));                       \
-        /* We want to rate-limit our clients */                                                        \
-        TRY(socket->set_blocking(true));                                                               \
-                                                                                                       \
-        return adopt_nonnull_ref_or_enomem(new (nothrow) Klass(move(socket), forward<Args>(args)...)); \
+#define IPC_CLIENT_CONNECTION(klass, socket_path)                                                                      \
+    C_OBJECT_ABSTRACT(klass)                                                                                           \
+public:                                                                                                                \
+    template<typename Klass = klass, class... Args>                                                                    \
+    static ErrorOr<NonnullRefPtr<klass>> try_create(Args&&... args)                                                    \
+    {                                                                                                                  \
+        auto session_id_override = determine_session_id_override();                                                    \
+        auto parsed_socket_path = TRY(Core::SessionManagement::parse_path_with_sid(socket_path, session_id_override)); \
+        auto socket = TRY(Core::LocalSocket::connect(move(parsed_socket_path)));                                       \
+        /* We want to rate-limit our clients */                                                                        \
+        TRY(socket->set_blocking(true));                                                                               \
+                                                                                                                       \
+        return adopt_nonnull_ref_or_enomem(new (nothrow) Klass(move(socket), forward<Args>(args)...));                 \
     }
 
 template<typename ClientEndpoint, typename ServerEndpoint>
@@ -43,6 +45,16 @@ public:
     {
         // Override this function if you don't want your app to exit if it loses the connection.
         exit(0);
+    }
+
+protected:
+    static Optional<pid_t> determine_session_id_override()
+    {
+        auto session_id_override_string = Core::Environment::get("IPC_SESSION_ID"sv);
+        if (!session_id_override_string.has_value())
+            return {};
+
+        return session_id_override_string.value().to_number<pid_t>();
     }
 };
 

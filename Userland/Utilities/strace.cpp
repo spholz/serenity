@@ -680,16 +680,19 @@ static ErrorOr<void> format_pledge(FormattedSyscallBuilder& builder, Syscall::SC
     return {};
 }
 
-static ErrorOr<void> format_poll(FormattedSyscallBuilder& builder, Syscall::SC_poll_params* params_p)
+static void format_poll(FormattedSyscallBuilder& builder, Syscall::SC_poll_params* params_p)
 {
     // TODO: format fds and sigmask properly
-    auto params = TRY(copy_from_process(params_p));
-    builder.add_arguments(
-        params.nfds,
-        PointerArgument { params.fds },
-        TRY(copy_from_process(params.timeout)),
-        PointerArgument { params.sigmask });
-    return {};
+    auto params = copy_from_process(params_p);
+    if (params.is_error()) {
+        builder.add_arguments(PointerArgument { params_p });
+    } else {
+        builder.add_arguments(
+            params.value().nfds,
+            PointerArgument { params.value().fds },
+            PointerArgument { params.value().timeout },
+            PointerArgument { params.value().sigmask });
+    }
 }
 
 namespace AK {
@@ -1014,7 +1017,7 @@ static ErrorOr<void> format_syscall_final(FormattedSyscallBuilder& builder, Sysc
         format_ioctl(builder, (int)arg1, (unsigned)arg2, (void*)arg3);
         break;
     case SC_poll:
-        TRY(format_poll(builder, (Syscall::SC_poll_params*)arg1));
+        format_poll(builder, (Syscall::SC_poll_params*)arg1);
         break;
     case SC_read:
         format_read(builder, (int)arg1, (void*)arg2, (size_t)arg3);

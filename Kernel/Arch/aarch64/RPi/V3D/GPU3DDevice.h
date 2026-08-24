@@ -37,7 +37,7 @@ public:
 private:
     GPU3DDevice(V3D&);
 
-    struct Context : public AtomicRefCounted<Context> {
+    struct Context {
         Context(OpenFileDescription& file_description, PageTable page_table)
             : page_table(move(page_table))
             , region_tree(Memory::VirtualRange { VirtualAddress { 0x1000 }, 4 * GiB })
@@ -67,7 +67,7 @@ private:
         // destructor to never be called.
         OpenFileDescription& associated_description;
 
-        IntrusiveListNode<Context, NonnullRefPtr<Context>> list_node;
+        IntrusiveListNode<Context> list_node;
     };
 
     ErrorOr<GPUVirtualAddress> allocate_buffer(Context&, size_t);

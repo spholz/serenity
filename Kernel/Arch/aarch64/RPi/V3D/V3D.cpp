@@ -114,8 +114,10 @@ ErrorOr<void> V3D::submit_job(PageTable const& page_table, V3DJob const& job)
     // FIXME: Make job submission asynchrnous. This requires some userspace API to wait until the job is finished.
     //        Currently, we just use a Mutex to ensure that only one thread can run a job at a time.
     //        This thread will be blocked until the job is finished.
-    //        Once we make job submission asynchronous, we need to ensure that the Context and Buffers used by this job
-    //        stay alive until this job is finished (maybe by using `RefPtr`s?).
+    //        Once we make job submission asynchronous, we need to ensure that the Context  used by this job
+    //        stays alive until this job is finished (maybe by using `RefPtr`s?).
+    //        We could also ensure that buffers stay alive during runtime, but it's arguably userspace's fault
+    //        to free buffers that are still in use. This would just result in a GPU page fault.
     MutexLocker locker { m_job_mutex };
 
     // Ensure that the bottom bits are 0 so we can set the enable bit correctly.
@@ -211,6 +213,7 @@ ErrorOr<void> V3D::initialize()
         | HubRegisters::MMUControl::InvalidPageTableEntryAbort
         | HubRegisters::MMUControl::CapExceededInterrupt
         | HubRegisters::MMUControl::CapExceededAbort;
+    m_hub_registers->mmu_0.mmu_cache_control = HubRegisters::MMUCacheControl::Enable;
 
     flush_mmu_cache_and_tlb();
 
@@ -228,7 +231,7 @@ ErrorOr<void> V3D::initialize()
 
 void V3D::flush_mmu_cache_and_tlb()
 {
-    m_hub_registers->mmu_0.mmu_cache_control = HubRegisters::MMUCacheControl::Enable | HubRegisters::MMUCacheControl::Flush;
+    m_hub_registers->mmu_0.mmu_cache_control |= HubRegisters::MMUCacheControl::Flush;
     while (has_flag(m_hub_registers->mmu_0.mmu_cache_control, HubRegisters::MMUCacheControl::Flushing))
         Processor::wait_check();
 

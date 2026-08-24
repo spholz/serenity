@@ -19,10 +19,13 @@ ErrorOr<NonnullRefPtr<GPU3DDevice>> GPU3DDevice::create(V3D& v3d)
 ErrorOr<void> GPU3DDevice::attach(OpenFileDescription& description)
 {
     auto page_table = TRY(PageTable::create());
-    auto context = TRY(try_make_ref_counted<Context>(description, move(page_table)));
+
+    auto* context = new (nothrow) Context { description, move(page_table) };
+    if (context == nullptr)
+        return ENOMEM;
 
     m_context_list.with([&context](auto& context_list) {
-        context_list.append(context);
+        context_list.append(*context);
     });
 
     return CharacterDevice::attach(description);
@@ -42,6 +45,8 @@ void GPU3DDevice::detach(OpenFileDescription& description)
     m_context_list.with([&context](auto& context_list) {
         context_list.remove(context);
     });
+
+    delete &context;
 
     CharacterDevice::detach(description);
 }
@@ -125,8 +130,6 @@ GPU3DDevice::GPU3DDevice(V3D& v3d)
 
 ErrorOr<GPUVirtualAddress> GPU3DDevice::allocate_buffer(Context& context, size_t size)
 {
-    VERIFY(context.mutex.is_locked());
-
     // XXX: Check additionally V3D page size.
     if ((size % PAGE_SIZE) != 0)
         return EINVAL;
@@ -156,8 +159,6 @@ ErrorOr<GPUVirtualAddress> GPU3DDevice::allocate_buffer(Context& context, size_t
 
 ErrorOr<void> GPU3DDevice::free_buffer(Context& context, GPUVirtualAddress buffer_gpu_vaddr)
 {
-    VERIFY(context.mutex.is_locked());
-
     // XXX: Should we allow freeing buffers if they are still mmap()ed?
     //      If we allow that, the buffer will stay alive because the Region will keep the refcount of the VMObject nonzero.
     auto buffer_index = context.buffers.find_first_index_if([buffer_gpu_vaddr](Context::Buffer const& buffer) {
