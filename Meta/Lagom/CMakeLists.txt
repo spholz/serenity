@@ -606,6 +606,7 @@ if (BUILD_LAGOM)
         find_package(SDL2 QUIET)
         if (SDL2_FOUND)
             add_serenity_subdirectory(Meta/Lagom/Contrib/VideoPlayerSDL)
+            add_serenity_subdirectory(Meta/Lagom/Contrib/LibGLTestSDL)
         endif()
 
         lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
