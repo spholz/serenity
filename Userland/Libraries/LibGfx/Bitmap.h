@@ -231,6 +231,29 @@ public:
     [[nodiscard]] Core::AnonymousBuffer& anonymous_buffer() { return m_buffer; }
     [[nodiscard]] Core::AnonymousBuffer const& anonymous_buffer() const { return m_buffer; }
 
+    struct DiffResult {
+        bool identical { false };
+
+        // Cumulative channel differences.
+        u64 total_red_error { 0 };
+        u64 total_green_error { 0 };
+        u64 total_blue_error { 0 };
+        u64 total_alpha_error { 0 };
+        u64 total_error { 0 };
+
+        // Maximum channel differences.
+        u8 maximum_red_error { 0 };
+        u8 maximum_green_error { 0 };
+        u8 maximum_blue_error { 0 };
+        u8 maximum_alpha_error { 0 };
+        u8 maximum_error { 0 };
+
+        // Number of pixels with errors.
+        u64 pixel_error_count { 0 };
+    };
+
+    [[nodiscard]] DiffResult diff(Bitmap const&) const;
+
     [[nodiscard]] bool visually_equals(Bitmap const&) const;
 
     [[nodiscard]] Optional<Color> solid_color(u8 alpha_threshold = 0) const;
