@@ -156,6 +156,16 @@ ErrorOr<void> V3D::submit_job(PageTable const& page_table, V3DJob const& job)
         return true;
     });
 
+    if (m_mmu_faulted.with([](auto& mmu_faulted) {
+            if (!mmu_faulted)
+                return false;
+            mmu_faulted = false;
+            return true; })) {
+        dump_hub_registers(*m_hub_registers);
+        dump_core_registers(*m_core_0_registers);
+        return EFAULT;
+    }
+
     if (binning_job_wait_result.is_error()) {
         dbgln("V3D: Binning job was interrupted!");
         dbgln("V3D: FIXME: Don't know how to cancel/abort jobs. The GPU might be in an undefined state now.");
@@ -174,6 +184,16 @@ ErrorOr<void> V3D::submit_job(PageTable const& page_table, V3DJob const& job)
         job_finished = false;
         return true;
     });
+
+    if (m_mmu_faulted.with([](auto& mmu_faulted) {
+            if (!mmu_faulted)
+                return false;
+            mmu_faulted = false;
+            return true; })) {
+        dump_hub_registers(*m_hub_registers);
+        dump_core_registers(*m_core_0_registers);
+        return EFAULT;
+    }
 
     if (render_job_wait_result.is_error()) {
         dbgln("V3D: Render job was interrupted!");
@@ -286,6 +306,12 @@ bool V3D::handle_interrupt()
 
         dbgln("V3D: Fault GPU virtual address: {:#08x}", vaddr);
         dbgln("V3D: Fault AXI ID: {:#08x}", m_hub_registers->mmu_0.fault_axi_id);
+
+        m_mmu_faulted.with([](bool& faulted) { faulted = true; });
+        m_current_binning_job_finished.with([](bool& job_finished) { job_finished = true; });
+        m_current_render_job_finished.with([](bool& job_finished) { job_finished = true; });
+        m_current_binning_job_finished_wait_queue.notify_one();
+        m_current_render_job_finished_wait_queue.notify_one();
     }
 
     // Handle core interrupt(s).

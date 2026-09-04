@@ -77,6 +77,8 @@ private:
 
     SpinlockProtected<bool, LockRank::None> m_current_render_job_finished { false };
     WaitQueue m_current_render_job_finished_wait_queue;
+
+    SpinlockProtected<bool, LockRank::None> m_mmu_faulted { false };
 };
 
 }
