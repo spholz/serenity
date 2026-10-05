@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/Noncopyable.h>
+#include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
 
@@ -64,3 +66,13 @@ private:
 };
 
 }
+
+template<>
+struct AK::Formatter<V3DGPU::Buffer> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, V3DGPU::Buffer const& buffer)
+    {
+        builder.builder().appendff("Buffer {{ size = {:#x}, GPU address = {:#08x} }}",
+            buffer.size(), buffer.gpu_virtual_address());
+        return {};
+    }
+};
