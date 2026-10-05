@@ -73,7 +73,25 @@ ErrorOr<void> DeviceNode::ioctl(OpenFileDescription& description, unsigned reque
 
     case V3D_SUBMIT_JOB: {
         auto job = TRY(copy_typed_from_user(static_ptr_cast<V3DJob const*>(arg)));
-        return m_v3d->submit_job(context.page_table, job);
+
+        auto result = m_v3d->submit_job(context.page_table, job);
+
+        if (result.is_error()) {
+            dbgln("SUBMIT_JOB args:");
+            dbgln("  tile_state_data_array_address={:#08x}", job.tile_state_data_array_address);
+            dbgln("  tile_allocation_memory_address={:#08x}", job.tile_allocation_memory_address);
+            dbgln("  tile_allocation_memory_size={:#08x}", job.tile_allocation_memory_size);
+            dbgln("  binning_control_list_address={:#08x}", job.binning_control_list_address);
+            dbgln("  binning_control_list_size={:#08x}", job.binning_control_list_size);
+            dbgln("  rendering_control_list_address={:#08x}", job.rendering_control_list_address);
+            dbgln("  rendering_control_list_size={:#08x}", job.rendering_control_list_size);
+
+            dbgln("Buffers:");
+            for (auto const& buffer : context.buffers)
+                dbgln("  {}-{}", buffer.gpu_vaddr, buffer.gpu_vaddr.offset(buffer.vmobject->size()));
+        }
+
+        return result;
     }
     }
 

@@ -41,7 +41,16 @@ struct HubRegisters {
 
     static constexpr u32 ILLEGAL_VADDR_TARGET_PADDR_VALID = 1u << 31;
 
-    u8 _[0x50];
+    u8 _[0x4];
+
+    u32 uifcfg; // UIFCFG
+
+    u32 identification_0; // IDENT0
+    u32 identification_1; // IDENT1
+    u32 identification_2; // IDENT2
+    u32 identification_3; // IDENT3
+
+    u8 _[0x38];
 
     Interrupt interrupt_status;
     Interrupt interrupt_set_pending;
@@ -65,9 +74,10 @@ struct HubRegisters {
         u32 fault_axi_id;
         u32 illegal_vaddr_target_paddr;
         u32 fault_vaddr;
+        u32 debug_info;
     } mmu_0;
 
-    u8 _[0x2dc8];
+    u8 _[0x2dc4];
 };
 static_assert(AssertSize<HubRegisters, 0x4000>());
 static_assert(offsetof(HubRegisters, interrupt_status) == 0x50);
@@ -76,6 +86,7 @@ static_assert(offsetof(HubRegisters, mmu_0.control) == 0x1200);
 static_assert(offsetof(HubRegisters, mmu_0.fault_axi_id) == 0x122c);
 static_assert(offsetof(HubRegisters, mmu_0.illegal_vaddr_target_paddr) == 0x1230);
 static_assert(offsetof(HubRegisters, mmu_0.fault_vaddr) == 0x1234);
+static_assert(offsetof(HubRegisters, mmu_0.debug_info) == 0x1238);
 
 AK_ENUM_BITWISE_OPERATORS(HubRegisters::MMUCacheControl)
 AK_ENUM_BITWISE_OPERATORS(HubRegisters::MMUControl)
@@ -100,9 +111,14 @@ struct CoreRegisters {
     u32 identification_1;
     u32 identification_2;
 
-    u8 _[0x18];
+    u8 _[0xc];
 
-    u32 slices_cache_control;
+    u32 misccfg; // MISCCFG
+
+    u8 _[0x4];
+
+    u32 l2_cache_control;
+    u32 slices_cache_control; // SLCACTL
 
     u8 _[0x8];
 
@@ -182,6 +198,8 @@ struct CoreRegisters {
     u8 _[0x50dc];
 };
 static_assert(AssertSize<CoreRegisters, 0x6000>());
+static_assert(offsetof(CoreRegisters, misccfg) == 0x18);
+static_assert(offsetof(CoreRegisters, l2_cache_control) == 0x20);
 static_assert(offsetof(CoreRegisters, texture_cache_flush_start_addr) == 0x34);
 static_assert(offsetof(CoreRegisters, interrupt_status) == 0x50);
 static_assert(offsetof(CoreRegisters, control_list_executor.rendering_mode_flush_count) == 0x138);
@@ -193,6 +211,12 @@ static_assert(offsetof(CoreRegisters, size_of_overspill_binning_memory_block) ==
 static_assert(offsetof(CoreRegisters, fep_overrun_error_signals) == 0xf04);
 static_assert(offsetof(CoreRegisters, fep_internal_stall_input_signals) == 0xf10);
 static_assert(offsetof(CoreRegisters, miscellaneous_error_signals) == 0xf20);
+
+static_assert(offsetof(CoreRegisters, control_list_executor.thread_0_tile_allocation_memory_address) == 0x170);
+static_assert(offsetof(CoreRegisters, control_list_executor.thread_0_tile_allocation_memory_size) == 0x174);
+static_assert(offsetof(CoreRegisters, control_list_executor.thread_0_tile_state_data_array_address) == 0x15c);
+static_assert(offsetof(CoreRegisters, control_list_executor.thread_0_control_list_start_address) == 0x160);
+static_assert(offsetof(CoreRegisters, control_list_executor.thread_0_control_list_end_address) == 0x168);
 
 AK_ENUM_BITWISE_OPERATORS(CoreRegisters::Interrupt)
 AK_ENUM_BITWISE_OPERATORS(CoreRegisters::TextureCacheControl)

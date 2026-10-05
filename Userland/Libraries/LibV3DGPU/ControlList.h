@@ -10,6 +10,7 @@
 #include "Definitions.h"
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
+#include <AK/Format.h>
 #include <AK/Span.h>
 #include <AK/Types.h>
 
@@ -58,3 +59,12 @@ private:
 };
 
 }
+
+template<>
+struct AK::Formatter<V3DGPU::ControlList> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, V3DGPU::ControlList const& control_list)
+    {
+        builder.builder().appendff("ControlList {{ buffer = {} }}", control_list.buffer());
+        return {};
+    }
+};

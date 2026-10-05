@@ -19,6 +19,69 @@
 
 namespace Kernel::RPi::V3D {
 
+[[maybe_unused]] static void dump_hub_registers(HubRegisters const volatile& registers)
+{
+    dbgln("V3D Hub Registers:");
+    dbgln("  UIFCFG: {:#08x}", (u32)registers.uifcfg);
+    dbgln("  IDENT0: {:#08x}", (u32)registers.identification_0);
+    dbgln("  IDENT1: {:#08x}", (u32)registers.identification_1);
+    dbgln("  IDENT2: {:#08x}", (u32)registers.identification_2);
+    dbgln("  IDENT3: {:#08x}", (u32)registers.identification_3);
+    dbgln("  Interrupt status: {:#08x}", (u32)registers.interrupt_status);
+    dbgln("  Interrupt mask: {:#08x}", (u32)registers.interrupt_mask);
+    dbgln("MMU 0:");
+    dbgln("  MMUC control: {:#08x}", (u32)registers.mmu_0.mmu_cache_control);
+    dbgln("  Control: {:#08x}", (u32)registers.mmu_0.control);
+    dbgln("  Page table base paddr: {:#08x}", (u32)registers.mmu_0.page_table_base_page_index);
+    dbgln("  Fault AXI ID: {:#08x}", (u32)registers.mmu_0.fault_axi_id);
+    dbgln("  Illegal vaddr target paddr: {:#08x}", (u32)registers.mmu_0.illegal_vaddr_target_paddr);
+    dbgln("  Fault vaddr: {:#08x}", (u32)registers.mmu_0.fault_vaddr);
+    dbgln("  Debug info: {:#08x}", (u32)registers.mmu_0.debug_info);
+}
+
+[[maybe_unused]] static void dump_core_registers(CoreRegisters const volatile& registers)
+{
+    dbgln("V3D Core Registers:");
+    dbgln("  IDENT0: {:#08x}", (u32)registers.identification_0);
+    dbgln("  IDENT1: {:#08x}", (u32)registers.identification_1);
+    dbgln("  IDENT2: {:#08x}", (u32)registers.identification_2);
+    dbgln("  MISCCFG: {:#08x}", (u32)registers.misccfg);
+    dbgln("  INTSTS: {:#08x}", (u32)registers.interrupt_status);
+    dbgln("  PCS: {:#08x}", (u32)registers.control_list_executor.pipeline_control_and_status);
+    dbgln("  BFC: {:#08x}", (u32)registers.control_list_executor.binning_mode_flush_count);
+    dbgln("  RFC: {:#08x}", (u32)registers.control_list_executor.rendering_mode_flush_count);
+    dbgln("  BPCA: {:#08x}", (u32)registers.current_address_of_binning_memory_pool);
+    dbgln("  BPCS: {:#08x}", (u32)registers.remaining_size_of_binning_memory_pool);
+    dbgln("  BPOA: {:#08x}", (u32)registers.address_of_overspill_binning_memory_block);
+    dbgln("  BPOS: {:#08x}", (u32)registers.size_of_overspill_binning_memory_block);
+    dbgln("  FDBGO: {:#08x}", (u32)registers.fep_overrun_error_signals);
+    dbgln("  FDBGB: {:#08x}", (u32)registers.fep_interface_ready_and_stall_signals__fep_busy_signals);
+    dbgln("  FDBGR: {:#08x}", (u32)registers.fep_interface_ready_signals);
+    dbgln("  FDBGS: {:#08x}", (u32)registers.fep_internal_stall_input_signals);
+    dbgln("  ERRSTAT: {:#08x}", (u32)registers.miscellaneous_error_signals);
+    dbgln("  Thread 0:");
+    dbgln("    CT0CS: {:#08x}", (u32)registers.control_list_executor.thread_0_control_and_status);
+    dbgln("    CT0EA: {:#08x}", (u32)registers.control_list_executor.thread_0_end_address);
+    dbgln("    CT0CA: {:#08x}", (u32)registers.control_list_executor.thread_0_current_address);
+    dbgln("    CT0RA: {:#08x}", (u32)registers.control_list_executor.thread_0_return_address);
+    dbgln("    CT0LC: {:#08x}", (u32)registers.control_list_executor.thread_0_list_counter);
+    dbgln("    CT0PC: {:#08x}", (u32)registers.control_list_executor.thread_0_primitive_list_counter);
+    dbgln("    CT0QTS: {:#08x}", (u32)registers.control_list_executor.thread_0_tile_state_data_array_address);
+    dbgln("    CT0QBA: {:#08x}", (u32)registers.control_list_executor.thread_0_control_list_start_address);
+    dbgln("    CT0QEA: {:#08x}", (u32)registers.control_list_executor.thread_0_control_list_end_address);
+    dbgln("    CT0QMA: {:#08x}", (u32)registers.control_list_executor.thread_0_tile_allocation_memory_address);
+    dbgln("    CT0QMS: {:#08x}", (u32)registers.control_list_executor.thread_0_tile_allocation_memory_size);
+    dbgln("  Thread 1:");
+    dbgln("    CT1CS: {:#08x}", (u32)registers.control_list_executor.thread_1_control_and_status);
+    dbgln("    CT1EA: {:#08x}", (u32)registers.control_list_executor.thread_1_end_address);
+    dbgln("    CT1CA: {:#08x}", (u32)registers.control_list_executor.thread_1_current_address);
+    dbgln("    CT1RA: {:#08x}", (u32)registers.control_list_executor.thread_1_return_address);
+    dbgln("    CT1LC: {:#08x}", (u32)registers.control_list_executor.thread_1_list_counter);
+    dbgln("    CT1PC: {:#08x}", (u32)registers.control_list_executor.thread_1_primitive_list_counter);
+    dbgln("    CT1QBA: {:#08x}", (u32)registers.control_list_executor.thread_1_control_list_start_address);
+    dbgln("    CT1QEA: {:#08x}", (u32)registers.control_list_executor.thread_1_control_list_end_address);
+}
+
 ErrorOr<NonnullRefPtr<V3D>> V3D::create(DeviceTree::Device::Resource hub_registers_resource, DeviceTree::Device::Resource core_0_registers_resource, InterruptNumber hub_interrupt_number, Optional<InterruptNumber> core_interrupt_number)
 {
     if (hub_registers_resource.size < sizeof(HubRegisters))
