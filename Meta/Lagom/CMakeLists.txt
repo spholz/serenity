@@ -504,6 +504,7 @@ if (BUILD_LAGOM)
         TLS
         Unicode
         URL
+        V3DGPU
         Wasm
         WebSocket
         XML
