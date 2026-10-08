@@ -1,4 +1,5 @@
 set(CMD_SOURCES_CPP
+    t.cpp
     abench.cpp
     aconv.cpp
     acpi.cpp
@@ -274,7 +275,11 @@ foreach(CMD_SRC ${CMD_SOURCES})
         )
     endif()
 
-    serenity_add_executable(${TARGET_NAME} ${CMD_SRC})
+    if(${CMD_SRC} STREQUAL "t.cpp")
+        serenity_add_executable(${TARGET_NAME} ${CMD_SRC} ../../../../Userland/Applications/3DFileViewer/WavefrontOBJLoader.cpp ../../../../Userland/Applications/3DFileViewer/Mesh.cpp)
+    else()
+        serenity_add_executable(${TARGET_NAME} ${CMD_SRC})
+    endif()
     serenity_set_implicit_links(${TARGET_NAME})
     set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL TRUE)
     target_link_libraries(${TARGET_NAME} PRIVATE LibCore)
@@ -299,6 +304,7 @@ install(CODE "file(CREATE_LINK gzip ${CMAKE_INSTALL_PREFIX}/bin/gunzip SYMBOLIC)
 install(CODE "file(CREATE_LINK gzip ${CMAKE_INSTALL_PREFIX}/bin/zcat SYMBOLIC)")
 install(CODE "file(CREATE_LINK /usr/lib/Loader.so ${CMAKE_INSTALL_PREFIX}/bin/ldd SYMBOLIC)")
 
+target_link_libraries(t PRIVATE LibGUI LibGfx LibGL)
 target_link_libraries(abench PRIVATE LibAudio LibFileSystem)
 target_link_libraries(aconv PRIVATE LibAudio LibFileSystem)
 target_link_libraries(acpi PRIVATE LibACPI LibFileSystem LibMain)
