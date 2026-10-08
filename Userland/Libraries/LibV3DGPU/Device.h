@@ -65,6 +65,14 @@ private:
 
     ErrorOr<ControlList> generate_initial_binner_control_list();
 
+    struct ShaderStateRecord {
+        ControlList control_list;
+        ControlList uniforms_list;
+        Buffer vertex_data_buffer;
+        Buffer shaders_buffer;
+    };
+    ErrorOr<ShaderStateRecord> generate_shader_state_record(Vector<VertexData> const& vertex_array, Gfx::FloatMatrix4x4 const& model_view_projection_matrix);
+
     struct RenderControlList {
         ControlList control_list;
         ControlList tile_list;
@@ -84,11 +92,15 @@ private:
     ControlList m_binner_control_list;
     RenderControlList m_render_control_list;
 
+    Vector<ShaderStateRecord> m_shader_state_records;
+
     Optional<Buffer> m_tile_alloc_memory_buffer;
     Optional<Buffer> m_tile_state_data_array_buffer;
 
     u32 m_clear_color { 0x00'00'00'00 };
     f32 m_clear_depth { 1.0f };
+
+    bool m_color_buffer_clear_requested_this_frame { false };
 
     struct RenderControlListState {
         // This struct contains all of the state that is "baked" into the render control list.
@@ -96,6 +108,7 @@ private:
 
         u32 clear_color { 0x00'00'00'00 };
         f32 clear_depth { 1.0f };
+        bool load_previous_frame { true };
 
         bool operator==(RenderControlListState const&) const = default;
     };
@@ -108,8 +121,14 @@ private:
         return {
             .clear_color = m_clear_color,
             .clear_depth = m_clear_depth,
+            .load_previous_frame = !m_color_buffer_clear_requested_this_frame,
         };
     }
+
+    FloatMatrix4x4 m_model_view_matrix = FloatMatrix4x4::identity();
+    FloatMatrix4x4 m_projection_matrix = FloatMatrix4x4::identity();
+
+    GPU::RasterizerOptions m_options;
 };
 
 }
