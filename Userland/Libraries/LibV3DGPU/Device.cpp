@@ -33,6 +33,7 @@ struct VertexData {
     f32 x;
     f32 y;
     f32 z;
+    f32 w;
 
     f32 r;
     f32 g;
@@ -82,25 +83,28 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     uniforms_list.append(model_view_projection_matrix(2, 1));
     uniforms_list.append(model_view_projection_matrix(3, 1));
 
+    uniforms_list.append<u32>(3);
+
     uniforms_list.append(model_view_projection_matrix(0, 2));
     uniforms_list.append(model_view_projection_matrix(1, 2));
     uniforms_list.append(model_view_projection_matrix(2, 2));
     uniforms_list.append(model_view_projection_matrix(3, 2));
 
-    uniforms_list.append<u32>(3);
     uniforms_list.append<u32>(4);
     uniforms_list.append<u32>(5);
     uniforms_list.append<u32>(6);
     uniforms_list.append<u32>(7);
-    uniforms_list.append(static_cast<f32>(m_framebuffer_size.width()) * 0.5f * 64.0f); // Viewport x scale
+    uniforms_list.append<u32>(8);
 
     uniforms_list.append(model_view_projection_matrix(0, 3));
     uniforms_list.append(model_view_projection_matrix(1, 3));
     uniforms_list.append(model_view_projection_matrix(2, 3));
     uniforms_list.append(model_view_projection_matrix(3, 3));
 
-    uniforms_list.append(-static_cast<f32>(m_framebuffer_size.height()) * 0.5f * 64.0f); // Viewport y scale
+    uniforms_list.append(static_cast<f32>(m_framebuffer_size.width()) * 0.5f * 64.0f); // Viewport x scale
     uniforms_list.append<u32>(5);
+
+    uniforms_list.append(-static_cast<f32>(m_framebuffer_size.height()) * 0.5f * 64.0f); // Viewport y scale
     uniforms_list.append<u32>(6);
     uniforms_list.append(0.5f); // Viewport z scale
     uniforms_list.append<u32>(7);
@@ -127,19 +131,21 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     uniforms_list.append(model_view_projection_matrix(2, 1));
     uniforms_list.append(model_view_projection_matrix(3, 1));
 
+    uniforms_list.append<u32>(3);
+
     uniforms_list.append(model_view_projection_matrix(0, 2));
     uniforms_list.append(model_view_projection_matrix(1, 2));
     uniforms_list.append(model_view_projection_matrix(2, 2));
     uniforms_list.append(model_view_projection_matrix(3, 2));
-
-    uniforms_list.append(static_cast<f32>(m_framebuffer_size.width()) * 0.5f * 64.0f); // Viewport x scale
 
     uniforms_list.append(model_view_projection_matrix(0, 3));
     uniforms_list.append(model_view_projection_matrix(1, 3));
     uniforms_list.append(model_view_projection_matrix(2, 3));
     uniforms_list.append(model_view_projection_matrix(3, 3));
 
+    uniforms_list.append(static_cast<f32>(m_framebuffer_size.width()) * 0.5f * 64.0f);   // Viewport x scale
     uniforms_list.append(-static_cast<f32>(m_framebuffer_size.height()) * 0.5f * 64.0f); // Viewport y scale
+
     uniforms_list.append<u32>(0);
     uniforms_list.append<u32>(1);
     uniforms_list.append<u32>(2);
@@ -326,21 +332,21 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
 
     ControlRecord::GLShaderStateAttributeRecord pos_attribute_record = {
         .address = vertex_data_buffer.gpu_virtual_address(),
-        .vec_size = 3,
+        .vec_size = 0, // 0 means 4.
         .type = ControlRecord::GLShaderStateAttributeRecord::Type::AttributeFloat,
         .signed_int_type = false,
         .normalized_int_type = false,
         .read_as_int_uint = false,
-        .number_of_values_read_by_coordinate_shader = 3,
-        .number_of_values_read_by_vertex_shader = 3,
+        .number_of_values_read_by_coordinate_shader = 4,
+        .number_of_values_read_by_vertex_shader = 4,
         .instance_divisor = 0,
-        .stride = 8 * sizeof(f32),
+        .stride = 9 * sizeof(f32),
         .maximum_index = 0xffffff,
     };
     control_list.append(pos_attribute_record);
 
     ControlRecord::GLShaderStateAttributeRecord color_attribute_record = {
-        .address = static_cast<ControlRecord::Address>(vertex_data_buffer.gpu_virtual_address() + (3 * sizeof(f32))),
+        .address = static_cast<ControlRecord::Address>(vertex_data_buffer.gpu_virtual_address() + (4 * sizeof(f32))),
         .vec_size = 3,
         .type = ControlRecord::GLShaderStateAttributeRecord::Type::AttributeFloat,
         .signed_int_type = false,
@@ -349,13 +355,13 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .number_of_values_read_by_coordinate_shader = 0,
         .number_of_values_read_by_vertex_shader = 3,
         .instance_divisor = 0,
-        .stride = 8 * sizeof(f32),
+        .stride = 9 * sizeof(f32),
         .maximum_index = 0xffffff,
     };
     control_list.append(color_attribute_record);
 
     ControlRecord::GLShaderStateAttributeRecord tex_coord_attribute_record = {
-        .address = static_cast<ControlRecord::Address>(vertex_data_buffer.gpu_virtual_address() + (6 * sizeof(f32))),
+        .address = static_cast<ControlRecord::Address>(vertex_data_buffer.gpu_virtual_address() + (7 * sizeof(f32))),
         .vec_size = 2,
         .type = ControlRecord::GLShaderStateAttributeRecord::Type::AttributeFloat,
         .signed_int_type = false,
@@ -364,7 +370,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .number_of_values_read_by_coordinate_shader = 0,
         .number_of_values_read_by_vertex_shader = 2,
         .instance_divisor = 0,
-        .stride = 8 * sizeof(f32),
+        .stride = 9 * sizeof(f32),
         .maximum_index = 0xffffff,
     };
     control_list.append(tex_coord_attribute_record);
@@ -738,6 +744,7 @@ void Device::draw_primitives(GPU::PrimitiveType primitive_type, Vector<GPU::Vert
             .x = vertex.position.x(),
             .y = vertex.position.y(),
             .z = vertex.position.z(),
+            .w = vertex.position.w(),
             .r = vertex.color.x(),
             .g = vertex.color.y(),
             .b = vertex.color.z(),
