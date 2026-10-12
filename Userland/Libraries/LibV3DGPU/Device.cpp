@@ -153,9 +153,15 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     uniforms_list.append<u32>(4);
     uniforms_list.append<u32>(5);
 
-    u32 texture_gpu_virtual_address = m_sampler_configuration[0].bound_image ? reinterpret_cast<V3DGPU::Image*>(m_sampler_configuration[0].bound_image.ptr())->buffer().gpu_virtual_address() : m_placeholder_texture_buffer->gpu_virtual_address();
-    u16 texture_width = m_sampler_configuration[0].bound_image ? m_sampler_configuration[0].bound_image->width_at_level(0) : 1;
-    u16 texture_height = m_sampler_configuration[0].bound_image ? m_sampler_configuration[0].bound_image->height_at_level(0) : 1;
+    auto const& sampler_configuration = m_sampler_configuration[0].bound_image ? m_sampler_configuration[0] : m_placeholder_sampler_configuration;
+
+    u32 texture_gpu_virtual_address = reinterpret_cast<V3DGPU::Image*>(sampler_configuration.bound_image.ptr())->buffer().gpu_virtual_address();
+    u16 texture_width = sampler_configuration.bound_image->width_at_level(0);
+    u16 texture_height = sampler_configuration.bound_image->height_at_level(0);
+
+    // u32 texture_gpu_virtual_address = m_sampler_configuration[0].bound_image ? reinterpret_cast<V3DGPU::Image*>(m_sampler_configuration[0].bound_image.ptr())->buffer().gpu_virtual_address() : m_placeholder_texture_buffer->gpu_virtual_address();
+    // u16 texture_width = m_sampler_configuration[0].bound_image ? m_sampler_configuration[0].bound_image->width_at_level(0) : 1;
+    // u16 texture_height = m_sampler_configuration[0].bound_image ? m_sampler_configuration[0].bound_image->height_at_level(0) : 1;
 
     // dbgln("texture @ {:#x} ({} bytes)", texture_gpu_virtual_address, texture_width * texture_height * 4);
 
@@ -195,6 +201,23 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     };
     texture_list.append(texture_shader_state);
 
+    auto map_wrap_mode = [](GPU::TextureWrapMode wrap_mode) {
+        switch (wrap_mode) {
+        case GPU::TextureWrapMode::Repeat:
+            return ControlRecord::WrapMode::Repeat;
+        case GPU::TextureWrapMode::MirroredRepeat:
+            return ControlRecord::WrapMode::Mirror;
+        case GPU::TextureWrapMode::Clamp:
+            return ControlRecord::WrapMode::Clamp;
+        case GPU::TextureWrapMode::ClampToBorder:
+            return ControlRecord::WrapMode::Border;
+        case GPU::TextureWrapMode::ClampToEdge:
+            return ControlRecord::WrapMode::Clamp;
+        }
+
+        VERIFY_NOT_REACHED();
+    };
+
     auto sampler_state_offset = texture_list.data().size();
     ControlRecord::SamplerState sampler_state {
         .mag_filter_nearest = false,
@@ -206,9 +229,9 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .min_level_of_detail = 0,
         .max_level_of_detail = 0xf00,
         .fixed_bias = 0,
-        .wrap_s = ControlRecord::WrapMode::Repeat,
-        .wrap_t = ControlRecord::WrapMode::Repeat,
-        .wrap_r = ControlRecord::WrapMode::Repeat,
+        .wrap_s = map_wrap_mode(sampler_configuration.texture_wrap_u),
+        .wrap_t = map_wrap_mode(sampler_configuration.texture_wrap_v),
+        .wrap_r = map_wrap_mode(sampler_configuration.texture_wrap_w),
         .wrap_i_border = false,
         .border_color_mode = ControlRecord::BorderColorMode::Mode0000,
         .maximum_anisotropy = 0,
@@ -225,6 +248,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     u32 texture_shader_state_address = texture_list.buffer()->gpu_virtual_address() + texture_shader_state_offset;
     u32 sampler_state_address = texture_list.buffer()->gpu_virtual_address() + sampler_state_offset;
 
+    // Fragment shader uniforms
     auto fragment_shader_uniforms_offset = uniforms_list.data().size();
 
     ControlRecord::TMUConfigParameter0 tmu_config_parameter_0 {
@@ -236,17 +260,26 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     ControlRecord::TMUConfigParameter1 tmu_config_parameter_1 {
         .output_type_32_bit = false,
         .unnormalized_coordinates = false,
-        .per_pixel_mask_enable = true,
+        .per_pixel_mask_enable = false,
         .sampler_state_address = sampler_state_address >> 3u,
     };
     uniforms_list.append(tmu_config_parameter_1);
 
+    if (m_options.enable_alpha_test) {
+        if (m_options.alpha_test_func != GPU::AlphaTestFunction::Greater) {
+            dbgln("LibV3DGPU: Unimplemented alpha test function: {}", to_underlying(m_options.alpha_test_func));
+        } else {
+            uniforms_list.append<f32>(m_options.alpha_test_ref_value);
+            uniforms_list.append<u32>(0xffff'ff84);
+        }
+    }
+
     TRY(uniforms_list.copy_to_gpu_buffer());
     // dbgln("uniforms list @ {:#x}", uniforms_list.buffer()->gpu_virtual_address());
     // dump(uniforms_list.data());
-    u32 vertex_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + vertex_shader_uniforms_offset;
-    u32 coordinate_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + coordinate_shader_uniforms_offset;
-    u32 fragment_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + fragment_shader_uniforms_offset;
+    ControlRecord::Address vertex_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + vertex_shader_uniforms_offset;
+    ControlRecord::Address coordinate_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + coordinate_shader_uniforms_offset;
+    ControlRecord::Address fragment_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + fragment_shader_uniforms_offset;
 
     // -- Vertex data --
 
@@ -262,22 +295,25 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
 
     // -- Shaders --
 
-    static constexpr size_t FRAGMENT_SHADER_SIZE = FRAGMENT_SHADER.size() * sizeof(FRAGMENT_SHADER[0]);
+    bool use_alpha_test_fragment_shader = m_options.enable_alpha_test && m_options.alpha_test_func == GPU::AlphaTestFunction::Greater;
+    auto& fragment_shader = use_alpha_test_fragment_shader ? FRAGMENT_SHADER_ALPHA_TEST_GREATER : FRAGMENT_SHADER;
+
+    size_t const fragment_shader_size = fragment_shader.size() * sizeof(fragment_shader[0]);
     static constexpr size_t VERTEX_SHADER_SIZE = VERTEX_SHADER.size() * sizeof(VERTEX_SHADER[0]);
     static constexpr size_t COORDINATE_SHADER_SIZE = COORDINATE_SHADER.size() * sizeof(COORDINATE_SHADER[0]);
 
-    static constexpr size_t SHADERS_BUFFER_SIZE = FRAGMENT_SHADER_SIZE + VERTEX_SHADER_SIZE + COORDINATE_SHADER_SIZE;
+    size_t const shaders_buffer_size = fragment_shader_size + VERTEX_SHADER_SIZE + COORDINATE_SHADER_SIZE;
 
     static constexpr size_t SHADERS_BUFFER_FRAGMENT_SHADER_OFFSET = 0;
-    static constexpr size_t SHADERS_BUFFER_VERTEX_SHADER_OFFSET = FRAGMENT_SHADER_SIZE;
-    static constexpr size_t SHADERS_BUFFER_COORDINATE_SHADER_OFFSET = FRAGMENT_SHADER_SIZE + VERTEX_SHADER_SIZE;
+    size_t const shaders_buffer_vertex_shader_offset = fragment_shader_size;
+    size_t const shaders_buffer_coordinate_shader_offset = fragment_shader_size + VERTEX_SHADER_SIZE;
 
-    auto shaders_buffer = TRY(Buffer::create(align_up_to(SHADERS_BUFFER_SIZE, V3D_PAGE_SIZE), "LibV3DGPU: Shaders Buffer"sv));
+    auto shaders_buffer = TRY(Buffer::create(align_up_to(shaders_buffer_size, V3D_PAGE_SIZE), "LibV3DGPU: Shaders Buffer"sv));
 
     u8* shaders_buffer_data = shaders_buffer.data().data();
-    memcpy(shaders_buffer_data + SHADERS_BUFFER_FRAGMENT_SHADER_OFFSET, FRAGMENT_SHADER.data(), FRAGMENT_SHADER_SIZE);
-    memcpy(shaders_buffer_data + SHADERS_BUFFER_VERTEX_SHADER_OFFSET, VERTEX_SHADER.data(), VERTEX_SHADER_SIZE);
-    memcpy(shaders_buffer_data + SHADERS_BUFFER_COORDINATE_SHADER_OFFSET, COORDINATE_SHADER.data(), COORDINATE_SHADER_SIZE);
+    memcpy(shaders_buffer_data + SHADERS_BUFFER_FRAGMENT_SHADER_OFFSET, fragment_shader.data(), fragment_shader_size);
+    memcpy(shaders_buffer_data + shaders_buffer_vertex_shader_offset, VERTEX_SHADER.data(), VERTEX_SHADER_SIZE);
+    memcpy(shaders_buffer_data + shaders_buffer_coordinate_shader_offset, COORDINATE_SHADER.data(), COORDINATE_SHADER_SIZE);
 
     // -- GL Shader State Record --
 
@@ -290,8 +326,8 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .vertex_id_read_by_vertex_shader = false,
         .instance_id_read_by_vertex_shader = false,
         .base_instance_id_read_by_vertex_shader = false,
-        .fragment_shader_does_z_writes = false,
-        .turn_off_early_z_test = false,
+        .fragment_shader_does_z_writes = use_alpha_test_fragment_shader,
+        .turn_off_early_z_test = use_alpha_test_fragment_shader,
         ._reserved0 = 0,
         .fragment_shader_uses_real_pixel_centre_w_in_addition_to_centroid_w2 = true,
         .enable_sample_rate_shading = false,
@@ -320,12 +356,12 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .vertex_shader_4_way_threadable = true,
         .vertex_shader_start_in_final_thread_section = true,
         .vertex_shader_propagate_nans = false,
-        .vertex_shader_code_address = static_cast<ControlRecord::Address>((shaders_buffer.gpu_virtual_address() + SHADERS_BUFFER_VERTEX_SHADER_OFFSET) >> 3u),
+        .vertex_shader_code_address = static_cast<ControlRecord::Address>((shaders_buffer.gpu_virtual_address() + shaders_buffer_vertex_shader_offset) >> 3u),
         .vertex_shader_uniforms_address = vertex_shader_uniforms_address,
         .coordinate_shader_4_way_threadable = true,
         .coordinate_shader_start_in_final_thread_section = true,
         .coordinate_shader_propagate_nans = false,
-        .coordinate_shader_code_address = static_cast<ControlRecord::Address>((shaders_buffer.gpu_virtual_address() + SHADERS_BUFFER_COORDINATE_SHADER_OFFSET) >> 3u),
+        .coordinate_shader_code_address = static_cast<ControlRecord::Address>((shaders_buffer.gpu_virtual_address() + shaders_buffer_coordinate_shader_offset) >> 3u),
         .coordinate_shader_uniforms_address = coordinate_shader_uniforms_address,
     };
     control_list.append(gl_shader_state_record);
@@ -442,6 +478,98 @@ ErrorOr<ControlList> Device::generate_initial_binner_control_list()
     viewport_offset.fine_y = (m_framebuffer_size.height() / 2u) * 256u;
     viewport_offset.coarse_y = 0;
     control_list.append(viewport_offset);
+
+    // struct LibGPUBlendConfiguration {
+    //     GPU::BlendEquation equation;
+    //     GPU::BlendFactor src_factor;
+    // };
+    // struct V3DBlendConfiguration {
+    //     ControlRecord::BlendMode blend_mode;
+    //     ControlRecord::BlendFactor src_factor;
+    //     ControlRecord::BlendFactor dst_factor;
+    // };
+    // auto map_blend_configuration = [](
+
+    auto map_blend_mode = [](GPU::BlendEquation blend_equation) {
+        switch (blend_equation) {
+        case GPU::BlendEquation::Add:
+            return ControlRecord::BlendMode::Add;
+        case GPU::BlendEquation::Subtract:
+            return ControlRecord::BlendMode::Sub;
+        case GPU::BlendEquation::ReverseSubtract:
+            return ControlRecord::BlendMode::RSub;
+        case GPU::BlendEquation::Min:
+            return ControlRecord::BlendMode::Min;
+        case GPU::BlendEquation::Max:
+            return ControlRecord::BlendMode::Max;
+        }
+
+        VERIFY_NOT_REACHED();
+    };
+
+    auto map_blend_factor = [](GPU::BlendFactor blend_factor) {
+        switch (blend_factor) {
+        case GPU::BlendFactor::Zero:
+            return ControlRecord::BlendFactor::Zero;
+        case GPU::BlendFactor::One:
+            return ControlRecord::BlendFactor::One;
+        case GPU::BlendFactor::SrcColor:
+            return ControlRecord::BlendFactor::SrcColor;
+        case GPU::BlendFactor::OneMinusSrcColor:
+            return ControlRecord::BlendFactor::InvSrcColor;
+        case GPU::BlendFactor::DstColor:
+            return ControlRecord::BlendFactor::DstColor;
+        case GPU::BlendFactor::OneMinusDstColor:
+            return ControlRecord::BlendFactor::InvDstColor;
+        case GPU::BlendFactor::SrcAlpha:
+            return ControlRecord::BlendFactor::SrcAlpha;
+        case GPU::BlendFactor::OneMinusSrcAlpha:
+            return ControlRecord::BlendFactor::InvSrcAlpha;
+        case GPU::BlendFactor::DstAlpha:
+            return ControlRecord::BlendFactor::DstAlpha;
+        case GPU::BlendFactor::OneMinusDstAlpha:
+            return ControlRecord::BlendFactor::InvDstAlpha;
+        case GPU::BlendFactor::ConstantColor:
+            return ControlRecord::BlendFactor::ConstColor;
+        case GPU::BlendFactor::OneMinusConstantColor:
+            return ControlRecord::BlendFactor::InvConstColor;
+        case GPU::BlendFactor::ConstantAlpha:
+            return ControlRecord::BlendFactor::ConstAlpha;
+        case GPU::BlendFactor::OneMinusConstantAlpha:
+            return ControlRecord::BlendFactor::InvConstAlpha;
+        case GPU::BlendFactor::SrcAlphaSaturate:
+            return ControlRecord::BlendFactor::SrcAlphaSaturate;
+        }
+
+        VERIFY_NOT_REACHED();
+    };
+
+    // ControlRecord::ColorWriteMasks color_write_masks;
+    // color_write_masks.mask = 0xff'00'00'00;
+    // control_list.append(color_write_masks);
+
+    if (m_options.enable_blending) {
+        ControlRecord::BlendEnables blend_enables {};
+        blend_enables.mask = m_options.enable_blending ? 0xff : 0;
+        control_list.append(blend_enables);
+
+        ControlRecord::BlendCfg blend_cfg {};
+        blend_cfg.alpha_blend_mode = map_blend_mode(m_options.blend_equation_alpha);
+        blend_cfg.alpha_blend_src_factor = map_blend_factor(m_options.blend_source_factor);
+        blend_cfg.alpha_blend_dst_factor = map_blend_factor(m_options.blend_destination_factor);
+        blend_cfg.color_blend_mode = map_blend_mode(m_options.blend_equation_alpha);
+        blend_cfg.color_blend_src_factor = map_blend_factor(m_options.blend_source_factor);
+        blend_cfg.color_blend_dst_factor = map_blend_factor(m_options.blend_destination_factor);
+        blend_cfg.render_target_mask = 0xff;
+        control_list.append(blend_cfg);
+
+        ControlRecord::BlendConstantColor blend_constant_color {};
+        blend_constant_color.red = static_cast<_Float16>(m_options.blend_color.x());
+        blend_constant_color.green = static_cast<_Float16>(m_options.blend_color.y());
+        blend_constant_color.blue = static_cast<_Float16>(m_options.blend_color.z());
+        blend_constant_color.alpha = static_cast<_Float16>(m_options.blend_color.w());
+        control_list.append(blend_constant_color);
+    }
 
     ControlRecord::ZeroAllFlatShadeFlags zero_all_flat_shade_flags {};
     control_list.append(zero_all_flat_shade_flags);
@@ -689,8 +817,25 @@ ErrorOr<void> Device::initialize_context(Gfx::IntSize min_size)
     auto tile_state_data_array_memory_size = align_up_to(tile_count * TILE_STATE_DATA_ARRAY_ELEMENT_SIZE, V3D_PAGE_SIZE);
     m_tile_state_data_array_buffer = TRY(Buffer::create(tile_state_data_array_memory_size, "LibV3DGPU: Tile State Data Array"sv));
 
-    m_placeholder_texture_buffer = TRY(Buffer::create(V3D_PAGE_SIZE, "LibV3DGPU: Placeholder Texture"sv));
-    *reinterpret_cast<u32*>(m_placeholder_texture_buffer->data().data()) = 0xff'ff'ff'ff;
+    m_placeholder_sampler_configuration.bound_image = create_image(GPU::PixelFormat::RGBA, 1, 1, 1, 1);
+
+    GPU::ImageDataLayout placeholder_layout = {
+        .pixel_type = { GPU::PixelFormat::RGBA, GPU::PixelComponentBits::AllBits, GPU::PixelDataType::Byte, GPU::ComponentsOrder::Normal },
+        .packing = { 1, 1, 4, GPU::ComponentBytesOrder::Normal },
+        .dimensions = {
+            .width = 1,
+            .height = 1,
+            .depth = 1,
+        },
+        .selection = {
+            .width = 1,
+            .height = 1,
+            .depth = 1,
+        },
+    };
+
+    u32 placeholder_texture[1] = { 0xff'ff'ff'ff };
+    m_placeholder_sampler_configuration.bound_image->write_texels(0, { 0, 0, 0 }, &placeholder_texture, placeholder_layout);
 
     return {};
 }
@@ -812,7 +957,7 @@ void Device::draw_primitives(GPU::PrimitiveType primitive_type, Vector<GPU::Vert
     cfg_bits.enable_forward_facing_primitive = 1;
     cfg_bits.enable_reverse_facing_primitive = 1;
     cfg_bits.clockwise_primitives = 1;
-    cfg_bits.enable_depth_offset = 0;
+    cfg_bits.enable_depth_offset = m_options.depth_offset_enabled;
     cfg_bits.line_rasterization = 0;
     cfg_bits.depth_bounds_test_enable = 0;
     cfg_bits.rasterizer_oversample_mode = 0;
@@ -821,11 +966,19 @@ void Device::draw_primitives(GPU::PrimitiveType primitive_type, Vector<GPU::Vert
     cfg_bits.depth_test_function = determine_depth_test_function();
     cfg_bits.z_updates_enable = m_options.enable_depth_test && m_options.enable_depth_write;
     cfg_bits.stencil_enable = 0;
-    cfg_bits.blend_enable = 0;
+    cfg_bits.blend_enable = m_options.enable_blending;
     cfg_bits.direct3d_point_fill_mode = 0;
     cfg_bits.direct3d_provoking_vertex = 0;
     cfg_bits.z_clipping_mode = ControlRecord::ZClipMode::None;
     m_binner_control_list.append(cfg_bits);
+
+    if (m_options.depth_offset_enabled) {
+        ControlRecord::DepthOffset depth_offset;
+        depth_offset.depth_offset_factor = bit_cast<u32>(m_options.depth_offset_factor) >> 16;
+        depth_offset.depth_offset_units = bit_cast<u32>(m_options.depth_offset_constant) >> 16;
+        depth_offset.limit = 0.0f;
+        m_binner_control_list.append(depth_offset);
+    }
 
     ControlRecord::GLShaderState gl_shader_state {};
     gl_shader_state.number_of_attribute_arrays = 3;

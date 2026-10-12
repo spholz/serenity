@@ -138,6 +138,23 @@ static constexpr auto FRAGMENT_SHADER = to_array<u64>({
     0x38003186bb03f000, // nop                           ; nop
     0x38003186bb03f000, // nop                           ; nop
 });
+
+static constexpr auto FRAGMENT_SHADER_ALPHA_TEST_GREATER = to_array<u64>({
+    0x3a813186bb03f000, // nop                           ; nop                         ; ldvary.rf4; wrtmuc (tex[0].p0 | 0x3)
+    0x5681d146bb103000, // nop                           ; fmul rf5, rf4, rf3          ; ldvary.rf7; wrtmuc (tex[0].p1 | 0x0)
+    0x55028206051c3005, // fadd rf6, rf0, rf5            ; fmul rf8, rf7, rf3          ; ldvary.rf10
+    0x550342c905283008, // fadd rf9, rf0, rf8            ; fmul rf11, rf10, rf3        ; ldvary.rf13
+    0x5524038c0534300b, // fadd rf12, rf0, rf11          ; fmul rf14, rf13, rf3        ; thrsw; ldvary.rf16
+    0x3820288f0524300e, // fadd rf15, rf0, rf14          ; mov tmut, rf9               ; thrsw
+    0x54001461f9403183, // mov tmus, rf6                 ; fmul rf17, rf16, rf3
+    0x38c4e1920503f011, // fadd rf18, rf0, rf17          ; nop                         ; ldtmu.rf19; ldunif (push[0])
+    0x64851586bb4cc000, // nop                           ; fmul rf22, rf19.l, rf12     ; ldtmu.rf20
+    0x7400d5c6cd4cf500, // fcmp.pushc -, rf20.h, rf0     ; fmul rf23, rf19.h, rf15
+    0x65c81546ba512006, // setmsf.ifa -, 0               ; fmul rf21, rf20.l, rf18
+    0x38203206bb143000, // nop                           ; mov tlbu, rf5               ; thrsw (0xffffff84 / -nan)
+    0x380031873503f597, // vfpack tlb, rf22, rf23        ; nop
+    0x380031873703f554, // vfpack tlb, rf21, rf20.h      ; nop
+});
 // clang-format on
 
 }

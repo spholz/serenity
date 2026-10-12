@@ -134,7 +134,7 @@ private:
     Array<GPU::TextureUnitConfiguration, 1> m_texture_unit_configuration;
     Array<GPU::SamplerConfig, 1> m_sampler_configuration;
     // Optional<Buffer> m_texture_buffer;
-    Optional<Buffer> m_placeholder_texture_buffer;
+    GPU::SamplerConfig m_placeholder_sampler_configuration;
 };
 
 }

@@ -21,6 +21,7 @@ using Opcode = u8;
 using u4p8 = u16;  // Unsigned 4.8 fixed point
 using u14p8 = u32; // Unsigned 14.8 fixed point
 using s8p8 = i16;  // Signed 8.8 fixed point
+using f187 = u16;  // Floating-point value with 8 bits exponent, 7 bits fraction
 
 // <enum name="Compare Function" prefix="V3D_COMPARE_FUNC">
 enum class CompareFunction : u32 {
@@ -32,6 +33,38 @@ enum class CompareFunction : u32 {
     NotEqual = 5,
     GEqual = 6,
     Always = 7,
+};
+
+// <enum name="Blend Factor" prefix="V3D_BLEND_FACTOR">
+enum class BlendFactor : u8 {
+    Zero = 0,
+    One = 1,
+    SrcColor = 2,
+    InvSrcColor = 3,
+    DstColor = 4,
+    InvDstColor = 5,
+    SrcAlpha = 6,
+    InvSrcAlpha = 7,
+    DstAlpha = 8,
+    InvDstAlpha = 9,
+    ConstColor = 10,
+    InvConstColor = 11,
+    ConstAlpha = 12,
+    InvConstAlpha = 13,
+    SrcAlphaSaturate = 14,
+};
+
+// <enum name="Blend Mode" prefix="V3D_BLEND_MODE">
+enum class BlendMode : u8 {
+    Add = 0,
+    Sub = 1,
+    RSub = 2,
+    Min = 3,
+    Max = 4,
+    Mul = 5,
+    Screen = 6,
+    Darken = 7,
+    Lighten = 8,
 };
 
 // <enum name="Primitive" prefix="V3D_PRIM">
@@ -309,6 +342,43 @@ struct [[gnu::packed]] GLShaderState {
 };
 static_assert(AssertSize<GLShaderState, 1 + 4>());
 
+// <packet code="83" name="Blend Enables">
+struct BlendEnables {
+    Opcode opcode = 83;
+    u8 mask;
+};
+static_assert(AssertSize<BlendEnables, 1 + 1>());
+
+// <packet code="84" name="Blend Cfg" min_ver="71">
+struct BlendCfg {
+    Opcode opcode = 84;
+    BlendMode alpha_blend_mode : 4;
+    BlendFactor alpha_blend_src_factor : 4;
+    BlendFactor alpha_blend_dst_factor : 4;
+    BlendMode color_blend_mode : 4;
+    BlendFactor color_blend_src_factor : 4;
+    BlendFactor color_blend_dst_factor : 4;
+    u8 render_target_mask;
+};
+static_assert(AssertSize<BlendCfg, 1 + 4>());
+
+// <packet code="86" shortname="blend_ccolor" name="Blend Constant Color">
+struct [[gnu::packed]] BlendConstantColor {
+    Opcode opcode = 86;
+    _Float16 red;
+    _Float16 green;
+    _Float16 blue;
+    _Float16 alpha;
+};
+static_assert(AssertSize<BlendConstantColor, 1 + 8>());
+
+// <packet code="87" shortname="color_wmasks" name="Color Write Masks">
+struct [[gnu::packed]] ColorWriteMasks {
+    Opcode opcode = 87;
+    u32 mask;
+};
+static_assert(AssertSize<ColorWriteMasks, 1 + 4>());
+
 // <packet code="88" name="Zero All Centroid Flags" />
 struct ZeroAllCentroidFlags {
     Opcode opcode = 88;
@@ -350,6 +420,19 @@ struct ZeroAllNonPerspectiveFlags {
     Opcode opcode = 99;
 };
 static_assert(AssertSize<ZeroAllNonPerspectiveFlags, 1>());
+
+// <packet name="Depth Offset" code="106">
+//   <field name="Limit" size="32" start="32" type="float"/>
+//   <field name="Depth Offset Units" size="16" start="16" type="f187"/>
+//   <field name="Depth Offset Factor" size="16" start="0" type="f187"/>
+// </packet>
+struct [[gnu::packed]] DepthOffset {
+    Opcode opcode = 106;
+    f187 depth_offset_factor;
+    f187 depth_offset_units;
+    f32 limit;
+};
+static_assert(AssertSize<DepthOffset, 1 + 8>());
 
 // <packet shortname="clip" name="clip_window" code="107">
 struct [[gnu::packed]] ClipWindow {
