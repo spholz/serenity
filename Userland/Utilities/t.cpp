@@ -58,7 +58,7 @@ private:
 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-        glTranslatef(0, 0, -8.5);
+        glTranslatef(0, 0, -4.5);
         glRotatef(x_offset * 50, 0, 1, 0);
 
         glMatrixMode(GL_PROJECTION);

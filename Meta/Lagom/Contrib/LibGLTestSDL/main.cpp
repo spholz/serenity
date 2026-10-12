@@ -15,6 +15,11 @@
 #include <LibMedia/PlaybackManager.h>
 #include <SDL2/SDL.h>
 
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
+#define STB_IMAGE_IMPLEMENTATION
+#include "/home/s/gpu/stb_image.h"
+
 ErrorOr<int> serenity_main(Main::Arguments)
 {
     static constexpr size_t WIDTH = 1280;
@@ -52,12 +57,28 @@ ErrorOr<int> serenity_main(Main::Arguments)
     auto context = TRY(GL::create_context(*bitmap));
     GL::make_context_current(context);
 
+    int buggie_width, buggie_height, buggie_component_count;
+    unsigned char* data = stbi_load("/home/s/repos/serenity/Base/res/graphics/buggie.png", &buggie_width, &buggie_height, &buggie_component_count, 4);
+    VERIFY(data != nullptr);
+
+    glEnable(GL_TEXTURE_2D);
+
+    unsigned int buggie_texture;
+    glGenTextures(1, &buggie_texture);
+
+    glBindTexture(GL_TEXTURE_2D, buggie_texture);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, buggie_width, buggie_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    // glGenerateMipmap(GL_TEXTURE_2D);
+
+    stbi_image_free(data);
+
     warnln("Vendor:     {}", reinterpret_cast<char const*>(glGetString(GL_VENDOR)));
     warnln("Renderer:   {}", reinterpret_cast<char const*>(glGetString(GL_RENDERER)));
     warnln("Version:    {}", reinterpret_cast<char const*>(glGetString(GL_VERSION)));
     warnln("Entensions: {}", reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS)));
 
-    float x_offset = 0.f;
+    // float x_offset = 0.f;
 
     WavefrontOBJLoader mesh_loader;
 
@@ -83,21 +104,21 @@ ErrorOr<int> serenity_main(Main::Arguments)
 
         event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
 
-        x_offset = sin(MonotonicTime::now().milliseconds() / 1000.f);
+        // x_offset = sin(MonotonicTime::now().milliseconds() / 1000.f);
 
         glClearColor(0.2f, 0.0f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        glTranslatef(0, 0, -4);
-        glRotatef(x_offset * 50, 0, 1, 0);
-
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        auto zoom = 0.5;
-        auto const half_aspect_ratio = static_cast<double>(bitmap->width()) / bitmap->height() * zoom;
-        glFrustum(-half_aspect_ratio, half_aspect_ratio, -zoom, zoom, .5, 10.);
+        // glMatrixMode(GL_MODELVIEW);
+        // glLoadIdentity();
+        // glTranslatef(0, 0, -8.5);
+        // glRotatef(x_offset * 50, 0, 1, 0);
+        //
+        // glMatrixMode(GL_PROJECTION);
+        // glLoadIdentity();
+        // auto zoom = 0.5;
+        // auto const half_aspect_ratio = static_cast<double>(bitmap->width()) / bitmap->height() * zoom;
+        // glFrustum(-half_aspect_ratio, half_aspect_ratio, -zoom, zoom, .5, 10.);
 
         // glBegin(GL_QUADS);
         // glColor3f(0, 0, 1);
@@ -115,7 +136,7 @@ ErrorOr<int> serenity_main(Main::Arguments)
         // glVertex3f(1, 1, -1);
         // glEnd();
 
-        mesh->draw(1.0f);
+        // mesh->draw(1.0f);
 
         // glBegin(GL_TRIANGLES);
         //
@@ -158,6 +179,20 @@ ErrorOr<int> serenity_main(Main::Arguments)
         //
         // glColor3f(1, 0, 0);
         // glVertex2f(0.6f, 0.5f);
+
+        glBegin(GL_TRIANGLES);
+        glTexCoord2f(0.0f, 0.0f);
+        glColor3f(1.0f, 0.0f, 0.0f);
+        glVertex3f(-0.5f, -0.5f, 0.0f);
+
+        glTexCoord2f(0.0f, 1.0f);
+        glColor3f(0.0f, 1.0f, 0.0f);
+        glVertex3f(0.5f, -0.5f, 0.0f);
+
+        glTexCoord2f(1.0f, 0.0f);
+        glColor3f(0.0f, 0.0f, 1.0f);
+        glVertex3f(0.0f, 0.5f, 0.0f);
+        glEnd();
 
         VERIFY(glGetError() == 0);
 

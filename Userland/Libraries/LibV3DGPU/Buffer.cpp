@@ -10,6 +10,10 @@
 #include <LibCore/System.h>
 #include <sys/mman.h>
 
+#ifndef AK_OS_SERENITY
+#    define MAP_RANDOMIZED 0
+#endif
+
 namespace V3DGPU {
 
 extern int g_v3d_fd;

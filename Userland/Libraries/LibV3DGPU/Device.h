@@ -68,6 +68,7 @@ private:
     struct ShaderStateRecord {
         ControlList control_list;
         ControlList uniforms_list;
+        ControlList texture_list;
         Buffer vertex_data_buffer;
         Buffer shaders_buffer;
     };
@@ -125,10 +126,15 @@ private:
         };
     }
 
-    FloatMatrix4x4 m_model_view_matrix = FloatMatrix4x4::identity();
-    FloatMatrix4x4 m_projection_matrix = FloatMatrix4x4::identity();
+    FloatMatrix4x4 m_model_view_matrix;
+    FloatMatrix4x4 m_projection_matrix;
 
     GPU::RasterizerOptions m_options;
+
+    Array<GPU::TextureUnitConfiguration, 1> m_texture_unit_configuration;
+    Array<GPU::SamplerConfig, 1> m_sampler_configuration;
+    // Optional<Buffer> m_texture_buffer;
+    Optional<Buffer> m_placeholder_texture_buffer;
 };
 
 }
