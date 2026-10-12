@@ -18,8 +18,9 @@ using Address = u32;
 
 using Opcode = u8;
 
-// Unsigned 14.8 fixed point
-using u14p8 = u32;
+using u4p8 = u16;  // Unsigned 4.8 fixed point
+using u14p8 = u32; // Unsigned 14.8 fixed point
+using s8p8 = i16;  // Signed 8.8 fixed point
 
 // <enum name="Compare Function" prefix="V3D_COMPARE_FUNC">
 enum class CompareFunction : u32 {
@@ -49,6 +50,23 @@ enum class Primitive : u8 {
     TrianglesTF = 20,
     TriangleStripTF = 21,
     TriangleFanTF = 22,
+};
+
+// <enum name="Border Color Mode" prefix="V3D_BORDER_COLOR">
+enum class BorderColorMode : u32 {
+    Mode0000 = 0,
+    Mode0001 = 1,
+    Mode1111 = 2,
+    ModeFollows = 7,
+};
+
+// <enum name="Wrap Mode" prefix="V3D_WRAP_MODE">
+enum class WrapMode : u32 {
+    Repeat = 0,
+    Clamp = 1,
+    Mirror = 2,
+    Border = 3,
+    MirrorOnce = 4,
 };
 
 // <enum name="Memory Format" prefix="V3D_MEMORY_FORMAT">
@@ -629,5 +647,99 @@ struct GLShaderStateAttributeRecord {
     u32 maximum_index;
 };
 static_assert(AssertSize<GLShaderStateAttributeRecord, 16>());
+
+// <struct name="TMU Config Parameter 0">
+struct TMUConfigParameter0 {
+    u32 return_words_of_texture_data : 4;
+    u32 texture_state_address : 28;
+};
+static_assert(AssertSize<TMUConfigParameter0, 4>());
+
+// <struct name="TMU Config Parameter 1">
+struct TMUConfigParameter1 {
+    bool output_type_32_bit : 1;
+    bool unnormalized_coordinates : 1;
+    bool per_pixel_mask_enable : 1;
+    u32 sampler_state_address : 29;
+};
+static_assert(AssertSize<TMUConfigParameter1, 4>());
+
+// <struct name="Texture Shader State" min_ver="71">
+struct [[gnu::packed]] TextureShaderState {
+    // <field name="Transfer func" size="3" start="2" type="uint">
+    enum class TransferFunc : u32 {
+        None = 0,
+        sRGB = 1,
+        PQ = 2,
+        HLG = 3,
+        PQ_BT1886 = 4,
+        HLG_BT1886 = 5,
+    };
+
+    // <field name="Swizzle A" size="3" start="117" type="uint">
+    enum class SwizzleA : u32 {
+        Zero = 0,
+        One = 1,
+        Red = 2,
+        Gren = 3,
+        Blue = 4,
+        Alpha = 5,
+    };
+
+    bool flip_texture_x_axis : 1;
+    bool flip_texture_y_axis : 1;
+    TransferFunc transfer_func : 3;
+    bool reverse : 1;
+    Address texture_base_pointer : 26;
+    bool r_b_swap : 1;
+    u32 array_stride_64_byte_aligned : 24;
+    u8 _reserved0 : 1;
+    u16 image_width : 14;
+    u16 image_height : 14;
+    u16 image_depth : 14;
+    u32 texture_type : 7;
+    bool extended : 1;
+    u32 swizzle_r : 3;
+    u32 swizzle_g : 3;
+    u32 swizzle_b : 3;
+    SwizzleA swizzle_a : 3;
+    u8 max_level : 4;
+    u8 base_level : 4;
+    u8 level_0_ub_pad : 4;
+    bool level_0_xor_enable : 1;
+    u8 _reserved1 : 1;
+    bool level_0_is_strictly_uif : 1;
+    bool uif_xor_disable : 1;
+    u8 chroma_offset_x : 1;
+    u8 chroma_offset_y : 1;
+    u32 texture_base_pointer_cb : 26;
+    u32 texture_base_pointer_cr : 26;
+    u8 pad : 2;
+};
+static_assert(AssertSize<TextureShaderState, 24>());
+
+// <struct name="Sampler State">
+struct [[gnu::packed]] SamplerState {
+    bool mag_filter_nearest : 1;
+    bool min_filter_nearest : 1;
+    bool mip_filter_nearest : 1;
+    bool anisotropy_enable : 1;
+    CompareFunction depth_compare_function : 3;
+    bool srgb_disable : 1;
+    u4p8 min_level_of_detail : 12;
+    u4p8 max_level_of_detail : 12;
+    s8p8 fixed_bias : 16;
+    WrapMode wrap_s : 3;
+    WrapMode wrap_t : 3;
+    WrapMode wrap_r : 3;
+    bool wrap_i_border : 1;
+    BorderColorMode border_color_mode : 3;
+    u8 maximum_anisotropy : 2;
+    u32 border_color_word_0;
+    u32 border_color_word_1;
+    u32 border_color_word_2;
+    u32 border_color_word_3;
+};
+static_assert(AssertSize<SamplerState, 24>());
 
 }

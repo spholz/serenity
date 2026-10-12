@@ -30,13 +30,33 @@ static constexpr size_t TILE_WIDTH = 64;
 static constexpr size_t TILE_HEIGHT = 64;
 
 struct VertexData {
-    float x;
-    float y;
-    float z;
-    float r;
-    float g;
-    float b;
+    f32 x;
+    f32 y;
+    f32 z;
+
+    f32 r;
+    f32 g;
+    f32 b;
+
+    f32 u;
+    f32 v;
 };
+
+[[maybe_unused]] static void dump(ReadonlyBytes data)
+{
+    auto const* u32s = reinterpret_cast<u32 const*>(data.data());
+    auto u32_count = data.size() / sizeof(u32);
+
+    dbgln("{} bytes, {} u32s", data.size(), u32_count);
+
+    for (size_t i = 0; i < ceil_div(u32_count, 8); i++) {
+        for (size_t j = 0; j < 8; j++) {
+            if (i * 8 + j < u32_count)
+                dbg("{:#08x} ", u32s[i * 8 + j]);
+        }
+        dbgln();
+    }
+}
 
 ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<VertexData> const& vertex_array, Gfx::FloatMatrix4x4 const& model_view_projection_matrix)
 {
@@ -44,14 +64,14 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
 
     // -- Uniforms --
 
-    static constexpr size_t UNIFORMS_BUFFER_SIZE = 38 * sizeof(f32);
-
     ControlList uniforms_list;
-
-    // [struct.unpack('!f', bytes.fromhex(uniform[2:]))[0] for line in uniform_data.splitlines() for uniform in line.split()]
 
     // Vertex shader uniforms
     auto vertex_shader_uniforms_offset = uniforms_list.data().size();
+    uniforms_list.append<u32>(0);
+    uniforms_list.append<u32>(1);
+    uniforms_list.append<u32>(2);
+
     uniforms_list.append(model_view_projection_matrix(0, 0));
     uniforms_list.append(model_view_projection_matrix(1, 0));
     uniforms_list.append(model_view_projection_matrix(2, 0));
@@ -67,21 +87,36 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     uniforms_list.append(model_view_projection_matrix(2, 2));
     uniforms_list.append(model_view_projection_matrix(3, 2));
 
-    uniforms_list.append(static_cast<float>(m_framebuffer_size.width()) * 0.5f * 64.0f); // Viewport x scale
+    uniforms_list.append<u32>(3);
+    uniforms_list.append<u32>(4);
+    uniforms_list.append<u32>(5);
+    uniforms_list.append<u32>(6);
+    uniforms_list.append<u32>(7);
+    uniforms_list.append(static_cast<f32>(m_framebuffer_size.width()) * 0.5f * 64.0f); // Viewport x scale
 
     uniforms_list.append(model_view_projection_matrix(0, 3));
     uniforms_list.append(model_view_projection_matrix(1, 3));
     uniforms_list.append(model_view_projection_matrix(2, 3));
     uniforms_list.append(model_view_projection_matrix(3, 3));
 
-    uniforms_list.append(-static_cast<float>(m_framebuffer_size.height()) * 0.5f * 64.0f); // Viewport y scale
-    uniforms_list.append(0.5f);                                                            // Viewport z scale
-    uniforms_list.append(0.5f);                                                            // Viewport z offset
-
-    VERIFY(uniforms_list.data().size() == 0x50);
+    uniforms_list.append(-static_cast<f32>(m_framebuffer_size.height()) * 0.5f * 64.0f); // Viewport y scale
+    uniforms_list.append<u32>(5);
+    uniforms_list.append<u32>(6);
+    uniforms_list.append(0.5f); // Viewport z scale
+    uniforms_list.append<u32>(7);
+    uniforms_list.append<u32>(8);
+    uniforms_list.append(0.5f); // Viewport z offset
+    uniforms_list.append<u32>(0);
+    uniforms_list.append<u32>(1);
+    uniforms_list.append<u32>(2);
+    uniforms_list.append<u32>(3);
 
     // Coordinate shader uniforms
     auto coordinate_shader_uniforms_offset = uniforms_list.data().size();
+    uniforms_list.append<u32>(0);
+    uniforms_list.append<u32>(1);
+    uniforms_list.append<u32>(2);
+
     uniforms_list.append(model_view_projection_matrix(0, 0));
     uniforms_list.append(model_view_projection_matrix(1, 0));
     uniforms_list.append(model_view_projection_matrix(2, 0));
@@ -97,20 +132,115 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     uniforms_list.append(model_view_projection_matrix(2, 2));
     uniforms_list.append(model_view_projection_matrix(3, 2));
 
-    uniforms_list.append(static_cast<float>(m_framebuffer_size.width()) * 0.5f * 64.0f); // Viewport x scale
+    uniforms_list.append(static_cast<f32>(m_framebuffer_size.width()) * 0.5f * 64.0f); // Viewport x scale
 
     uniforms_list.append(model_view_projection_matrix(0, 3));
     uniforms_list.append(model_view_projection_matrix(1, 3));
     uniforms_list.append(model_view_projection_matrix(2, 3));
     uniforms_list.append(model_view_projection_matrix(3, 3));
 
-    uniforms_list.append(-static_cast<float>(m_framebuffer_size.height()) * 0.5f * 64.0f); // Viewport y scale
+    uniforms_list.append(-static_cast<f32>(m_framebuffer_size.height()) * 0.5f * 64.0f); // Viewport y scale
+    uniforms_list.append<u32>(0);
+    uniforms_list.append<u32>(1);
+    uniforms_list.append<u32>(2);
+    uniforms_list.append<u32>(3);
+    uniforms_list.append<u32>(4);
+    uniforms_list.append<u32>(5);
 
-    VERIFY(uniforms_list.data().size() == UNIFORMS_BUFFER_SIZE);
+    u32 texture_gpu_virtual_address = m_sampler_configuration[0].bound_image ? reinterpret_cast<V3DGPU::Image*>(m_sampler_configuration[0].bound_image.ptr())->buffer().gpu_virtual_address() : m_placeholder_texture_buffer->gpu_virtual_address();
+    u16 texture_width = m_sampler_configuration[0].bound_image ? m_sampler_configuration[0].bound_image->width_at_level(0) : 1;
+    u16 texture_height = m_sampler_configuration[0].bound_image ? m_sampler_configuration[0].bound_image->height_at_level(0) : 1;
+
+    // dbgln("texture @ {:#x} ({} bytes)", texture_gpu_virtual_address, texture_width * texture_height * 4);
+
+    ControlList texture_list;
+
+    auto texture_shader_state_offset = texture_list.data().size();
+    ControlRecord::TextureShaderState texture_shader_state {
+        .flip_texture_x_axis = false,
+        .flip_texture_y_axis = false,
+        .transfer_func = ControlRecord::TextureShaderState::TransferFunc::None,
+        .reverse = 0,
+        .texture_base_pointer = texture_gpu_virtual_address >> 6u,
+        .r_b_swap = false,
+        .array_stride_64_byte_aligned = 0,
+        ._reserved0 = 0,
+        .image_width = texture_width,
+        .image_height = texture_height,
+        .image_depth = 1,
+        .texture_type = 4,
+        .extended = true,
+        .swizzle_r = 2,
+        .swizzle_g = 3,
+        .swizzle_b = 4,
+        .swizzle_a = ControlRecord::TextureShaderState::SwizzleA::Alpha,
+        .max_level = 0,
+        .base_level = 0,
+        .level_0_ub_pad = 0,
+        .level_0_xor_enable = false,
+        ._reserved1 = 0,
+        .level_0_is_strictly_uif = true,
+        .uif_xor_disable = true,
+        .chroma_offset_x = 1,
+        .chroma_offset_y = 1,
+        .texture_base_pointer_cb = texture_gpu_virtual_address >> 6u,
+        .texture_base_pointer_cr = texture_gpu_virtual_address >> 6u,
+        .pad = 0,
+    };
+    texture_list.append(texture_shader_state);
+
+    auto sampler_state_offset = texture_list.data().size();
+    ControlRecord::SamplerState sampler_state {
+        .mag_filter_nearest = false,
+        .min_filter_nearest = true,
+        .mip_filter_nearest = false,
+        .anisotropy_enable = false,
+        .depth_compare_function = ControlRecord::CompareFunction::Never,
+        .srgb_disable = false,
+        .min_level_of_detail = 0,
+        .max_level_of_detail = 0xf00,
+        .fixed_bias = 0,
+        .wrap_s = ControlRecord::WrapMode::Repeat,
+        .wrap_t = ControlRecord::WrapMode::Repeat,
+        .wrap_r = ControlRecord::WrapMode::Repeat,
+        .wrap_i_border = false,
+        .border_color_mode = ControlRecord::BorderColorMode::Mode0000,
+        .maximum_anisotropy = 0,
+        .border_color_word_0 = 0,
+        .border_color_word_1 = 0,
+        .border_color_word_2 = 0,
+        .border_color_word_3 = 0,
+    };
+    texture_list.append(sampler_state);
+
+    TRY(texture_list.copy_to_gpu_buffer());
+    // dbgln("texture list @ {:#x}", texture_list.buffer()->gpu_virtual_address());
+    // dump(texture_list.data());
+    u32 texture_shader_state_address = texture_list.buffer()->gpu_virtual_address() + texture_shader_state_offset;
+    u32 sampler_state_address = texture_list.buffer()->gpu_virtual_address() + sampler_state_offset;
+
+    auto fragment_shader_uniforms_offset = uniforms_list.data().size();
+
+    ControlRecord::TMUConfigParameter0 tmu_config_parameter_0 {
+        .return_words_of_texture_data = 3,
+        .texture_state_address = texture_shader_state_address >> 4u,
+    };
+    uniforms_list.append(tmu_config_parameter_0);
+
+    ControlRecord::TMUConfigParameter1 tmu_config_parameter_1 {
+        .output_type_32_bit = false,
+        .unnormalized_coordinates = false,
+        .per_pixel_mask_enable = true,
+        .sampler_state_address = sampler_state_address >> 3u,
+    };
+    uniforms_list.append(tmu_config_parameter_1);
 
     TRY(uniforms_list.copy_to_gpu_buffer());
+    // dbgln("uniforms list @ {:#x}", uniforms_list.buffer()->gpu_virtual_address());
+    // dump(uniforms_list.data());
     u32 vertex_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + vertex_shader_uniforms_offset;
     u32 coordinate_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + coordinate_shader_uniforms_offset;
+    u32 fragment_shader_uniforms_address = uniforms_list.buffer()->gpu_virtual_address() + fragment_shader_uniforms_offset;
 
     // -- Vertex data --
 
@@ -120,6 +250,9 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
 
     u8* vertex_data_buffer_data = vertex_data_buffer.data().data();
     memcpy(vertex_data_buffer_data, vertex_array.data(), vertex_data_size_in_bytes);
+
+    // dbgln("vertex data @ {:#x}", vertex_data_buffer.gpu_virtual_address());
+    // dump(vertex_data_buffer.data().trim(vertex_data_size_in_bytes));
 
     // -- Shaders --
 
@@ -164,12 +297,12 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .no_prim_pack = 0,
         .never_defer_fep_depth_writes = false,
         ._reserved1 = 0,
-        .number_of_varyings_in_fragment_shader = 3,
+        .number_of_varyings_in_fragment_shader = 5,
         .coordinate_shader_output_vpm_segment_size = 1,
         .min_coord_shader_output_segments_required_in_play_in_addition_to_vcm_cache_size = 0,
         .coordinate_shader_input_vpm_segment_size = 0,
         .min_coord_shader_input_segments_required_in_play_minus_one = 1,
-        .vertex_shader_output_vpm_segment_size = 1,
+        .vertex_shader_output_vpm_segment_size = 2,
         .min_vertex_shader_output_segments_required_in_play_in_addition_to_vcm_cache_size = 0,
         .vertex_shader_input_vpm_segment_size = 0,
         .min_vertex_shader_input_segments_required_in_play_minus_one = 1,
@@ -177,7 +310,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .fragment_shader_start_in_final_thread_section = false,
         .fragment_shader_propagate_nans = false,
         .fragment_shader_code_address = static_cast<ControlRecord::Address>((shaders_buffer.gpu_virtual_address() + SHADERS_BUFFER_FRAGMENT_SHADER_OFFSET) >> 3u),
-        .fragment_shader_uniforms_address = vertex_shader_uniforms_address,
+        .fragment_shader_uniforms_address = fragment_shader_uniforms_address,
         .vertex_shader_4_way_threadable = true,
         .vertex_shader_start_in_final_thread_section = true,
         .vertex_shader_propagate_nans = false,
@@ -201,13 +334,13 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .number_of_values_read_by_coordinate_shader = 3,
         .number_of_values_read_by_vertex_shader = 3,
         .instance_divisor = 0,
-        .stride = 6 * sizeof(float),
+        .stride = 8 * sizeof(f32),
         .maximum_index = 0xffffff,
     };
     control_list.append(pos_attribute_record);
 
     ControlRecord::GLShaderStateAttributeRecord color_attribute_record = {
-        .address = static_cast<u32>(vertex_data_buffer.gpu_virtual_address() + (3 * sizeof(float))),
+        .address = static_cast<ControlRecord::Address>(vertex_data_buffer.gpu_virtual_address() + (3 * sizeof(f32))),
         .vec_size = 3,
         .type = ControlRecord::GLShaderStateAttributeRecord::Type::AttributeFloat,
         .signed_int_type = false,
@@ -216,16 +349,34 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .number_of_values_read_by_coordinate_shader = 0,
         .number_of_values_read_by_vertex_shader = 3,
         .instance_divisor = 0,
-        .stride = 6 * sizeof(float),
+        .stride = 8 * sizeof(f32),
         .maximum_index = 0xffffff,
     };
     control_list.append(color_attribute_record);
+
+    ControlRecord::GLShaderStateAttributeRecord tex_coord_attribute_record = {
+        .address = static_cast<ControlRecord::Address>(vertex_data_buffer.gpu_virtual_address() + (6 * sizeof(f32))),
+        .vec_size = 2,
+        .type = ControlRecord::GLShaderStateAttributeRecord::Type::AttributeFloat,
+        .signed_int_type = false,
+        .normalized_int_type = false,
+        .read_as_int_uint = false,
+        .number_of_values_read_by_coordinate_shader = 0,
+        .number_of_values_read_by_vertex_shader = 2,
+        .instance_divisor = 0,
+        .stride = 8 * sizeof(f32),
+        .maximum_index = 0xffffff,
+    };
+    control_list.append(tex_coord_attribute_record);
+
+    // NOTE: If you add another attribute record here, you need to modify GLShaderState::number_of_attribute_arrays.
 
     TRY(control_list.copy_to_gpu_buffer());
 
     return ShaderStateRecord {
         .control_list = move(control_list),
         .uniforms_list = move(uniforms_list),
+        .texture_list = move(texture_list),
         .vertex_data_buffer = move(vertex_data_buffer),
         .shaders_buffer = move(shaders_buffer),
     };
@@ -276,7 +427,7 @@ ErrorOr<ControlList> Device::generate_initial_binner_control_list()
 
     ControlRecord::ClipperZMinMaxClippingPlanes clip_z_min_max_clipping_planes {};
     clip_z_min_max_clipping_planes.minimum_zw = 0.0f;
-    clip_z_min_max_clipping_planes.maximum_zw = 1.0f;
+    clip_z_min_max_clipping_planes.maximum_zw = 999999999.0f;
     control_list.append(clip_z_min_max_clipping_planes);
 
     ControlRecord::ViewportOffset viewport_offset {};
@@ -532,6 +683,9 @@ ErrorOr<void> Device::initialize_context(Gfx::IntSize min_size)
     auto tile_state_data_array_memory_size = align_up_to(tile_count * TILE_STATE_DATA_ARRAY_ELEMENT_SIZE, V3D_PAGE_SIZE);
     m_tile_state_data_array_buffer = TRY(Buffer::create(tile_state_data_array_memory_size, "LibV3DGPU: Tile State Data Array"sv));
 
+    m_placeholder_texture_buffer = TRY(Buffer::create(V3D_PAGE_SIZE, "LibV3DGPU: Placeholder Texture"sv));
+    *reinterpret_cast<u32*>(m_placeholder_texture_buffer->data().data()) = 0xff'ff'ff'ff;
+
     return {};
 }
 
@@ -543,10 +697,10 @@ GPU::DeviceInfo Device::info() const
         .num_texture_units = 1,
         .num_lights = 8,
         .max_clip_planes = 0,
-        .max_texture_size = 0,
+        .max_texture_size = 4096,
         .max_texture_lod_bias = 0.f,
         .stencil_bits = 0,
-        .supports_npot_textures = false,
+        .supports_npot_textures = true,
         .supports_texture_clamp_to_edge = false,
         .supports_texture_env_add = false,
     };
@@ -587,6 +741,8 @@ void Device::draw_primitives(GPU::PrimitiveType primitive_type, Vector<GPU::Vert
             .r = vertex.color.x(),
             .g = vertex.color.y(),
             .b = vertex.color.z(),
+            .u = vertex.tex_coords[0].x(),
+            .v = vertex.tex_coords[0].y(),
         };
     };
 
@@ -661,11 +817,11 @@ void Device::draw_primitives(GPU::PrimitiveType primitive_type, Vector<GPU::Vert
     cfg_bits.blend_enable = 0;
     cfg_bits.direct3d_point_fill_mode = 0;
     cfg_bits.direct3d_provoking_vertex = 0;
-    cfg_bits.z_clipping_mode = ControlRecord::ZClipMode::MinOneToOne;
+    cfg_bits.z_clipping_mode = ControlRecord::ZClipMode::None;
     m_binner_control_list.append(cfg_bits);
 
     ControlRecord::GLShaderState gl_shader_state {};
-    gl_shader_state.number_of_attribute_arrays = 2;
+    gl_shader_state.number_of_attribute_arrays = 3;
     gl_shader_state.address = shader_state_record.control_list.buffer()->gpu_virtual_address() >> 5;
     m_binner_control_list.append(gl_shader_state);
 
@@ -850,7 +1006,11 @@ GPU::LightModelParameters Device::light_model() const
 
 NonnullRefPtr<GPU::Image> Device::create_image(GPU::PixelFormat const& pixel_format, u32 width, u32 height, u32 depth, u32 max_levels)
 {
-    dbgln("V3DGPU::Device::create_image(): unimplemented");
+    VERIFY(width > 0);
+    VERIFY(height > 0);
+    VERIFY(depth > 0);
+    VERIFY(max_levels > 0);
+
     return adopt_ref(*new Image(this, pixel_format, width, height, depth, max_levels));
 }
 
@@ -870,9 +1030,27 @@ void Device::set_projection_transform(Gfx::FloatMatrix4x4 const& projection_tran
     m_projection_matrix = projection_transform;
 }
 
-void Device::set_sampler_config(unsigned, GPU::SamplerConfig const&)
+void Device::set_sampler_config(unsigned sampler, GPU::SamplerConfig const& config)
 {
-    dbgln("V3DGPU::Device::set_sampler_config(): unimplemented");
+    VERIFY(config.bound_image.is_null() || config.bound_image->ownership_token() == this);
+
+    m_sampler_configuration[sampler] = config;
+
+    // auto& image = *reinterpret_cast<V3DGPU::Image*>(m_sampler_configuration[0].bound_image.ptr());
+
+    // dbgln("Image:");
+    // dump(image.data());
+
+    // dbgln("texture @ {:#x}", texture_buffer.gpu_virtual_address());
+
+    //
+    // m_samplers_need_texture_staging = any_of(m_samplers, [](auto const& sampler) {
+    //     auto const& fixed_function_env = sampler.config().fixed_function_texture_environment;
+    //     if (fixed_function_env.env_mode != GPU::TextureEnvMode::Combine)
+    //         return false;
+    //     return any_of(fixed_function_env.alpha_source, [](auto texture_source) { return texture_source == GPU::TextureSource::TextureStage; })
+    //         || any_of(fixed_function_env.rgb_source, [](auto texture_source) { return texture_source == GPU::TextureSource::TextureStage; });
+    // });
 }
 
 void Device::set_light_state(unsigned, GPU::Light const&)
@@ -890,9 +1068,9 @@ void Device::set_stencil_configuration(GPU::Face, GPU::StencilConfiguration cons
     dbgln("V3DGPU::Device::set_stencil_configuration(): unimplemented");
 }
 
-void Device::set_texture_unit_configuration(GPU::TextureUnitIndex, GPU::TextureUnitConfiguration const&)
+void Device::set_texture_unit_configuration(GPU::TextureUnitIndex index, GPU::TextureUnitConfiguration const& configuration)
 {
-    dbgln("V3DGPU::Device::set_texture_unit_configuration(): unimplemented");
+    m_texture_unit_configuration[index] = configuration;
 }
 
 void Device::set_clip_planes(Vector<FloatVector4> const&)
