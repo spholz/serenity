@@ -4,4 +4,4 @@ include_directories(${SDL2_INCLUDE_DIRS})
 add_executable(LibGLTestSDL main.cpp ../../../../Userland/Applications/3DFileViewer/WavefrontOBJLoader.cpp ../../../../Userland/Applications/3DFileViewer/Mesh.cpp)
 
 target_include_directories(LibGLTestSDL PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(LibGLTestSDL PRIVATE LibMain LibCore LibGfx LibMedia LibGL SDL2::SDL2)
+target_link_libraries(LibGLTestSDL PRIVATE LibMain LibCore LibGfx LibMedia LibGL LibEGL SDL2::SDL2)

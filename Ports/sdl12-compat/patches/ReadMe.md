@@ -9,3 +9,9 @@ and uses OpenGL logical scaling, causing rapid flickering and preventing
 execution. Not sure if this is an upstream bug or intended behavior,
 but disabling fullscreen at this point fixes the flickering.
 
+## `0002-Include-alloca.h-on-SerenityOS.patch`
+
+Include <alloca.h> on SerenityOS
+
+alloca() is defined in <alloca.h> on SerenityOS.
+

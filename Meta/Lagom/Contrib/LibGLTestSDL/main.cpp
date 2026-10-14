@@ -10,7 +10,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
-#include <LibGL/GLContext.h>
+// #include <LibGL/GLContext.h>
 #include <LibMain/Main.h>
 #include <LibMedia/PlaybackManager.h>
 #include <SDL2/SDL.h>
@@ -30,32 +30,44 @@ ErrorOr<int> serenity_main(Main::Arguments)
         exit(-1);
     }
 
-    SDL_Window* window = SDL_CreateWindow("LibGL Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0);
+
+    SDL_Window* window = SDL_CreateWindow("LibGL Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_OPENGL);
     if (window == NULL) {
         SDL_Quit();
         warnln("Failed to create an SDL Window: {}", SDL_GetError());
         exit(-1);
     }
 
+    SDL_GLContext context = SDL_GL_CreateContext(window);
+    if (context == NULL) {
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        warnln("Failed to create an SDL Window: {}", SDL_GetError());
+        exit(-1);
+    }
+
     // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (!renderer) {
-        warnln("Failed to create SDL renderer: {}", SDL_GetError());
-        exit(-1);
-    }
+    // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    // if (!renderer) {
+    //     warnln("Failed to create SDL renderer: {}", SDL_GetError());
+    //     exit(-1);
+    // }
+    //
+    // SDL_SetRenderDrawColor(renderer, 255, 0, 255, SDL_ALPHA_OPAQUE);
 
-    SDL_SetRenderDrawColor(renderer, 255, 0, 255, SDL_ALPHA_OPAQUE);
+    // SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
+    // if (!texture) {
+    //     warnln("Failed to create SDL texture: {}", SDL_GetError());
+    //     exit(-1);
+    // }
 
-    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
-    if (!texture) {
-        warnln("Failed to create SDL texture: {}", SDL_GetError());
-        exit(-1);
-    }
-
-    auto bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { WIDTH, HEIGHT }));
-    bitmap->fill(Color::Cyan);
-    auto context = TRY(GL::create_context(*bitmap));
-    GL::make_context_current(context);
+    // auto bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { WIDTH, HEIGHT }));
+    // bitmap->fill(Color::Cyan);
+    // auto context = TRY(GL::create_context(*bitmap));
+    // GL::make_context_current(context);
 
     int buggie_width, buggie_height, buggie_component_count;
     unsigned char* data = stbi_load("/home/s/repos/serenity/Base/res/graphics/buggie.png", &buggie_width, &buggie_height, &buggie_component_count, 4);
@@ -196,7 +208,7 @@ ErrorOr<int> serenity_main(Main::Arguments)
 
         VERIFY(glGetError() == 0);
 
-        context->present();
+        // context->present();
 
         if ((frame_count % UPDATE_FRAMERATE_EVERY_FRAMES) == 0) {
             auto render_time = static_cast<double>(framerate_timer.elapsed_milliseconds()) / UPDATE_FRAMERATE_EVERY_FRAMES;
@@ -205,21 +217,21 @@ ErrorOr<int> serenity_main(Main::Arguments)
             framerate_timer = Core::ElapsedTimer::start_new();
         }
 
-        u8* pixels = bitmap->scanline_u8(0);
-        int result = SDL_UpdateTexture(texture, NULL, pixels, bitmap->pitch());
-        if (result != 0) {
-            warnln("Failed to update SDL texture: {}", SDL_GetError());
-        }
+        // u8* pixels = bitmap->scanline_u8(0);
+        // int result = SDL_UpdateTexture(texture, NULL, pixels, bitmap->pitch());
+        // if (result != 0) {
+        //     warnln("Failed to update SDL texture: {}", SDL_GetError());
+        // }
 
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
-        SDL_RenderPresent(renderer);
+        // SDL_RenderClear(renderer);
+        // SDL_RenderCopy(renderer, texture, NULL, NULL);
+        // SDL_RenderPresent(renderer);
 
         frame_count++;
     }
 
-    SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
+    // SDL_DestroyTexture(texture);
+    // SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;

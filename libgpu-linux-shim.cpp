@@ -5,6 +5,7 @@
  */
 
 #include <AK/Format.h>
+#include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <Kernel/API/V3D.h>
 
@@ -22,7 +23,7 @@ struct Buffer {
     u32 gpu_virtual_address;
     u64 drm_mmap_offset;
 };
-static Vector<Buffer> s_buffers;
+static HashMap<int, HashMap<FlatPtr, Buffer>> s_buffers;
 
 static Vector<u32> s_all_drm_buffer_object_handles;
 
@@ -117,39 +118,28 @@ static int ioctl_v3d_allocate_buffer(int fd, V3DBuffer* buffer)
     if (drmIoctl(fd, DRM_IOCTL_V3D_MMAP_BO, &mmap_bo) != 0)
         return -1;
 
-    s_buffers.append({
-        .fd = fd,
-        .drm_buffer_object_handle = create_bo.handle,
-        .gpu_virtual_address = create_bo.offset,
-        .drm_mmap_offset = mmap_bo.offset,
-    });
+    s_buffers.ensure(fd).set(buffer->gpu_virtual_address, {
+                                                              .fd = fd,
+                                                              .drm_buffer_object_handle = create_bo.handle,
+                                                              .gpu_virtual_address = buffer->gpu_virtual_address,
+                                                              .drm_mmap_offset = mmap_bo.offset,
+                                                          });
 
     return 0;
 }
 
-static Optional<size_t> look_up_buffer_index(int fd, FlatPtr gpu_virtual_address)
-{
-    return s_buffers.find_first_index_if([gpu_virtual_address, fd](Buffer const& buffer) {
-        return buffer.fd == fd && buffer.gpu_virtual_address == gpu_virtual_address;
-    });
-}
-
 static Optional<Buffer const&> look_up_buffer(int fd, FlatPtr gpu_virtual_address)
 {
-    auto buffer_index = look_up_buffer_index(fd, gpu_virtual_address);
-    if (!buffer_index.has_value())
+    auto buffers = s_buffers.get(fd);
+    if (!buffers.has_value())
         return {};
 
-    return s_buffers[*buffer_index];
+    return buffers->get(gpu_virtual_address);
 }
 
 static int ioctl_v3d_free_buffer(int fd, FlatPtr gpu_virtual_address)
 {
-    auto buffer_index = look_up_buffer_index(fd, gpu_virtual_address);
-    if (!buffer_index.has_value())
-        return EINVAL;
-
-    auto const& buffer = s_buffers[*buffer_index];
+    auto const& buffer = *look_up_buffer(fd, gpu_virtual_address);
 
     struct drm_gem_close close = {
         .handle = static_cast<u32>(buffer.drm_buffer_object_handle),
@@ -157,7 +147,7 @@ static int ioctl_v3d_free_buffer(int fd, FlatPtr gpu_virtual_address)
     };
 
     s_all_drm_buffer_object_handles.remove_first_matching([&buffer](u32 handle) { return handle == buffer.drm_buffer_object_handle; });
-    s_buffers.remove(*buffer_index);
+    s_buffers.get(fd)->remove(gpu_virtual_address);
 
     if (drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close) != 0)
         return -1;

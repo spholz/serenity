@@ -474,6 +474,7 @@ if (BUILD_LAGOM)
         DeviceTree
         DNS
         Diff
+        EGL
         Gemini
         Gfx
         GL
