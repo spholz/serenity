@@ -18,6 +18,7 @@ configopts=(
     '--enable-smpeg=no'
     '--enable-speex=no'
     "--with-sdl-prefix=${SERENITY_INSTALL_ROOT}/usr/local"
+    "--prefix=${SERENITY_INSTALL_ROOT}/usr/local"
 )
 makeopts+=(
     'LDFLAGS=-lm'

@@ -17,8 +17,8 @@ static constexpr u32 MICROTILE_HEIGHT = 4;
 static constexpr u32 UIF_BLOCK_WIDTH = 2 * MICROTILE_WIDTH;
 static constexpr u32 UIF_BLOCK_HEIGHT = 2 * MICROTILE_HEIGHT;
 
-static constexpr u32 MACROBLOCK_WIDTH = 4 * UIF_BLOCK_WIDTH;
-static constexpr u32 MACROBLOCK_HEIGHT = 4 * UIF_BLOCK_HEIGHT;
+static constexpr u32 FOUR_BY_FOUR_WIDTH = 4 * UIF_BLOCK_WIDTH;
+static constexpr u32 FOUR_BY_FOUR_HEIGHT = 4 * UIF_BLOCK_HEIGHT;
 
 Image::Image(void const* ownership_token, GPU::PixelFormat const& pixel_format, u32 width, u32 height, u32 depth, u32 max_levels)
     : GPU::Image(ownership_token, pixel_format, width, height, depth, max_levels)
@@ -39,9 +39,10 @@ void Image::regenerate_mipmaps()
 void Image::write_texels(u32 level, Vector3<i32> const& output_offset, void const* input_data, GPU::ImageDataLayout const& input_layout)
 {
     // FIXME: Handle this.
-    VERIFY(output_offset.x() == 0);
-    VERIFY(output_offset.y() == 0);
-    VERIFY(output_offset.z() == 0);
+    (void)output_offset;
+    // VERIFY(output_offset.x() == 0);
+    // VERIFY(output_offset.y() == 0);
+    // VERIFY(output_offset.z() == 0);
 
     // FIXME: Format conversion.
     (void)input_layout;
@@ -60,18 +61,10 @@ void Image::write_texels(u32 level, Vector3<i32> const& output_offset, void cons
     u32 const* input_image = reinterpret_cast<u32 const*>(input_data);
 
     auto microtile = [width, height, this, input_image](u32 start_x, u32 start_y, u32 output_index) -> u32 {
-        // dbgln("    microtile @ {}, {}", start_x, start_y, input_image[start_y * width + start_x]);
         for (u32 y = start_y; y < start_y + MICROTILE_HEIGHT; y++) {
             for (u32 x = start_x; x < start_x + MICROTILE_WIDTH; x++) {
-                if (x >= width || y >= height) {
-                    if (output_index % 8 == 0) {
-                        return output_index;
-                    }
-
-                    m_data[output_index] = 0;
-                } else {
+                if (x < width && y < height)
                     m_data[output_index] = input_image[y * width + x];
-                }
                 output_index++;
             }
         }
@@ -79,13 +72,9 @@ void Image::write_texels(u32 level, Vector3<i32> const& output_offset, void cons
         return output_index;
     };
 
-    auto uif_block = [width, height, &microtile](u32 start_x, u32 start_y, u32 output_index) -> u32 {
-        // dbgln("  UIF block @ {}, {}", start_x, start_y);
+    auto uif_block = [&microtile](u32 start_x, u32 start_y, u32 output_index) -> u32 {
         for (u32 y = start_y; y < start_y + UIF_BLOCK_HEIGHT; y += MICROTILE_HEIGHT) {
             for (u32 x = start_x; x < start_x + UIF_BLOCK_WIDTH; x += MICROTILE_WIDTH) {
-                if (x >= width || y >= height)
-                    continue;
-
                 output_index = microtile(x, y, output_index);
             }
         }
@@ -93,28 +82,41 @@ void Image::write_texels(u32 level, Vector3<i32> const& output_offset, void cons
         return output_index;
     };
 
-    auto macroblock = [width, height, &uif_block](u32 start_x, u32 start_y, u32 output_index) -> u32 {
-        // dbgln("macroblock @ {}, {}", start_x, start_y);
-        for (u32 y = start_y; y < start_y + MACROBLOCK_HEIGHT; y += UIF_BLOCK_HEIGHT) {
-            for (u32 x = start_x; x < start_x + MACROBLOCK_WIDTH; x += UIF_BLOCK_WIDTH) {
-                if (x >= width || y >= height)
-                    continue;
+    auto four_by_four = [height, &uif_block](u32 start_x, u32 start_y, u32 output_index) -> u32 {
+        for (u32 y = start_y; y < start_y + FOUR_BY_FOUR_HEIGHT; y += UIF_BLOCK_HEIGHT) {
+            if (y >= height)
+                continue;
 
+            for (u32 x = start_x; x < start_x + FOUR_BY_FOUR_WIDTH; x += UIF_BLOCK_WIDTH)
                 output_index = uif_block(x, y, output_index);
-            }
         }
 
         return output_index;
     };
 
     u32 output_index = 0;
-    for (u32 x = 0; x < width; x += MACROBLOCK_WIDTH) {
-        for (u32 y = 0; y < height; y += MACROBLOCK_HEIGHT) {
-            // FIXME: XOR mode
-            // if texture_width % 256 == 0 and (x // 32) % 2 == 1:
-            //     output_index = macroblock(x, y ^ 1 << 7, output_index)
 
-            output_index = macroblock(x, y, output_index);
+    if (width <= MICROTILE_WIDTH || height <= MICROTILE_HEIGHT) {
+        for (u32 y = 0; y < height; y += MICROTILE_HEIGHT) {
+            for (u32 x = 0; x < width; x += MICROTILE_WIDTH) {
+                output_index = microtile(x, y, output_index);
+            }
+        }
+    } else if (width <= 2 * UIF_BLOCK_WIDTH) {
+        for (u32 y = 0; y < height; y += UIF_BLOCK_HEIGHT) {
+            for (u32 x = 0; x < width; x += UIF_BLOCK_WIDTH) {
+                output_index = uif_block(x, y, output_index);
+            }
+        }
+    } else {
+        for (u32 x = 0; x < width; x += FOUR_BY_FOUR_WIDTH) {
+            for (u32 y = 0; y < height; y += FOUR_BY_FOUR_HEIGHT) {
+                // FIXME: XOR mode
+                // if texture_width % 256 == 0 and (x // 32) % 2 == 1:
+                //     output_index = four_by_four(x, y ^ 1 << 7, output_index)
+
+                output_index = four_by_four(x, y, output_index);
+            }
         }
     }
 

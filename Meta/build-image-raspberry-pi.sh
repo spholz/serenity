@@ -143,4 +143,4 @@ EOF
 # FIXME: Mount the boot partition on /boot (both here and in serenity), so we don't need to move the kernel image to the boot filesystem.
 mv mnt/boot/Kernel.bin boot/
 
-echo "serial_debug root=block100:1" >boot/cmdline.txt
+echo "serial_debug root=block100:1 rpi_framebuffer_size=1920x1080" >boot/cmdline.txt

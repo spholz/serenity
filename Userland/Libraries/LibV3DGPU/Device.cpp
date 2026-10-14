@@ -191,7 +191,7 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
         .level_0_ub_pad = 0,
         .level_0_xor_enable = false,
         ._reserved1 = 0,
-        .level_0_is_strictly_uif = true,
+        .level_0_is_strictly_uif = false,
         .uif_xor_disable = true,
         .chroma_offset_x = 1,
         .chroma_offset_y = 1,
@@ -220,8 +220,8 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
 
     auto sampler_state_offset = texture_list.data().size();
     ControlRecord::SamplerState sampler_state {
-        .mag_filter_nearest = false,
-        .min_filter_nearest = true,
+        .mag_filter_nearest = sampler_configuration.texture_min_filter == GPU::TextureFilter::Nearest,
+        .min_filter_nearest = sampler_configuration.texture_min_filter == GPU::TextureFilter::Nearest,
         .mip_filter_nearest = false,
         .anisotropy_enable = false,
         .depth_compare_function = ControlRecord::CompareFunction::Never,
@@ -1150,7 +1150,7 @@ void Device::set_options(GPU::RasterizerOptions const& options)
 
 void Device::set_light_model_params(GPU::LightModelParameters const&)
 {
-    dbgln("V3DGPU::Device::set_light_model_params(): unimplemented");
+    // dbgln("V3DGPU::Device::set_light_model_params(): unimplemented");
 }
 
 GPU::RasterizerOptions Device::options() const
@@ -1160,7 +1160,7 @@ GPU::RasterizerOptions Device::options() const
 
 GPU::LightModelParameters Device::light_model() const
 {
-    dbgln("V3DGPU::Device::light_model(): unimplemented");
+    // dbgln("V3DGPU::Device::light_model(): unimplemented");
     return {};
 }
 
@@ -1215,12 +1215,12 @@ void Device::set_sampler_config(unsigned sampler, GPU::SamplerConfig const& conf
 
 void Device::set_light_state(unsigned, GPU::Light const&)
 {
-    dbgln("V3DGPU::Device::set_light_state(): unimplemented");
+    // dbgln("V3DGPU::Device::set_light_state(): unimplemented");
 }
 
 void Device::set_material_state(GPU::Face, GPU::Material const&)
 {
-    dbgln("V3DGPU::Device::set_material_state(): unimplemented");
+    // dbgln("V3DGPU::Device::set_material_state(): unimplemented");
 }
 
 void Device::set_stencil_configuration(GPU::Face, GPU::StencilConfiguration const&)
