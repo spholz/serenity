@@ -252,9 +252,10 @@ void GLContext::gl_get_tex_image(GLenum target, GLint level, GLenum format, GLen
 
 void GLContext::gl_get_tex_parameter_integerv(GLenum target, GLint level, GLenum pname, GLint* params)
 {
+    (void)target;
     RETURN_WITH_ERROR_IF(m_in_draw_state, GL_INVALID_OPERATION);
     // FIXME: support targets other than GL_TEXTURE_2D
-    RETURN_WITH_ERROR_IF(target != GL_TEXTURE_2D, GL_INVALID_ENUM);
+    // RETURN_WITH_ERROR_IF(target != GL_TEXTURE_2D, GL_INVALID_ENUM);
     // FIXME: support other parameter names
     RETURN_WITH_ERROR_IF(pname < GL_TEXTURE_WIDTH || pname > GL_TEXTURE_HEIGHT, GL_INVALID_ENUM);
     RETURN_WITH_ERROR_IF(level < 0 || level > log2_max_texture_size(m_device_info), GL_INVALID_VALUE);

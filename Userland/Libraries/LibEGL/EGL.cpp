@@ -8,6 +8,8 @@
 #include <LibEGL/EGL/egl.h>
 #include <LibGL/GLContext.h>
 
+#include <dlfcn.h>
+
 #ifdef AK_OS_LINUX
 #    include <wayland-client.h>
 #    include <wayland-egl-backend.h>
@@ -22,9 +24,11 @@ thread_local EGLint s_error = EGL_SUCCESS;
 //  is EGL_NONE."
 thread_local EGLenum s_current_rendering_api = EGL_NONE;
 
+thread_local void* s_libgl_handle = nullptr;
+
 struct EGLContextImpl {
-    NonnullRefPtr<Gfx::Bitmap> bitmap;
-    NonnullOwnPtr<GL::GLContext> gl_context;
+    RefPtr<Gfx::Bitmap> bitmap;
+    OwnPtr<GL::GLContext> gl_context;
 };
 
 thread_local EGLContextImpl* s_current_context = nullptr;
@@ -32,12 +36,12 @@ thread_local EGLContextImpl* s_current_context = nullptr;
 #ifdef AK_OS_LINUX
 struct EGLDisplayImpl {
     struct wl_shm* wl_shm;
-    struct wl_buffer* wl_buffer;
-    RefPtr<Gfx::Bitmap> bitmap;
+    struct wl_event_queue* wayland_queue;
 };
 
 struct EGLSurfaceImpl {
     struct wl_egl_window* wl_egl_window;
+    struct wl_buffer* wl_buffer;
 };
 #endif
 
@@ -55,7 +59,6 @@ static void registry_handle_global(void* data, struct wl_registry* registry, uin
     if (strcmp(interface, wl_shm_interface.name) == 0 && version >= 1) {
         egl_display->wl_shm = reinterpret_cast<wl_shm*>(wl_registry_bind(registry, name, &wl_shm_interface, 1));
         VERIFY(egl_display->wl_shm != nullptr);
-        // wl_shm_add_listener(egl_display->wl_shm, &wl_shm_listener, nullptr);
     }
 }
 
@@ -84,6 +87,8 @@ EGLDisplay eglGetDisplay(EGLNativeDisplayType display_id)
     auto* wayland_display = reinterpret_cast<wl_display*>(display_id);
     auto* wayland_queue = wl_display_create_queue_with_name(wayland_display, "SerenityOS LibEGL Queue");
 
+    egl_display->wayland_queue = wayland_queue;
+
     auto* wayland_registry = wl_display_get_registry(wayland_display);
     wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(wayland_registry), wayland_queue);
     wl_registry_add_listener(wayland_registry, &registry_listener, egl_display);
@@ -95,6 +100,7 @@ EGLDisplay eglGetDisplay(EGLNativeDisplayType display_id)
     return egl_display;
 #else
     (void)display_id;
+
     s_error = EGL_SUCCESS;
     return reinterpret_cast<EGLDisplay>(1);
 #endif
@@ -102,11 +108,19 @@ EGLDisplay eglGetDisplay(EGLNativeDisplayType display_id)
 
 EGLBoolean eglInitialize(EGLDisplay, EGLint* major, EGLint* minor)
 {
+    dbgln("eglInitialize()");
     if (major != nullptr)
         *major = 1;
 
     if (minor != nullptr)
         *minor = 5;
+
+    s_libgl_handle = dlopen("libGL.so.1", RTLD_LAZY | RTLD_LOCAL);
+    if (!s_libgl_handle) {
+        dbgln("Failed to load LibGL: {}", dlerror());
+        s_error = EGL_NOT_INITIALIZED;
+        return EGL_FALSE;
+    }
 
     s_error = EGL_SUCCESS;
     return EGL_TRUE;
@@ -122,6 +136,32 @@ char const* eglQueryString(EGLDisplay, EGLint)
 {
     s_error = EGL_BAD_PARAMETER;
     return nullptr;
+}
+
+EGLBoolean eglGetConfigs(EGLDisplay, EGLConfig* configs, EGLint config_size, EGLint* num_config)
+{
+    static int s_config_placeholder;
+
+    if (num_config == nullptr) {
+        s_error = EGL_BAD_PARAMETER;
+        return EGL_TRUE;
+    }
+
+    *num_config = 1;
+
+    if (configs == nullptr)
+        return EGL_TRUE;
+
+    if (config_size < 1) {
+        s_error = EGL_SUCCESS;
+        return EGL_TRUE;
+    }
+
+    configs[0] = reinterpret_cast<EGLConfig>(&s_config_placeholder);
+    *num_config = 1;
+
+    s_error = EGL_SUCCESS;
+    return EGL_TRUE;
 }
 
 EGLBoolean eglChooseConfig(EGLDisplay, EGLint const*, EGLConfig* configs, EGLint config_size, EGLint* num_config)
@@ -145,10 +185,47 @@ EGLBoolean eglChooseConfig(EGLDisplay, EGLint const*, EGLConfig* configs, EGLint
     return EGL_TRUE;
 }
 
-EGLBoolean eglGetConfigAttrib(EGLDisplay, EGLConfig, EGLint, EGLint*)
+EGLBoolean eglGetConfigAttrib(EGLDisplay, EGLConfig, EGLint attribute, EGLint* value)
 {
-    s_error = EGL_BAD_ATTRIBUTE;
-    return EGL_FALSE;
+    switch (attribute) {
+    case EGL_ALPHA_SIZE:
+        *value = 0; // If we don't say 0 here, GLFW will ignore us on wayland.
+        break;
+    case EGL_BLUE_SIZE:
+        *value = 8;
+        break;
+    case EGL_GREEN_SIZE:
+        *value = 8;
+        break;
+    case EGL_RED_SIZE:
+        *value = 8;
+        break;
+    case EGL_DEPTH_SIZE:
+        *value = 24;
+        break;
+    case EGL_STENCIL_SIZE:
+        *value = 8;
+        break;
+    case EGL_SAMPLES:
+        *value = 0;
+        break;
+    case EGL_SURFACE_TYPE:
+        *value = EGL_WINDOW_BIT;
+        break;
+    case EGL_COLOR_BUFFER_TYPE:
+        *value = EGL_RGB_BUFFER;
+        break;
+    case EGL_RENDERABLE_TYPE:
+        *value = EGL_OPENGL_BIT;
+        break;
+    default:
+        dbgln("eglGetConfigAttrib(): unimplemented attribute {:#x}", attribute);
+        s_error = EGL_BAD_ATTRIBUTE;
+        return EGL_FALSE;
+    }
+
+    s_error = EGL_SUCCESS;
+    return EGL_TRUE;
 }
 
 EGLSurface eglCreateWindowSurface(EGLDisplay, EGLConfig, EGLNativeWindowType win, EGLint const*)
@@ -207,8 +284,9 @@ EGLenum eglQueryAPI(void)
     return s_current_rendering_api;
 }
 
-EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig, EGLContext share_context, EGLint const*)
+EGLContext eglCreateContext(EGLDisplay, EGLConfig, EGLContext share_context, EGLint const*)
 {
+    dbgln("eglCreateContext()");
     // "An EGL_BAD_MATCH error is generated if the current rendering api is
     //  EGL_NONE (this situation can only arise in an implementation which does not
     //  support OpenGL ES 1.x, and prior to the first call to eglBindAPI)."
@@ -227,26 +305,7 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig, EGLContext share_context,
     }
 
 #ifdef AK_OS_LINUX
-    auto* display = reinterpret_cast<EGLDisplayImpl*>(dpy);
-
-    auto buffer = Core::AnonymousBuffer::create_with_size(640uz * 480 * 4).release_value_but_fixme_should_propagate_errors();
-
-    struct wl_shm_pool* pool = wl_shm_create_pool(display->wl_shm, buffer.fd(), buffer.size());
-    VERIFY(pool != NULL);
-    struct wl_buffer* wl_buffer = wl_shm_pool_create_buffer(pool, 0, 640, 480, 640 * 4, WL_SHM_FORMAT_ARGB8888);
-    VERIFY(wl_buffer != NULL);
-    wl_shm_pool_destroy(pool);
-
-    display->wl_buffer = wl_buffer;
-
-    auto bitmap = Gfx::Bitmap::create_with_anonymous_buffer(Gfx::BitmapFormat::BGRA8888, buffer, { 640, 480 }, 1).release_value_but_fixme_should_propagate_errors();
-    bitmap->fill(Color::Magenta);
-
-    display->bitmap = bitmap;
-
-    auto gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
-
-    auto* egl_context = new (nothrow) EGLContextImpl(move(bitmap), move(gl_context));
+    auto* egl_context = new (nothrow) EGLContextImpl;
     if (egl_context == nullptr) {
         s_error = EGL_BAD_ALLOC;
         return EGL_NO_CONTEXT;
@@ -255,7 +314,6 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig, EGLContext share_context,
     s_error = EGL_SUCCESS;
     return reinterpret_cast<EGLContext>(egl_context);
 #else
-    (void)dpy;
     auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { 640, 480 }).release_value_but_fixme_should_propagate_errors();
     bitmap->fill(Color::Cyan);
     auto gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
@@ -269,6 +327,7 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig, EGLContext share_context,
 
 EGLBoolean eglDestroyContext(EGLDisplay, EGLContext ctx)
 {
+    dbgln("eglDestroyContext()");
     auto* egl_context = reinterpret_cast<EGLContextImpl*>(ctx);
     delete egl_context;
 
@@ -276,8 +335,9 @@ EGLBoolean eglDestroyContext(EGLDisplay, EGLContext ctx)
     return EGL_TRUE;
 }
 
-EGLBoolean eglMakeCurrent(EGLDisplay, EGLSurface, EGLSurface, EGLContext ctx)
+EGLBoolean eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface, EGLContext ctx)
 {
+    dbgln("eglMakeCurrent({})", ctx);
     if (ctx == EGL_NO_CONTEXT) {
         GL::make_context_current(nullptr);
         s_current_context = nullptr;
@@ -286,6 +346,41 @@ EGLBoolean eglMakeCurrent(EGLDisplay, EGLSurface, EGLSurface, EGLContext ctx)
     }
 
     auto* egl_context = reinterpret_cast<EGLContextImpl*>(ctx);
+
+#ifdef AK_OS_LINUX
+    if (!egl_context->gl_context) {
+        // HACK: egLCreateContext doesn't have access to the surface, but we need its size to create a LibGL context.
+        auto* display = reinterpret_cast<EGLDisplayImpl*>(dpy);
+        auto* target_surface = reinterpret_cast<EGLSurfaceImpl*>(draw);
+
+        auto width = target_surface->wl_egl_window->width;
+        auto height = target_surface->wl_egl_window->height;
+
+        auto buffer = Core::AnonymousBuffer::create_with_size(width * height * 4).release_value_but_fixme_should_propagate_errors();
+
+        struct wl_shm_pool* pool = wl_shm_create_pool(display->wl_shm, buffer.fd(), buffer.size());
+        VERIFY(pool != NULL);
+        wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(pool), display->wayland_queue);
+
+        struct wl_buffer* wl_buffer = wl_shm_pool_create_buffer(pool, 0, width, height, width * 4, WL_SHM_FORMAT_ARGB8888);
+        VERIFY(wl_buffer != NULL);
+        wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(wl_buffer), display->wayland_queue);
+        wl_shm_pool_destroy(pool);
+
+        target_surface->wl_buffer = wl_buffer;
+
+        auto bitmap = Gfx::Bitmap::create_with_anonymous_buffer(Gfx::BitmapFormat::BGRA8888, buffer, { width, height }, 1).release_value_but_fixme_should_propagate_errors();
+        bitmap->fill(Color::Magenta);
+
+        egl_context->bitmap = bitmap;
+
+        egl_context->gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
+    }
+#else
+    (void)dpy;
+    (void)draw;
+#endif
+
     GL::make_context_current(egl_context->gl_context);
     s_current_context = egl_context;
 
@@ -324,22 +419,21 @@ EGLBoolean eglWaitNative(EGLint)
     return EGL_TRUE;
 }
 
-EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface surface)
+EGLBoolean eglSwapBuffers(EGLDisplay, EGLSurface surface)
 {
     if (s_current_context)
         s_current_context->gl_context->present();
 
 #ifdef AK_OS_LINUX
-    auto* display = reinterpret_cast<EGLDisplayImpl*>(dpy);
     auto* surface_impl = reinterpret_cast<EGLSurfaceImpl*>(surface);
 
-    wl_surface_attach(surface_impl->wl_egl_window->surface, display->wl_buffer, 0, 0);
+    wl_surface_attach(surface_impl->wl_egl_window->surface, surface_impl->wl_buffer, 0, 0);
+    wl_surface_damage(surface_impl->wl_egl_window->surface, 0, 0, INT32_MAX, INT32_MAX);
     wl_surface_commit(surface_impl->wl_egl_window->surface);
 
     s_error = EGL_SUCCESS;
     return EGL_TRUE;
 #else
-    (void)dpy;
     (void)surface;
 
     s_error = EGL_SUCCESS;
@@ -353,7 +447,9 @@ EGLBoolean eglSwapInterval(EGLDisplay, EGLint)
     return EGL_TRUE;
 }
 
-void (*eglGetProcAddress(char const*))(void)
+void (*eglGetProcAddress(char const* procname))(void)
 {
-    return nullptr;
+    auto* addr = dlsym(s_libgl_handle, procname);
+    dbgln("eglGetProcAddress(\"{}\") => {}", procname, addr);
+    return reinterpret_cast<void (*)(void)>(addr);
 }

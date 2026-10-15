@@ -848,7 +848,7 @@ GPU::DeviceInfo Device::info() const
         .num_texture_units = 1,
         .num_lights = 8,
         .max_clip_planes = 0,
-        .max_texture_size = 4096,
+        .max_texture_size = 16384,
         .max_texture_lod_bias = 0.f,
         .stencil_bits = 0,
         .supports_npot_textures = true,
@@ -859,6 +859,9 @@ GPU::DeviceInfo Device::info() const
 
 void Device::draw_primitives(GPU::PrimitiveType primitive_type, Vector<GPU::Vertex>& vertices)
 {
+    if (vertices.size() == 0)
+        return;
+
     auto map_primitive_type = [](GPU::PrimitiveType primitive_type) {
         switch (primitive_type) {
         case GPU::PrimitiveType::Lines:
