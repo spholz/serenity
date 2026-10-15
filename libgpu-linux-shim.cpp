@@ -11,7 +11,8 @@
 
 #include <dlfcn.h>
 #include <drm/v3d_drm.h>
-#include <xf86drm.h>
+#include <stdarg.h>
+#include <sys/ioctl.h>
 
 static constexpr auto SERENITY_DEVICE_PATH = "/dev/gpu/render0";
 static constexpr auto LINUX_DEVICE_PATH = "/dev/dri/renderD128";
@@ -36,11 +37,14 @@ static Optional<u32> s_out_sync;
 static int ioctl_v3d_submit_job(int fd, V3DJob const* job)
 {
     if (!s_out_sync.has_value()) {
-        u32 out_sync = 0;
-        int ret = drmSyncobjCreate(fd, DRM_SYNCOBJ_CREATE_SIGNALED, &out_sync);
+        struct drm_syncobj_create syncobj_create = {
+            .handle = 0,
+            .flags = DRM_SYNCOBJ_CREATE_SIGNALED,
+        };
+        int ret = ioctl(fd, DRM_IOCTL_SYNCOBJ_CREATE, &syncobj_create);
         VERIFY(ret == 0);
 
-        s_out_sync = out_sync;
+        s_out_sync = syncobj_create.handle;
     }
 
     u32 out_sync = s_out_sync.value();
@@ -80,10 +84,15 @@ static int ioctl_v3d_submit_job(int fd, V3DJob const* job)
         .extensions = 0,
     };
 
-    if (drmIoctl(fd, DRM_IOCTL_V3D_SUBMIT_CL, &submit_cl) != 0)
+    if (ioctl(fd, DRM_IOCTL_V3D_SUBMIT_CL, &submit_cl) != 0)
         return -1;
 
-    int ret = drmSyncobjWait(fd, &out_sync, 1, INT64_MAX, DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL, nullptr);
+    struct drm_syncobj_wait syncobj_wait = {};
+    syncobj_wait.handles = (uintptr_t)&out_sync;
+    syncobj_wait.timeout_nsec = INT64_MAX;
+    syncobj_wait.count_handles = 1;
+    syncobj_wait.flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL;
+    int ret = ioctl(fd, DRM_IOCTL_SYNCOBJ_WAIT, &syncobj_wait);
     VERIFY(ret == 0);
 
     return 0;
@@ -100,7 +109,7 @@ static int ioctl_v3d_allocate_buffer(int fd, V3DBuffer* buffer)
         .offset = 0,
     };
 
-    if (drmIoctl(fd, DRM_IOCTL_V3D_CREATE_BO, &create_bo) != 0)
+    if (ioctl(fd, DRM_IOCTL_V3D_CREATE_BO, &create_bo) != 0)
         return -1;
 
     buffer->gpu_virtual_address = create_bo.offset;
@@ -115,7 +124,7 @@ static int ioctl_v3d_allocate_buffer(int fd, V3DBuffer* buffer)
         .offset = 0,
     };
 
-    if (drmIoctl(fd, DRM_IOCTL_V3D_MMAP_BO, &mmap_bo) != 0)
+    if (ioctl(fd, DRM_IOCTL_V3D_MMAP_BO, &mmap_bo) != 0)
         return -1;
 
     s_buffers.ensure(fd).set(buffer->gpu_virtual_address, {
@@ -149,7 +158,7 @@ static int ioctl_v3d_free_buffer(int fd, FlatPtr gpu_virtual_address)
     s_all_drm_buffer_object_handles.remove_first_matching([&buffer](u32 handle) { return handle == buffer.drm_buffer_object_handle; });
     s_buffers.get(fd)->remove(gpu_virtual_address);
 
-    if (drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close) != 0)
+    if (ioctl(fd, DRM_IOCTL_GEM_CLOSE, &close) != 0)
         return -1;
 
     return 0;

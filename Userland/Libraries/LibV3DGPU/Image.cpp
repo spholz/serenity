@@ -38,17 +38,12 @@ void Image::regenerate_mipmaps()
 
 void Image::write_texels(u32 level, Vector3<i32> const& output_offset, void const* input_data, GPU::ImageDataLayout const& input_layout)
 {
-    // FIXME: Handle this.
-    (void)output_offset;
-    // VERIFY(output_offset.x() == 0);
-    // VERIFY(output_offset.y() == 0);
-    // VERIFY(output_offset.z() == 0);
-
     // FIXME: Format conversion.
     (void)input_layout;
 
     // FIXME: Mipmaps.
-    VERIFY(level == 0);
+    if (level != 0)
+        return;
 
     // Convert to UIF.
     // m_data = ByteBuffer::copy(input_data, static_cast<size_t>(width_at_level(0) * height_at_level(0)) * sizeof(u32)).release_value_but_fixme_should_propagate_errors();
@@ -94,23 +89,26 @@ void Image::write_texels(u32 level, Vector3<i32> const& output_offset, void cons
         return output_index;
     };
 
+    auto start_x = output_offset.x();
+    auto start_y = output_offset.y();
+
     u32 output_index = 0;
 
     if (width <= MICROTILE_WIDTH || height <= MICROTILE_HEIGHT) {
-        for (u32 y = 0; y < height; y += MICROTILE_HEIGHT) {
-            for (u32 x = 0; x < width; x += MICROTILE_WIDTH) {
+        for (u32 y = start_y; y < height; y += MICROTILE_HEIGHT) {
+            for (u32 x = start_x; x < width; x += MICROTILE_WIDTH) {
                 output_index = microtile(x, y, output_index);
             }
         }
     } else if (width <= 2 * UIF_BLOCK_WIDTH) {
-        for (u32 y = 0; y < height; y += UIF_BLOCK_HEIGHT) {
-            for (u32 x = 0; x < width; x += UIF_BLOCK_WIDTH) {
+        for (u32 y = start_y; y < height; y += UIF_BLOCK_HEIGHT) {
+            for (u32 x = start_x; x < width; x += UIF_BLOCK_WIDTH) {
                 output_index = uif_block(x, y, output_index);
             }
         }
     } else {
-        for (u32 x = 0; x < width; x += FOUR_BY_FOUR_WIDTH) {
-            for (u32 y = 0; y < height; y += FOUR_BY_FOUR_HEIGHT) {
+        for (u32 x = start_x; x < width; x += FOUR_BY_FOUR_WIDTH) {
+            for (u32 y = start_y; y < height; y += FOUR_BY_FOUR_HEIGHT) {
                 // FIXME: XOR mode
                 // if texture_width % 256 == 0 and (x // 32) % 2 == 1:
                 //     output_index = four_by_four(x, y ^ 1 << 7, output_index)
