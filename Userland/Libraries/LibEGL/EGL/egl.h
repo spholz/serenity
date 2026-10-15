@@ -36,11 +36,17 @@ extern "C" {
 #define EGL_RED_SIZE 0x3024
 #define EGL_DEPTH_SIZE 0x3025
 #define EGL_STENCIL_SIZE 0x3026
+#define EGL_NATIVE_VISUAL_ID 0x302E
 #define EGL_SAMPLES 0x3031
 #define EGL_SURFACE_TYPE 0x3033
 #define EGL_COLOR_BUFFER_TYPE 0x303F
 #define EGL_RENDERABLE_TYPE 0x3040
+#define EGL_HEIGHT 0x3056
+#define EGL_WIDTH 0x3057
+#define EGL_DRAW 0x3059
+#define EGL_READ 0x305A
 #define EGL_RGB_BUFFER 0x308E
+#define EGL_CONTEXT_CLIENT_TYPE 0x3097
 #define EGL_OPENGL_ES_API 0x30A0
 #define EGL_OPENVG_API 0x30A1
 #define EGL_OPENGL_API 0x30A2
@@ -51,6 +57,7 @@ extern "C" {
 
 #define EGL_NO_CONTEXT ((EGLContext)0)
 #define EGL_NO_DISPLAY ((EGLDisplay)0)
+#define EGL_NO_SURFACE ((EGLSurface)0)
 
 // 3.1 Errors
 EGLint eglGetError(void);

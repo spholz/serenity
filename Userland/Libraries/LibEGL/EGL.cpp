@@ -10,9 +10,16 @@
 
 #include <dlfcn.h>
 
-#ifdef AK_OS_LINUX
+// #define PLATFORM_X11
+// #define PLATFORM_WAYLAND
+
+#ifdef PLATFORM_WAYLAND
 #    include <wayland-client.h>
 #    include <wayland-egl-backend.h>
+#elifdef PLATFORM_X11
+#    include <X11/Xatom.h>
+#    include <X11/Xlib.h>
+#    include <X11/Xutil.h>
 #endif
 
 namespace {
@@ -29,11 +36,14 @@ thread_local void* s_libgl_handle = nullptr;
 struct EGLContextImpl {
     RefPtr<Gfx::Bitmap> bitmap;
     OwnPtr<GL::GLContext> gl_context;
+    EGLSurface draw_surface;
+    EGLSurface read_surface;
+    EGLDisplay display;
 };
 
 thread_local EGLContextImpl* s_current_context = nullptr;
 
-#ifdef AK_OS_LINUX
+#ifdef PLATFORM_WAYLAND
 struct EGLDisplayImpl {
     struct wl_shm* wl_shm;
     struct wl_event_queue* wayland_queue;
@@ -42,6 +52,23 @@ struct EGLDisplayImpl {
 struct EGLSurfaceImpl {
     struct wl_egl_window* wl_egl_window;
     struct wl_buffer* wl_buffer;
+    int width;
+    int height;
+    int depth;
+};
+#elifdef PLATFORM_X11
+struct EGLDisplayImpl {
+    Display* x11_display;
+};
+
+struct EGLSurfaceImpl {
+    Window x11_window;
+    GC x11_gc;
+    int width;
+    int height;
+    int depth;
+    XImage* x11_image;
+    Visual* x11_visual;
 };
 #else
 struct EGLSurfaceImpl {
@@ -58,8 +85,8 @@ EGLint eglGetError(void)
     return exchange(s_error, EGL_SUCCESS);
 }
 
-#ifdef AK_OS_LINUX
-static void registry_handle_global(void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version)
+#ifdef PLATFORM_WAYLAND
+static void registry_handle_global(void* data, struct wl_registry* registry, uint32_t name, char const* interface, uint32_t version)
 {
     auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(data);
     if (strcmp(interface, wl_shm_interface.name) == 0 && version >= 1) {
@@ -83,7 +110,7 @@ static const struct wl_registry_listener registry_listener = {
 
 EGLDisplay eglGetDisplay(EGLNativeDisplayType display_id)
 {
-#ifdef AK_OS_LINUX
+#ifdef PLATFORM_WAYLAND
     auto* egl_display = new (nothrow) EGLDisplayImpl;
     if (egl_display == nullptr) {
         s_error = EGL_BAD_ALLOC;
@@ -104,9 +131,21 @@ EGLDisplay eglGetDisplay(EGLNativeDisplayType display_id)
 
     s_error = EGL_SUCCESS;
     return egl_display;
+#elifdef PLATFORM_X11
+    auto* egl_display = new (nothrow) EGLDisplayImpl;
+    if (egl_display == nullptr) {
+        s_error = EGL_BAD_ALLOC;
+        return EGL_NO_DISPLAY;
+    }
+
+    auto* x11_display = reinterpret_cast<Display*>(display_id);
+
+    egl_display->x11_display = x11_display;
+
+    s_error = EGL_SUCCESS;
+    return egl_display;
 #else
     (void)display_id;
-
     s_error = EGL_SUCCESS;
     return reinterpret_cast<EGLDisplay>(1);
 #endif
@@ -121,7 +160,7 @@ EGLBoolean eglInitialize(EGLDisplay, EGLint* major, EGLint* minor)
     if (minor != nullptr)
         *minor = 5;
 
-    s_libgl_handle = dlopen("libGL.so.1", RTLD_LAZY | RTLD_LOCAL);
+    s_libgl_handle = dlopen("liblagom-gl.so", RTLD_LAZY | RTLD_LOCAL);
     if (!s_libgl_handle) {
         dbgln("Failed to load LibGL: {}", dlerror());
         s_error = EGL_NOT_INITIALIZED;
@@ -191,7 +230,7 @@ EGLBoolean eglChooseConfig(EGLDisplay, EGLint const*, EGLConfig* configs, EGLint
     return EGL_TRUE;
 }
 
-EGLBoolean eglGetConfigAttrib(EGLDisplay, EGLConfig, EGLint attribute, EGLint* value)
+EGLBoolean eglGetConfigAttrib(EGLDisplay dpy, EGLConfig, EGLint attribute, EGLint* value)
 {
     switch (attribute) {
     case EGL_ALPHA_SIZE:
@@ -212,6 +251,24 @@ EGLBoolean eglGetConfigAttrib(EGLDisplay, EGLConfig, EGLint attribute, EGLint* v
     case EGL_STENCIL_SIZE:
         *value = 8;
         break;
+    case EGL_NATIVE_VISUAL_ID: {
+#ifdef PLATFORM_X11
+        auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(dpy);
+        auto* x11_display = egl_display->x11_display;
+
+        int default_screen = DefaultScreen(egl_display->x11_display);
+
+        XVisualInfo visual_info = {};
+        auto rc = XMatchVisualInfo(x11_display, default_screen, 24, TrueColor, &visual_info);
+        VERIFY(rc != 0);
+
+        *value = visual_info.visualid;
+#else
+        (void)dpy;
+        *value = 0;
+#endif
+        break;
+    }
     case EGL_SAMPLES:
         *value = 0;
         break;
@@ -234,9 +291,10 @@ EGLBoolean eglGetConfigAttrib(EGLDisplay, EGLConfig, EGLint attribute, EGLint* v
     return EGL_TRUE;
 }
 
-EGLSurface eglCreateWindowSurface(EGLDisplay, EGLConfig, EGLNativeWindowType win, EGLint const*)
+EGLSurface eglCreateWindowSurface(EGLDisplay dpy, EGLConfig, EGLNativeWindowType win, EGLint const*)
 {
-#ifdef AK_OS_LINUX
+#ifdef PLATFORM_WAYLAND
+    (void)dpy;
     auto* wayland_window = reinterpret_cast<wl_egl_window*>(win);
 
     auto* egl_surface = new (nothrow) EGLSurfaceImpl;
@@ -246,6 +304,36 @@ EGLSurface eglCreateWindowSurface(EGLDisplay, EGLConfig, EGLNativeWindowType win
     }
 
     egl_surface->wl_egl_window = wayland_window;
+    egl_surface->width = wayland_window->width;
+    egl_surface->height = wayland_window->height;
+    egl_surface->depth = 32; // FIXME
+
+    s_error = EGL_SUCCESS;
+    return egl_surface;
+#elifdef PLATFORM_X11
+    auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(dpy);
+    auto* x11_display = egl_display->x11_display;
+
+    auto x11_window = reinterpret_cast<Window>(win);
+    auto* egl_surface = new (nothrow) EGLSurfaceImpl;
+    if (egl_surface == nullptr) {
+        s_error = EGL_BAD_ALLOC;
+        return EGL_NO_CONTEXT;
+    }
+
+    egl_surface->x11_window = x11_window;
+
+    XWindowAttributes window_attributes {};
+    Status status = XGetWindowAttributes(x11_display, x11_window, &window_attributes);
+    VERIFY(status != 0);
+
+    egl_surface->width = window_attributes.width;
+    egl_surface->height = window_attributes.height;
+    egl_surface->depth = window_attributes.depth;
+    egl_surface->x11_visual = window_attributes.visual;
+
+    egl_surface->x11_gc = XCreateGC(x11_display, x11_window, 0, nullptr);
+    VERIFY(egl_surface->x11_gc != nullptr);
 
     s_error = EGL_SUCCESS;
     return egl_surface;
@@ -265,6 +353,27 @@ EGLSurface eglCreatePbufferSurface(EGLDisplay, EGLConfig, EGLint const*)
 
 EGLBoolean eglDestroySurface(EGLDisplay, EGLSurface)
 {
+    s_error = EGL_SUCCESS;
+    return EGL_TRUE;
+}
+
+EGLBoolean eglQuerySurface(EGLDisplay, EGLSurface surface, EGLint attribute, EGLint* value)
+{
+    auto* egl_surface = reinterpret_cast<EGLSurfaceImpl*>(surface);
+
+    switch (attribute) {
+    case EGL_WIDTH:
+        *value = egl_surface->width;
+        break;
+    case EGL_HEIGHT:
+        *value = egl_surface->height;
+        break;
+    default:
+        dbgln("eglQuerySurface(): unimplemented attribute {:#x}", attribute);
+        s_error = EGL_BAD_ATTRIBUTE;
+        return EGL_FALSE;
+    }
+
     s_error = EGL_SUCCESS;
     return EGL_TRUE;
 }
@@ -311,7 +420,7 @@ EGLContext eglCreateContext(EGLDisplay, EGLConfig, EGLContext share_context, EGL
         return EGL_NO_CONTEXT;
     }
 
-#ifdef AK_OS_LINUX
+#if defined(PLATFORM_WAYLAND) || defined(PLATFORM_X11)
     auto* egl_context = new (nothrow) EGLContextImpl;
     if (egl_context == nullptr) {
         s_error = EGL_BAD_ALLOC;
@@ -356,7 +465,7 @@ EGLBoolean eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface, EGLContex
 
     auto* egl_context = reinterpret_cast<EGLContextImpl*>(ctx);
 
-#ifdef AK_OS_LINUX
+#ifdef PLATFORM_WAYLAND
     if (!egl_context->gl_context) {
         // HACK: egLCreateContext doesn't have access to the surface, but we need its size to create a LibGL context.
         auto* display = reinterpret_cast<EGLDisplayImpl*>(dpy);
@@ -371,20 +480,38 @@ EGLBoolean eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface, EGLContex
         VERIFY(pool != NULL);
         wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(pool), display->wayland_queue);
 
-        struct wl_buffer* wl_buffer = wl_shm_pool_create_buffer(pool, 0, width, height, width * 4, WL_SHM_FORMAT_ARGB8888);
+        struct wl_buffer* wl_buffer = wl_shm_pool_create_buffer(pool, 0, width, height, width * 4, WL_SHM_FORMAT_XRGB8888);
         VERIFY(wl_buffer != NULL);
         wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(wl_buffer), display->wayland_queue);
         wl_shm_pool_destroy(pool);
 
         target_surface->wl_buffer = wl_buffer;
 
-        auto bitmap = Gfx::Bitmap::create_with_anonymous_buffer(Gfx::BitmapFormat::BGRA8888, buffer, { width, height }, 1).release_value_but_fixme_should_propagate_errors();
+        auto bitmap = Gfx::Bitmap::create_with_anonymous_buffer(Gfx::BitmapFormat::BGRx8888, buffer, { width, height }, 1).release_value_but_fixme_should_propagate_errors();
         bitmap->fill(Color::Magenta);
 
         egl_context->bitmap = bitmap;
 
         egl_context->gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
     }
+#elifdef PLATFORM_X11
+    auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(dpy);
+    auto* target_surface = reinterpret_cast<EGLSurfaceImpl*>(draw);
+
+    auto* x11_display = egl_display->x11_display;
+
+    auto width = target_surface->width;
+    auto height = target_surface->height;
+
+    auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { width, height }).release_value_but_fixme_should_propagate_errors();
+    bitmap->fill(Color::Magenta);
+
+    target_surface->x11_image = XCreateImage(x11_display, target_surface->x11_visual, target_surface->depth, ZPixmap, 0, reinterpret_cast<char*>(bitmap->scanline_u8(0)), width, height, 32, 0);
+    VERIFY(target_surface->x11_image != nullptr);
+
+    egl_context->bitmap = bitmap;
+
+    egl_context->gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
 #else
     (void)dpy;
     (void)draw;
@@ -392,6 +519,58 @@ EGLBoolean eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface, EGLContex
 
     GL::make_context_current(egl_context->gl_context);
     s_current_context = egl_context;
+
+    s_current_context->read_surface = EGL_NO_SURFACE; // FIXME
+    s_current_context->draw_surface = draw;
+    s_current_context->display = dpy;
+
+    s_error = EGL_SUCCESS;
+    return EGL_TRUE;
+}
+
+EGLContext eglGetCurrentContext(void)
+{
+    s_error = EGL_SUCCESS;
+    if (s_current_context == nullptr)
+        return EGL_NO_CONTEXT;
+
+    return s_current_context;
+}
+
+EGLSurface eglGetCurrentSurface(EGLint readdraw)
+{
+    s_error = EGL_SUCCESS;
+    if (s_current_context == nullptr)
+        return EGL_NO_SURFACE;
+
+    if (readdraw == EGL_DRAW)
+        return s_current_context->draw_surface;
+
+    return s_current_context->read_surface;
+}
+
+EGLDisplay eglGetCurrentDisplay(void)
+{
+    s_error = EGL_SUCCESS;
+    if (s_current_context == nullptr)
+        return EGL_NO_SURFACE;
+
+    return s_current_context->display;
+}
+
+EGLBoolean eglQueryContext(EGLDisplay, EGLContext, EGLint attribute, EGLint* value)
+{
+    switch (attribute) {
+    case EGL_CONTEXT_CLIENT_TYPE:
+        // FIXME: Don't hardcode this once we support more than OpenGL.
+        *value = EGL_OPENGL_API;
+        break;
+
+    default:
+        dbgln("eglQueryContext(): unimplemented attribute {:#x}", attribute);
+        s_error = EGL_BAD_ATTRIBUTE;
+        return EGL_FALSE;
+    }
 
     s_error = EGL_SUCCESS;
     return EGL_TRUE;
@@ -428,12 +607,13 @@ EGLBoolean eglWaitNative(EGLint)
     return EGL_TRUE;
 }
 
-EGLBoolean eglSwapBuffers(EGLDisplay, EGLSurface surface)
+EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface surface)
 {
     if (s_current_context)
         s_current_context->gl_context->present();
 
-#ifdef AK_OS_LINUX
+#ifdef PLATFORM_WAYLAND
+    (void)dpy;
     auto* surface_impl = reinterpret_cast<EGLSurfaceImpl*>(surface);
 
     wl_surface_attach(surface_impl->wl_egl_window->surface, surface_impl->wl_buffer, 0, 0);
@@ -442,7 +622,16 @@ EGLBoolean eglSwapBuffers(EGLDisplay, EGLSurface surface)
 
     s_error = EGL_SUCCESS;
     return EGL_TRUE;
+#elifdef PLATFORM_X11
+    auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(dpy);
+    auto* egl_surface = reinterpret_cast<EGLSurfaceImpl*>(surface);
+
+    XPutImage(egl_display->x11_display, egl_surface->x11_window, egl_surface->x11_gc, egl_surface->x11_image, 0, 0, 0, 0, egl_surface->width, egl_surface->height);
+
+    s_error = EGL_SUCCESS;
+    return EGL_TRUE;
 #else
+    (void)dpy;
     (void)surface;
 
     s_error = EGL_SUCCESS;
