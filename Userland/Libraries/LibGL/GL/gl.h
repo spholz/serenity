@@ -645,6 +645,14 @@ extern "C" {
 #define GL_INFO_LOG_LENGTH 0x8B84
 #define GL_SHADER_SOURCE_LENGTH 0x8B88
 
+// FIXME: Put at correct place
+#define GL_DRAW_BUFFER 0x0C01
+#define GL_READ_BUFFER 0x0C02
+#define GL_TEXTURE_MIN_LOD 0x813A
+#define GL_TEXTURE_MAX_LOD 0x813B
+#define GL_TEXTURE_MAX_LEVEL 0x813D
+#define GL_TEXTURE_BINDING_2D 0x8069
+
 #ifdef __cplusplus
 }
 #endif

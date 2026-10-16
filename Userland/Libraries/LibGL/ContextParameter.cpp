@@ -82,6 +82,8 @@ Optional<ContextParameter> GLContext::get_context_parameter(GLenum name)
         return ContextParameter { .type = GL_BOOL, .is_capability = true, .value = { .boolean_value = m_dither_enabled } };
     case GL_DOUBLEBUFFER:
         return ContextParameter { .type = GL_BOOL, .value = { .boolean_value = true } };
+    case GL_DRAW_BUFFER:
+        return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_current_draw_buffer) } };
     case GL_FOG: {
         auto fog_enabled = m_rasterizer->options().fog_enabled;
         return ContextParameter { .type = GL_BOOL, .is_capability = true, .value = { .boolean_value = fog_enabled } };
@@ -134,6 +136,8 @@ Optional<ContextParameter> GLContext::get_context_parameter(GLenum name)
         return ContextParameter { .type = GL_DOUBLE, .value = { .double_value = static_cast<GLdouble>(m_point_size) } };
     case GL_POLYGON_OFFSET_FILL:
         return ContextParameter { .type = GL_BOOL, .is_capability = true, .value = { .boolean_value = m_depth_offset_enabled } };
+    case GL_READ_BUFFER:
+        return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_current_read_buffer) } };
     case GL_RED_BITS:
         return ContextParameter { .type = GL_INT, .value = { .integer_value = sizeof(u8) * 8 } };
     case GL_SAMPLE_BUFFERS:
@@ -170,6 +174,21 @@ Optional<ContextParameter> GLContext::get_context_parameter(GLenum name)
         return ContextParameter { .type = GL_BOOL, .value = { .boolean_value = m_active_texture_unit->texture_2d_enabled() } };
     case GL_TEXTURE_3D:
         return ContextParameter { .type = GL_BOOL, .value = { .boolean_value = m_active_texture_unit->texture_3d_enabled() } };
+    case GL_TEXTURE_BINDING_2D: {
+        GLint name = 0;
+
+        auto texture_2d = m_active_texture_unit->texture_2d_target_texture();
+        if (texture_2d) {
+            for (auto const& [texture_name, texture] : m_allocated_textures) {
+                if (texture == texture_2d) {
+                    name = texture_name;
+                    break;
+                }
+            }
+        }
+
+        return ContextParameter { .type = GL_INT, .value = { .integer_value = name } };
+    }
     case GL_TEXTURE_CUBE_MAP:
         return ContextParameter { .type = GL_BOOL, .value = { .boolean_value = m_active_texture_unit->texture_cube_map_enabled() } };
     case GL_TEXTURE_GEN_Q:

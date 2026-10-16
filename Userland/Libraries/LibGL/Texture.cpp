@@ -677,7 +677,10 @@ void GLContext::gl_tex_parameter(GLenum target, GLenum pname, GLfloat param)
             && pname != GL_TEXTURE_MIN_FILTER
             && pname != GL_TEXTURE_MAG_FILTER
             && pname != GL_TEXTURE_WRAP_S
-            && pname != GL_TEXTURE_WRAP_T,
+            && pname != GL_TEXTURE_WRAP_T
+            && pname != GL_TEXTURE_MIN_LOD
+            && pname != GL_TEXTURE_MAX_LOD
+            && pname != GL_TEXTURE_MAX_LEVEL,
         GL_INVALID_ENUM);
 
     // We assume GL_TEXTURE_2D (see above)
@@ -732,6 +735,18 @@ void GLContext::gl_tex_parameter(GLenum target, GLenum pname, GLfloat param)
             GL_INVALID_ENUM);
 
         texture_2d->sampler().set_wrap_t_mode(param);
+        break;
+
+    case GL_TEXTURE_MIN_LOD:
+        // FIXME
+        break;
+
+    case GL_TEXTURE_MAX_LOD:
+        // FIXME
+        break;
+
+    case GL_TEXTURE_MAX_LEVEL:
+        // FIXME
         break;
 
     default:
