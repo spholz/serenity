@@ -20,8 +20,18 @@ public:
     Image(void const* ownership_token, PixelFormat const&, u32 width, u32 height, u32 depth, u32 max_levels);
     virtual ~Image() { }
 
-    u32 width_at_level(u32 level) const { return m_mipmap_sizes[level].x(); }
-    u32 height_at_level(u32 level) const { return m_mipmap_sizes[level].y(); }
+    u32 width_at_level(u32 level) const
+    {
+        if (level >= m_mipmap_sizes.size())
+            return 0;
+        return m_mipmap_sizes[level].x();
+    }
+    u32 height_at_level(u32 level) const
+    {
+        if (level >= m_mipmap_sizes.size())
+            return 0;
+        return m_mipmap_sizes[level].y();
+    }
     u32 depth_at_level(u32 level) const { return m_mipmap_sizes[level].z(); }
     u32 number_of_levels() const { return m_mipmap_sizes.size(); }
 
