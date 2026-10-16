@@ -156,6 +156,7 @@ public:
     void gl_blend_color(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
     void gl_blend_equation_separate(GLenum rgb_mode, GLenum alpha_mode);
     void gl_blend_func(GLenum src_factor, GLenum dst_factor);
+    void gl_blend_func_separate(GLenum src_rgb, GLenum dst_rgb, GLenum src_alpha, GLenum dst_alpha);
     void gl_shade_model(GLenum mode);
     void gl_alpha_func(GLenum func, GLclampf ref);
     void gl_hint(GLenum target, GLenum mode);
@@ -341,8 +342,10 @@ private:
 
     bool m_blend_enabled = false;
     FloatVector4 m_blend_color { 0.f, 0.f, 0.f, 0.f };
-    GLenum m_blend_source_factor = GL_ONE;
-    GLenum m_blend_destination_factor = GL_ZERO;
+    GLenum m_blend_source_factor_rgb = GL_ONE;
+    GLenum m_blend_source_factor_alpha = GL_ONE;
+    GLenum m_blend_destination_factor_rgb = GL_ZERO;
+    GLenum m_blend_destination_factor_alpha = GL_ZERO;
 
     GLenum m_blend_equation_rgb = GL_FUNC_ADD;
     GLenum m_blend_equation_alpha = GL_FUNC_ADD;

@@ -26,8 +26,10 @@ struct RasterizerOptions {
     FloatVector4 blend_color { 0.f, 0.f, 0.f, 0.f };
     BlendEquation blend_equation_rgb { BlendEquation::Add };
     BlendEquation blend_equation_alpha { BlendEquation::Add };
-    BlendFactor blend_source_factor { BlendFactor::One };
-    BlendFactor blend_destination_factor { BlendFactor::One };
+    BlendFactor blend_source_factor_rgb { BlendFactor::One };
+    BlendFactor blend_source_factor_alpha { BlendFactor::One };
+    BlendFactor blend_destination_factor_rgb { BlendFactor::One };
+    BlendFactor blend_destination_factor_alpha { BlendFactor::One };
     u32 color_mask { 0xffffffff };
     float depth_min { 0.f };
     float depth_max { 1.f };

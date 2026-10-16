@@ -555,11 +555,11 @@ ErrorOr<ControlList> Device::generate_initial_binner_control_list()
 
         ControlRecord::BlendCfg blend_cfg {};
         blend_cfg.alpha_blend_mode = map_blend_mode(m_options.blend_equation_alpha);
-        blend_cfg.alpha_blend_src_factor = map_blend_factor(m_options.blend_source_factor);
-        blend_cfg.alpha_blend_dst_factor = map_blend_factor(m_options.blend_destination_factor);
-        blend_cfg.color_blend_mode = map_blend_mode(m_options.blend_equation_alpha);
-        blend_cfg.color_blend_src_factor = map_blend_factor(m_options.blend_source_factor);
-        blend_cfg.color_blend_dst_factor = map_blend_factor(m_options.blend_destination_factor);
+        blend_cfg.alpha_blend_src_factor = map_blend_factor(m_options.blend_source_factor_alpha);
+        blend_cfg.alpha_blend_dst_factor = map_blend_factor(m_options.blend_destination_factor_alpha);
+        blend_cfg.color_blend_mode = map_blend_mode(m_options.blend_equation_rgb);
+        blend_cfg.color_blend_src_factor = map_blend_factor(m_options.blend_source_factor_rgb);
+        blend_cfg.color_blend_dst_factor = map_blend_factor(m_options.blend_destination_factor_rgb);
         blend_cfg.render_target_mask = 0xff;
         control_list.append(blend_cfg);
 

@@ -24,14 +24,18 @@ Optional<ContextParameter> GLContext::get_context_parameter(GLenum name)
         return ContextParameter { .type = GL_BOOL, .is_capability = true, .value = { .boolean_value = m_blend_enabled } };
     case GL_BLEND_DST:
     case GL_BLEND_DST_ALPHA:
-        return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_blend_destination_factor) } };
+        return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_blend_destination_factor_alpha) } };
+    case GL_BLEND_DST_RGB:
+        return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_blend_destination_factor_rgb) } };
     case GL_BLEND_EQUATION_ALPHA:
         return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_blend_equation_alpha) } };
     case GL_BLEND_EQUATION_RGB:
         return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_blend_equation_rgb) } };
     case GL_BLEND_SRC:
     case GL_BLEND_SRC_ALPHA:
-        return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_blend_source_factor) } };
+        return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_blend_source_factor_alpha) } };
+    case GL_BLEND_SRC_RGB:
+        return ContextParameter { .type = GL_INT, .value = { .integer_value = static_cast<GLint>(m_blend_source_factor_rgb) } };
     case GL_BLUE_BITS:
         return ContextParameter { .type = GL_INT, .value = { .integer_value = sizeof(u8) * 8 } };
     case GL_CLIENT_ACTIVE_TEXTURE:

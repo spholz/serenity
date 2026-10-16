@@ -67,7 +67,15 @@
     },
     "BlendFunc": {
         "arguments": [
-            {"type": "GLenum", "name": ["sfactor", "dfactor"]}
+            {"type": "GLenum", "name": ["sfactor", "dfactor"]},
+            {"expression": "sfactor"},
+            {"expression": "dfactor"}
+        ],
+        "implementation": "blend_func_separate"
+    },
+    "BlendFuncSeparate": {
+        "arguments": [
+            {"type": "GLenum", "name": ["srcRGB", "dstRGB", "srcAlpha", "dstAlpha"]}
         ]
     },
     "BufferData": {

@@ -173,6 +173,8 @@ extern "C" {
 #define GL_NORMAL_ARRAY_TYPE 0x807E
 #define GL_SAMPLE_BUFFERS 0x80A8
 #define GL_SAMPLES 0x80A9
+#define GL_BLEND_DST_RGB 0x80C8
+#define GL_BLEND_SRC_RGB 0x80C9
 #define GL_MAX_TEXTURE_LOD_BIAS 0x84FD
 
 // Blend factors
