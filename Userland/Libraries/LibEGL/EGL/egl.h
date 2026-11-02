@@ -41,11 +41,15 @@ extern "C" {
 #define EGL_SURFACE_TYPE 0x3033
 #define EGL_COLOR_BUFFER_TYPE 0x303F
 #define EGL_RENDERABLE_TYPE 0x3040
+#define EGL_VENDOR 0x3053
+#define EGL_VERSION 0x3054
+#define EGL_EXTENSIONS 0x3055
 #define EGL_HEIGHT 0x3056
 #define EGL_WIDTH 0x3057
 #define EGL_DRAW 0x3059
 #define EGL_READ 0x305A
 #define EGL_RGB_BUFFER 0x308E
+#define EGL_CLIENT_APIS 0x308D
 #define EGL_CONTEXT_CLIENT_TYPE 0x3097
 #define EGL_OPENGL_ES_API 0x30A0
 #define EGL_OPENVG_API 0x30A1
@@ -55,6 +59,7 @@ extern "C" {
 
 #define EGL_OPENGL_BIT 0x0008
 
+#define EGL_DEFAULT_DISPLAY ((EGLNativeDisplayType)0)
 #define EGL_NO_CONTEXT ((EGLContext)0)
 #define EGL_NO_DISPLAY ((EGLDisplay)0)
 #define EGL_NO_SURFACE ((EGLSurface)0)

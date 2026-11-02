@@ -111,6 +111,11 @@ static const struct wl_registry_listener registry_listener = {
 EGLDisplay eglGetDisplay(EGLNativeDisplayType display_id)
 {
 #ifdef PLATFORM_WAYLAND
+    if (display_id == EGL_DEFAULT_DISPLAY) {
+        s_error = EGL_SUCCESS;
+        return EGL_NO_DISPLAY;
+    }
+
     auto* egl_display = new (nothrow) EGLDisplayImpl;
     if (egl_display == nullptr) {
         s_error = EGL_BAD_ALLOC;
@@ -132,6 +137,11 @@ EGLDisplay eglGetDisplay(EGLNativeDisplayType display_id)
     s_error = EGL_SUCCESS;
     return egl_display;
 #elifdef PLATFORM_X11
+    if (display_id == EGL_DEFAULT_DISPLAY) {
+        s_error = EGL_SUCCESS;
+        return EGL_NO_DISPLAY;
+    }
+
     auto* egl_display = new (nothrow) EGLDisplayImpl;
     if (egl_display == nullptr) {
         s_error = EGL_BAD_ALLOC;
@@ -177,10 +187,26 @@ EGLBoolean eglTerminate(EGLDisplay)
     return EGL_TRUE;
 }
 
-char const* eglQueryString(EGLDisplay, EGLint)
+char const* eglQueryString(EGLDisplay, EGLint name)
 {
-    s_error = EGL_BAD_PARAMETER;
-    return nullptr;
+    switch (name) {
+    case EGL_VENDOR:
+        s_error = EGL_SUCCESS;
+        return "SerenityOS";
+    case EGL_VERSION:
+        s_error = EGL_SUCCESS;
+        return "1.5";
+    case EGL_EXTENSIONS:
+        s_error = EGL_SUCCESS;
+        return "EGL_KHR_client_get_all_proc_addresses EGL_EXT_platform_base";
+    case EGL_CLIENT_APIS:
+        s_error = EGL_SUCCESS;
+        return "OpenGL";
+    default:
+        dbgln("eglQueryString(): unimplemented name {:#x}", name);
+        s_error = EGL_BAD_ATTRIBUTE;
+        return EGL_FALSE;
+    }
 }
 
 EGLBoolean eglGetConfigs(EGLDisplay, EGLConfig* configs, EGLint config_size, EGLint* num_config)
@@ -253,16 +279,20 @@ EGLBoolean eglGetConfigAttrib(EGLDisplay dpy, EGLConfig, EGLint attribute, EGLin
         break;
     case EGL_NATIVE_VISUAL_ID: {
 #ifdef PLATFORM_X11
-        auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(dpy);
-        auto* x11_display = egl_display->x11_display;
+        if (dpy == EGL_NO_DISPLAY) {
+            *value = 0;
+        } else {
+            auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(dpy);
+            auto* x11_display = egl_display->x11_display;
 
-        int default_screen = DefaultScreen(egl_display->x11_display);
+            int default_screen = DefaultScreen(egl_display->x11_display);
 
-        XVisualInfo visual_info = {};
-        auto rc = XMatchVisualInfo(x11_display, default_screen, 24, TrueColor, &visual_info);
-        VERIFY(rc != 0);
+            XVisualInfo visual_info = {};
+            auto rc = XMatchVisualInfo(x11_display, default_screen, 24, TrueColor, &visual_info);
+            VERIFY(rc != 0);
 
-        *value = visual_info.visualid;
+            *value = visual_info.visualid;
+        }
 #else
         (void)dpy;
         *value = 0;
@@ -453,15 +483,27 @@ EGLBoolean eglDestroyContext(EGLDisplay, EGLContext ctx)
     return EGL_TRUE;
 }
 
-EGLBoolean eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface, EGLContext ctx)
+EGLBoolean eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx)
 {
+    (void)read;
     dbgln("eglMakeCurrent({})", ctx);
     if (ctx == EGL_NO_CONTEXT) {
+        // if (draw == EGL_NO_SURFACE || read == EGL_NO_SURFACE) {
+        //     s_error = EGL_BAD_MATCH;
+        //     return EGL_FALSE;
+        // }
+
         GL::make_context_current(nullptr);
         s_current_context = nullptr;
         s_error = EGL_SUCCESS;
         return EGL_TRUE;
     }
+
+    // // We don't support being bound without read and draw surfaces.
+    // if (draw == EGL_NO_SURFACE || read == EGL_NO_SURFACE) {
+    //     s_error = EGL_BAD_MATCH;
+    //     return EGL_FALSE;
+    // }
 
     auto* egl_context = reinterpret_cast<EGLContextImpl*>(ctx);
 
@@ -495,23 +537,29 @@ EGLBoolean eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface, EGLContex
         egl_context->gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
     }
 #elifdef PLATFORM_X11
-    auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(dpy);
-    auto* target_surface = reinterpret_cast<EGLSurfaceImpl*>(draw);
+    if (draw != EGL_NO_SURFACE) {
+        auto* egl_display = reinterpret_cast<EGLDisplayImpl*>(dpy);
+        auto* target_surface = reinterpret_cast<EGLSurfaceImpl*>(draw);
 
-    auto* x11_display = egl_display->x11_display;
+        auto* x11_display = egl_display->x11_display;
 
-    auto width = target_surface->width;
-    auto height = target_surface->height;
+        auto width = target_surface->width;
+        auto height = target_surface->height;
 
-    auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { width, height }).release_value_but_fixme_should_propagate_errors();
-    bitmap->fill(Color::Magenta);
+        auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { width, height }).release_value_but_fixme_should_propagate_errors();
+        bitmap->fill(Color::Magenta);
 
-    target_surface->x11_image = XCreateImage(x11_display, target_surface->x11_visual, target_surface->depth, ZPixmap, 0, reinterpret_cast<char*>(bitmap->scanline_u8(0)), width, height, 32, 0);
-    VERIFY(target_surface->x11_image != nullptr);
+        target_surface->x11_image = XCreateImage(x11_display, target_surface->x11_visual, target_surface->depth, ZPixmap, 0, reinterpret_cast<char*>(bitmap->scanline_u8(0)), width, height, 32, 0);
+        VERIFY(target_surface->x11_image != nullptr);
 
-    egl_context->bitmap = bitmap;
+        egl_context->bitmap = bitmap;
 
-    egl_context->gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
+        egl_context->gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
+    } else {
+        auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { 640, 480 }).release_value_but_fixme_should_propagate_errors();
+        egl_context->gl_context = GL::create_context(*bitmap).release_value_but_fixme_should_propagate_errors();
+    }
+
 #else
     (void)dpy;
     (void)draw;
