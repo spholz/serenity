@@ -40,28 +40,34 @@ extern "C" {
 
 namespace Core {
 
-struct ArgvList {
-    ByteString m_path;
-    Vector<char const*, 10> m_argv;
-
-    ArgvList(ByteString path, size_t size)
-        : m_path { path }
+class CList {
+public:
+    CList(size_t size)
     {
-        m_argv.ensure_capacity(size + 2);
-        m_argv.append(m_path.characters());
+        m_list.ensure_capacity(size + 1);
+    }
+
+    static CList create_for_argv(ByteString path, size_t size)
+    {
+        CList argv(size + 1);
+        argv.append(path.characters());
+        return argv;
     }
 
     void append(char const* arg)
     {
-        m_argv.append(arg);
+        m_list.append(arg);
     }
 
     char** get()
     {
-        if (m_argv.is_empty() || m_argv.last() != nullptr)
-            m_argv.append(nullptr);
-        return const_cast<char**>(m_argv.span().data());
+        if (m_list.is_empty() || m_list.last() != nullptr)
+            m_list.append(nullptr);
+        return const_cast<char**>(m_list.span().data());
     }
+
+private:
+    Vector<char const*, 10> m_list;
 };
 
 ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
@@ -108,7 +114,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
 
 #undef CHECK
 
-    ArgvList argv_list(options.executable, options.arguments.size());
+    auto argv_list = CList::create_for_argv(options.executable, options.arguments.size());
     for (auto const& argument : options.arguments)
         argv_list.append(argument.characters());
 
