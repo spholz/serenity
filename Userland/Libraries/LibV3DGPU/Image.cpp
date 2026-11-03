@@ -33,7 +33,7 @@ Image::Image(void const* ownership_token, GPU::PixelFormat const& pixel_format, 
 
 void Image::regenerate_mipmaps()
 {
-    dbgln("V3DGPU::Image::regenerate_mipmaps(): unimplemented");
+    // dbgln("V3DGPU::Image::regenerate_mipmaps(): unimplemented");
 }
 
 void Image::write_texels(u32 level, Vector3<i32> const& output_offset, void const* input_data, GPU::ImageDataLayout const& input_layout)
@@ -127,12 +127,12 @@ void Image::write_texels(u32 level, Vector3<i32> const& output_offset, void cons
 
 void Image::read_texels(u32, Vector3<i32> const&, void*, GPU::ImageDataLayout const&) const
 {
-    dbgln("V3DGPU::Image::read_texels(): unimplemented");
+    // dbgln("V3DGPU::Image::read_texels(): unimplemented");
 }
 
 void Image::copy_texels(GPU::Image const&, u32, Vector3<u32> const&, Vector3<u32> const&, u32, Vector3<u32> const&)
 {
-    dbgln("V3DGPU::Image::copy_texels(): unimplemented");
+    // dbgln("V3DGPU::Image::copy_texels(): unimplemented");
 }
 
 }

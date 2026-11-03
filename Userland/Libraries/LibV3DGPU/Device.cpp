@@ -1007,7 +1007,7 @@ void Device::draw_primitives(GPU::PrimitiveType primitive_type, Vector<GPU::Vert
 
 void Device::resize(Gfx::IntSize)
 {
-    dbgln("V3DGPU::Device::resize(): unimplemented");
+    // dbgln("V3DGPU::Device::resize(): unimplemented");
 }
 
 void Device::clear_color(FloatVector4 const& color)
@@ -1029,7 +1029,7 @@ void Device::clear_depth(GPU::DepthType depth)
 
 void Device::clear_stencil(GPU::StencilType)
 {
-    dbgln("V3DGPU::Device::clear_stencil(): unimplemented");
+    // dbgln("V3DGPU::Device::clear_stencil(): unimplemented");
 }
 
 void Device::blit_from_color_buffer(Gfx::Bitmap& target)
@@ -1125,32 +1125,32 @@ void Device::blit_from_color_buffer(Gfx::Bitmap& target)
 
 void Device::blit_from_color_buffer(NonnullRefPtr<GPU::Image>, u32, Vector2<u32>, Vector2<i32>, Vector3<i32>)
 {
-    dbgln("V3DGPU::Device::blit_from_color_buffer(): unimplemented");
+    // dbgln("V3DGPU::Device::blit_from_color_buffer(): unimplemented");
 }
 
 void Device::blit_from_color_buffer(void*, Vector2<i32>, GPU::ImageDataLayout const&)
 {
-    dbgln("V3DGPU::Device::blit_from_color_buffer(): unimplemented");
+    // dbgln("V3DGPU::Device::blit_from_color_buffer(): unimplemented");
 }
 
 void Device::blit_from_depth_buffer(void*, Vector2<i32>, GPU::ImageDataLayout const&)
 {
-    dbgln("V3DGPU::Device::blit_from_depth_buffer(): unimplemented");
+    // dbgln("V3DGPU::Device::blit_from_depth_buffer(): unimplemented");
 }
 
 void Device::blit_from_depth_buffer(NonnullRefPtr<GPU::Image>, u32, Vector2<u32>, Vector2<i32>, Vector3<i32>)
 {
-    dbgln("V3DGPU::Device::blit_from_depth_buffer(): unimplemented");
+    // dbgln("V3DGPU::Device::blit_from_depth_buffer(): unimplemented");
 }
 
 void Device::blit_to_color_buffer_at_raster_position(void const*, GPU::ImageDataLayout const&)
 {
-    dbgln("V3DGPU::Device::blit_to_color_buffer_at_raster_position(): unimplemented");
+    // dbgln("V3DGPU::Device::blit_to_color_buffer_at_raster_position(): unimplemented");
 }
 
 void Device::blit_to_depth_buffer_at_raster_position(void const*, GPU::ImageDataLayout const&)
 {
-    dbgln("V3DGPU::Device::blit_to_depth_buffer_at_raster_position(): unimplemented");
+    // dbgln("V3DGPU::Device::blit_to_depth_buffer_at_raster_position(): unimplemented");
 }
 
 void Device::set_options(GPU::RasterizerOptions const& options)
@@ -1235,7 +1235,7 @@ void Device::set_material_state(GPU::Face, GPU::Material const&)
 
 void Device::set_stencil_configuration(GPU::Face, GPU::StencilConfiguration const&)
 {
-    dbgln("V3DGPU::Device::set_stencil_configuration(): unimplemented");
+    // dbgln("V3DGPU::Device::set_stencil_configuration(): unimplemented");
 }
 
 void Device::set_texture_unit_configuration(GPU::TextureUnitIndex index, GPU::TextureUnitConfiguration const& configuration)
@@ -1245,28 +1245,28 @@ void Device::set_texture_unit_configuration(GPU::TextureUnitIndex index, GPU::Te
 
 void Device::set_clip_planes(Vector<FloatVector4> const&)
 {
-    dbgln("V3DGPU::Device::set_clip_planes(): unimplemented");
+    // dbgln("V3DGPU::Device::set_clip_planes(): unimplemented");
 }
 
 GPU::RasterPosition Device::raster_position() const
 {
-    dbgln("V3DGPU::Device::raster_position(): unimplemented");
+    // dbgln("V3DGPU::Device::raster_position(): unimplemented");
     return {};
 }
 
 void Device::set_raster_position(GPU::RasterPosition const&)
 {
-    dbgln("V3DGPU::Device::set_raster_position(): unimplemented");
+    // dbgln("V3DGPU::Device::set_raster_position(): unimplemented");
 }
 
 void Device::set_raster_position(FloatVector4 const&)
 {
-    dbgln("V3DGPU::Device::set_raster_position(): unimplemented");
+    // dbgln("V3DGPU::Device::set_raster_position(): unimplemented");
 }
 
 void Device::bind_fragment_shader(RefPtr<GPU::Shader>)
 {
-    dbgln("V3DGPU::Device::bind_fragment_shader(): unimplemented");
+    // dbgln("V3DGPU::Device::bind_fragment_shader(): unimplemented");
 }
 
 }
