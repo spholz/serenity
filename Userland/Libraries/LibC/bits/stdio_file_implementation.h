@@ -97,7 +97,7 @@ private:
         bool enqueue_front(u8 byte);
 
     private:
-        constexpr static auto unget_buffer_size = MB_CUR_MAX;
+        constexpr static int unget_buffer_size = sizeof(wchar_t);
         constexpr static u32 ungotten_mask = ((u32)0xffffffff) >> (sizeof(u32) * 8 - unget_buffer_size);
 
         // Note: the fields here are arranged this way

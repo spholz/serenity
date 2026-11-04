@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?S=C3=B6nke=20Holz?= <soenke.holz@serenityos.org>
+Date: Wed, 4 Nov 2026 14:39:11 +0100
+Subject: [PATCH] wip
+
+---
+ src/video/serenity/SDL_serenityvideo.cpp | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/video/serenity/SDL_serenityvideo.cpp b/src/video/serenity/SDL_serenityvideo.cpp
+index 4f29a7d0bd144feca75a898f148001c1eec75a63..30f6dcfae530adacf21d2e0f9a6a691e0e33b3e4 100644
+--- a/src/video/serenity/SDL_serenityvideo.cpp
++++ b/src/video/serenity/SDL_serenityvideo.cpp
+@@ -328,7 +328,7 @@ void SERENITY_VideoQuit(_THIS)
+ {
+     dbgln("SERENITY_VideoQuit");
+     SERENITY_QuitMouse(_this);
+-    g_app = nullptr;
++    // g_app = nullptr;
+ }
+ 
+ SerenitySDLWidget::SerenitySDLWidget(SDL_Window* sdl_window)
+@@ -628,7 +628,6 @@ void* Serenity_GL_GetProcAddress(_THIS, const char* proc)
+         return nullptr;
+     }
+     auto* res = dlsym(_this->gl_config.dll_handle, proc);
+-    dbgln("GetProcAddress: {} -> {}", proc, res);
+     return res;
+ }
+ 

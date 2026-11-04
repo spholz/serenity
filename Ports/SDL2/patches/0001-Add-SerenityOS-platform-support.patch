@@ -43,9 +43,9 @@ Co-Authored-By: sdomi <ja@sdomi.pl>
  src/video/serenity/SDL_serenitymessagebox.h   |  38 +
  src/video/serenity/SDL_serenitymouse.cpp      | 157 +++++
  src/video/serenity/SDL_serenitymouse.h        |  39 ++
- src/video/serenity/SDL_serenityvideo.cpp      | 658 ++++++++++++++++++
+ src/video/serenity/SDL_serenityvideo.cpp      | 659 ++++++++++++++++++
  src/video/serenity/SDL_serenityvideo.h        | 101 +++
- 21 files changed, 1378 insertions(+), 28 deletions(-)
+ 21 files changed, 1379 insertions(+), 28 deletions(-)
  create mode 100644 src/audio/serenity/SDL_serenityaudio.cpp
  create mode 100644 src/audio/serenity/SDL_serenityaudio.h
  create mode 100644 src/video/serenity/SDL_serenityevents.cpp
@@ -58,7 +58,7 @@ Co-Authored-By: sdomi <ja@sdomi.pl>
  create mode 100644 src/video/serenity/SDL_serenityvideo.h
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index d65157f565009ea6085cc1bab8a54a36edbd4f7a..ec62a4353542b88349913ef713a97d47529b933c 100644
+index e45b53e209644b32f08e9ad1589a6c37d7eaf28e..9d7615713eaec629ec9411415aae802f20b8f80a 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -6,7 +6,7 @@ endif()
@@ -89,7 +89,7 @@ index d65157f565009ea6085cc1bab8a54a36edbd4f7a..ec62a4353542b88349913ef713a97d47
  dep_option(SDL_OSS                 "Support the OSS audio API" ON "UNIX_SYS OR RISCOS" OFF)
  set_option(SDL_ALSA                "Support the ALSA audio API" ${UNIX_SYS})
  dep_option(SDL_ALSA_SHARED         "Dynamically load ALSA audio support" ON "SDL_ALSA" OFF)
-@@ -1498,26 +1501,7 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
+@@ -1508,26 +1511,7 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
      CheckFusionSound()
    endif()
  
@@ -118,10 +118,10 @@ index d65157f565009ea6085cc1bab8a54a36edbd4f7a..ec62a4353542b88349913ef713a97d47
    if(UNIX)
      file(GLOB CORE_UNIX_SOURCES ${SDL2_SOURCE_DIR}/src/core/unix/*.c)
 diff --git a/build-scripts/config.sub b/build-scripts/config.sub
-index 4aaae46f6f74428949f32922308f48bd1316e7c1..9491448493b88c7bd54e3fbfcb9e518de0667786 100755
+index 3d35cde174de9cd9788e4bff9b5391c1b06a2fbe..205d4c2071d24e44401b5a0725a2d278586200fb 100755
 --- a/build-scripts/config.sub
 +++ b/build-scripts/config.sub
-@@ -1633,6 +1633,9 @@ case $os in
+@@ -1638,6 +1638,9 @@ case $os in
  	os400*)
  		os=os400
  		;;
@@ -163,10 +163,10 @@ index ea4c0ff4300ea8dcffad6af9da57ac10d120bc04..033037b4306efa5e9f463c890e4b2515
  # - n/a
  macro(CheckVivante)
 diff --git a/include/SDL_config.h.cmake b/include/SDL_config.h.cmake
-index ef014e7ddc4f1d33639d6f41b7eba038cfd938db..c0c4e49eda200e1b911248ac0464d60b99207e20 100644
+index 64b8413c8cdc7138c2b9a86676af47623deb7575..0714e0be0dc3aa208a6431fe5802e6affe229ae0 100644
 --- a/include/SDL_config.h.cmake
 +++ b/include/SDL_config.h.cmake
-@@ -319,6 +319,7 @@
+@@ -320,6 +320,7 @@
  #cmakedefine SDL_AUDIO_DRIVER_PULSEAUDIO @SDL_AUDIO_DRIVER_PULSEAUDIO@
  #cmakedefine SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC @SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC@
  #cmakedefine SDL_AUDIO_DRIVER_QSA @SDL_AUDIO_DRIVER_QSA@
@@ -174,7 +174,7 @@ index ef014e7ddc4f1d33639d6f41b7eba038cfd938db..c0c4e49eda200e1b911248ac0464d60b
  #cmakedefine SDL_AUDIO_DRIVER_SNDIO @SDL_AUDIO_DRIVER_SNDIO@
  #cmakedefine SDL_AUDIO_DRIVER_SNDIO_DYNAMIC @SDL_AUDIO_DRIVER_SNDIO_DYNAMIC@
  #cmakedefine SDL_AUDIO_DRIVER_SUNAUDIO @SDL_AUDIO_DRIVER_SUNAUDIO@
-@@ -412,6 +413,7 @@
+@@ -413,6 +414,7 @@
  #cmakedefine SDL_VIDEO_DRIVER_DIRECTFB_DYNAMIC @SDL_VIDEO_DRIVER_DIRECTFB_DYNAMIC@
  #cmakedefine SDL_VIDEO_DRIVER_DUMMY @SDL_VIDEO_DRIVER_DUMMY@
  #cmakedefine SDL_VIDEO_DRIVER_OFFSCREEN @SDL_VIDEO_DRIVER_OFFSCREEN@
