@@ -10,6 +10,6 @@ jobs:
     uses: ./.github/workflows/serenity-template.yml
     with:
       toolchain: 'Clang'
-      os: ubuntu-24.04
+      os: ubuntu-26.04
       arch: 'x86_64'
       coverage: 'ON'

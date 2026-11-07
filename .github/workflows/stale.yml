@@ -9,7 +9,7 @@ on:
 
 jobs:
   stale:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.repository == 'SerenityOS/serenity'
     permissions:
       actions: write  # required for cache management (see https://github.com/actions/stale/issues/1133)

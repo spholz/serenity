@@ -17,22 +17,14 @@ runs:
       if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
-        # These packages are already part of the ubuntu-24.04 image:
-        # cmake libgmp-dev libssl-dev libstdc++-13-dev ninja-build npm shellcheck unzip
+        # For a list of packages that are already part of the ubuntu-26.04 image, see
+        # <https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2604-Readme.md>.
         # Packages below aren't.
 
         set -e
 
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main'
-
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-
         sudo apt-get update
-        sudo apt-get install ccache clang-20 clang++-20 clang-format-20 lld-20 gcc-14 g++-14 qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libegl1-mesa-dev libclang-20-dev libmpfr-dev
-
-        sudo apt-get remove clang-{14..18} clang++-{14..18} libclang-{14..18}-dev llvm-{14..18}
-        sudo apt-get install clang-20 clang++-20 llvm-20 llvm-20-dev
+        sudo apt-get install ccache libclang-22-dev qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libegl1-mesa-dev libclang-20-dev libmpfr-dev
 
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
         sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
@@ -62,15 +54,8 @@ runs:
       run: |
         set -e
 
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main'
-
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-
         sudo apt-get update
-        sudo apt-get remove clang-{14..18} clang++-{14..18} libclang-{14..18}-dev llvm-{14..18}
-        sudo apt-get install clang-format-20 ccache e2fsprogs libmpfr-dev libmpc-dev optipng qemu-utils qemu-system-i386 qemu-system-arm qemu-system-riscv64 generate-ninja libegl1-mesa-dev
-        sudo apt-get install clang-20 clang++-20 llvm-20 llvm-20-dev
+        sudo apt-get install ccache libclang-22-dev e2fsprogs libmpfr-dev libmpc-dev optipng qemu-utils qemu-system-x86 qemu-system-arm qemu-system-riscv generate-ninja libegl1-mesa-dev
 
     - name: Enable KVM group perms
       if: ${{ inputs.os == 'Serenity' }}
