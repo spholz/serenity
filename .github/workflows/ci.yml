@@ -8,8 +8,6 @@ concurrency:
 
 jobs:
   SerenityOS:
-    if: github.repository == 'SerenityOS/serenity'
-
     strategy:
       fail-fast: false
       matrix:
@@ -41,8 +39,6 @@ jobs:
       debug_options: ${{ matrix.debug_options }}
 
   Lagom:
-    if: github.repository == 'SerenityOS/serenity'
-
     strategy:
       fail-fast: false
       matrix:
