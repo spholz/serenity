@@ -68,6 +68,7 @@ private:
     struct ShaderStateRecord {
         ControlList control_list;
         ControlList uniforms_list;
+        ControlList texture_list;
         Buffer vertex_data_buffer;
         Buffer shaders_buffer;
     };
@@ -129,6 +130,10 @@ private:
     FloatMatrix4x4 m_projection_matrix;
 
     GPU::RasterizerOptions m_options;
+
+    Array<GPU::TextureUnitConfiguration, 1> m_texture_unit_configuration;
+    Array<GPU::SamplerConfig, 1> m_sampler_configuration;
+    GPU::SamplerConfig m_placeholder_sampler_configuration;
 };
 
 }
