@@ -37,9 +37,9 @@ struct VertexData {
     Array<f32, 2> texture_coordinate;
 };
 
-ErrorOr<ControlList> Device::generate_initial_binner_control_list()
+ErrorOr<void> Device::generate_initial_binner_control_list(ControlList& control_list)
 {
-    ControlList control_list;
+    control_list.clear();
 
     ControlRecord::NumberOfLayers number_of_layers {};
     number_of_layers.number_of_layers_minus_one = 1 - 1;
@@ -101,7 +101,7 @@ ErrorOr<ControlList> Device::generate_initial_binner_control_list()
     ControlRecord::ZeroAllCentroidFlags zero_all_centroid_flags {};
     control_list.append(zero_all_centroid_flags);
 
-    return control_list;
+    return {};
 }
 
 ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<VertexData> const& vertex_array, Gfx::FloatMatrix4x4 const& model_view_projection_matrix)
@@ -264,9 +264,9 @@ ErrorOr<Device::ShaderStateRecord> Device::generate_shader_state_record(Vector<V
     };
 }
 
-ErrorOr<ControlList> Device::generate_tile_list(u32 target_buffer_pitch, u32 target_buffer_address)
+ErrorOr<void> Device::generate_tile_list(ControlList& control_list, u32 target_buffer_pitch, u32 target_buffer_address)
 {
-    ControlList control_list;
+    control_list.clear();
 
     ControlRecord::TileCoordinatesImplicit tile_coordinates_implicit {};
     control_list.append(tile_coordinates_implicit);
@@ -327,12 +327,16 @@ ErrorOr<ControlList> Device::generate_tile_list(u32 target_buffer_pitch, u32 tar
 
     TRY(control_list.copy_to_gpu_buffer());
 
-    return control_list;
+    return {};
 }
 
-ErrorOr<Device::RenderControlList> Device::generate_render_control_list(u32 target_buffer_pitch, u32 target_buffer_address)
+ErrorOr<void> Device::generate_render_control_list(RenderControlList& render_control_list, u32 target_buffer_pitch, u32 target_buffer_address)
 {
-    ControlList control_list;
+    auto& control_list = render_control_list.control_list;
+    auto& tile_list = render_control_list.tile_list;
+
+    control_list.clear();
+    tile_list.clear();
 
     ControlRecord::TileRenderingModeCfgCommon tile_rendering_mode_cfg_common {};
     static_assert(TILE_WIDTH == 64);
@@ -422,7 +426,7 @@ ErrorOr<Device::RenderControlList> Device::generate_render_control_list(u32 targ
     ControlRecord::FlushVCDCache flush_vcd_cache {};
     control_list.append(flush_vcd_cache);
 
-    auto tile_list = TRY(generate_tile_list(target_buffer_pitch, target_buffer_address));
+    TRY(generate_tile_list(tile_list, target_buffer_pitch, target_buffer_address));
 
     ControlRecord::StartAddressOfGenericTileList start_address_of_generic_tile_list {};
     start_address_of_generic_tile_list.start = tile_list.buffer()->gpu_virtual_address();
@@ -443,10 +447,7 @@ ErrorOr<Device::RenderControlList> Device::generate_render_control_list(u32 targ
 
     TRY(control_list.copy_to_gpu_buffer());
 
-    return RenderControlList {
-        .control_list = move(control_list),
-        .tile_list = move(tile_list),
-    };
+    return {};
 }
 
 Device::Device(NonnullOwnPtr<Core::File> gpu_file)
@@ -485,7 +486,7 @@ ErrorOr<void> Device::initialize_context(Gfx::IntSize min_size)
     m_framebuffer = TRY(Buffer::create(align_up_to(m_framebuffer_size.area() * sizeof(u32), V3D_PAGE_SIZE), "LibV3DGPU: Framebuffer"sv));
     m_framebuffer_data = m_framebuffer->data();
 
-    m_binner_control_list = TRY(generate_initial_binner_control_list());
+    TRY(generate_initial_binner_control_list(m_binner_control_list));
 
     auto tile_count = ceil_div(m_framebuffer_size.width(), TILE_WIDTH) * ceil_div(m_framebuffer_size.height(), TILE_HEIGHT);
 
@@ -795,7 +796,7 @@ void Device::blit_from_color_buffer(Gfx::Bitmap& target)
     auto new_render_control_list_state = render_control_list_state_needed_for_current_frame();
     if (m_render_control_list_state != new_render_control_list_state) {
         // Some parameter(s) changed that require regenerating the render control list.
-        m_render_control_list = generate_render_control_list(m_framebuffer_size.width() * sizeof(u32), m_framebuffer->gpu_virtual_address()).release_value_but_fixme_should_propagate_errors();
+        generate_render_control_list(m_render_control_list, m_framebuffer_size.width() * sizeof(u32), m_framebuffer->gpu_virtual_address()).release_value_but_fixme_should_propagate_errors();
 
         m_render_control_list_state = new_render_control_list_state;
     }
@@ -821,7 +822,7 @@ void Device::blit_from_color_buffer(Gfx::Bitmap& target)
 
     memcpy(target.scanline_u8(0), m_framebuffer_data.data(), target.data_size());
 
-    m_binner_control_list = generate_initial_binner_control_list().release_value_but_fixme_should_propagate_errors();
+    generate_initial_binner_control_list(m_binner_control_list).release_value_but_fixme_should_propagate_errors();
     m_shader_state_records.clear();
 
     m_color_buffer_clear_requested_this_frame = false;

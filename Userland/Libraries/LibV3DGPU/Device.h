@@ -66,7 +66,7 @@ public:
 private:
     ErrorOr<void> initialize_context(Gfx::IntSize min_size);
 
-    ErrorOr<ControlList> generate_initial_binner_control_list();
+    ErrorOr<void> generate_initial_binner_control_list(ControlList&);
 
     struct ShaderStateRecord {
         ControlList control_list;
@@ -81,9 +81,9 @@ private:
         ControlList control_list;
         ControlList tile_list;
     };
-    ErrorOr<RenderControlList> generate_render_control_list(u32 target_buffer_pitch, u32 target_buffer_address);
+    ErrorOr<void> generate_render_control_list(RenderControlList&, u32 target_buffer_pitch, u32 target_buffer_address);
 
-    ErrorOr<ControlList> generate_tile_list(u32 target_buffer_pitch, u32 target_buffer_address);
+    ErrorOr<void> generate_tile_list(ControlList&, u32 target_buffer_pitch, u32 target_buffer_address);
 
     // This member should be before any Buffers (or anything containing Buffers, like ControlLists)
     // to ensure that its destructor gets called last.
