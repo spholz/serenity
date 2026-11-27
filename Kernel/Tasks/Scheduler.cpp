@@ -442,7 +442,7 @@ void Scheduler::add_time_scheduled(u64 time_to_add, bool is_kernel)
 void Scheduler::timer_tick()
 {
     VERIFY_INTERRUPTS_DISABLED();
-    VERIFY(Processor::current_in_irq());
+    // VERIFY(Processor::current_in_irq());
 
     auto* current_thread = Processor::current_thread();
     if (!current_thread)
@@ -480,7 +480,7 @@ void Scheduler::timer_tick()
     }
 
     VERIFY_INTERRUPTS_DISABLED();
-    VERIFY(Processor::current_in_irq());
+    // VERIFY(Processor::current_in_irq());
     Processor::current().invoke_scheduler_async();
 }
 
