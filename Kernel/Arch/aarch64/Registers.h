@@ -1784,4 +1784,41 @@ struct alignas(u64) ICH_HCR_EL2 {
 };
 static_assert(sizeof(ICH_HCR_EL2) == 8);
 
+// support.arm.com/documentation/ddi0601/2026-09/AArch64-Registers/CNTHCTL-EL2--Counter-timer-Hypervisor-Control-Register
+// CNTHCTL_EL2, Counter-timer Hypervisor Control Register
+struct alignas(u64) CNTHCTL_EL2 {
+    u64 EL0PCTEN : 1;
+    u64 EL0VCTEN : 1;
+    u64 EVNTEN : 1;
+    u64 EVNTDIR : 1;
+    u64 EVNTI : 4;
+    u64 EL0VTEN : 1;
+    u64 EL0PTEN : 1;
+    u64 EL1PCTEN : 1;
+    u64 EL1PTEN : 1;
+    u64 ECV : 1;
+    u64 EL1TVT : 1;
+    u64 EL1TVCT : 1;
+    u64 EL1NVPCT : 1;
+    u64 EL1NVVCT : 1;
+    u64 EVNTIS : 1;
+    u64 CNTVMASK : 1;
+    u64 CNTPMASK : 1;
+    u64 : 44;
+
+    static inline CNTHCTL_EL2 read()
+    {
+        CNTHCTL_EL2 cnthctl_el2;
+        asm volatile("mrs %[value], CNTHCTL_EL2" :
+            [value] "=r"(cnthctl_el2));
+        return cnthctl_el2;
+    }
+
+    static inline void write(CNTHCTL_EL2 cnthctl_el2)
+    {
+        asm volatile("msr CNTHCTL_EL2, %[value]" ::[value] "r"(cnthctl_el2));
+    }
+};
+static_assert(sizeof(ICH_HCR_EL2) == 8);
+
 }

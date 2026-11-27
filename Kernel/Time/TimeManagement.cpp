@@ -466,6 +466,14 @@ UNMAP_AFTER_INIT bool TimeManagement::probe_and_set_aarch64_hardware_timers()
     m_system_timer = s_hardware_timers->last();
     dbgln("TimeManagement: System timer: {}", m_system_timer->model());
 
+    bool success = m_system_timer->try_to_set_frequency(m_system_timer->calculate_nearest_possible_frequency(OPTIMAL_TICKS_PER_SECOND_RATE));
+    VERIFY(success);
+
+    m_profile_timer = s_hardware_timers->first();
+    m_profile_timer->set_callback(PerformanceManager::timer_tick);
+    m_profile_timer->try_to_set_frequency(m_profile_timer->calculate_nearest_possible_frequency(1));
+    dbgln("TimeManagement: Profile timer: {}", m_profile_timer->model());
+
     m_time_ticks_per_second = m_system_timer->ticks_per_second();
 
     m_read_time_from_hardware = [this](auto&&... args) {

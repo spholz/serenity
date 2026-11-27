@@ -14,24 +14,29 @@ namespace Kernel {
 
 static ARMv8Timer* s_the = nullptr;
 
-ARMv8Timer::ARMv8Timer(InterruptNumber interrupt_number, u32 frequency)
+ARMv8Timer::ARMv8Timer(InterruptNumber interrupt_number, u32 frequency, Type type)
     : HardwareTimer(interrupt_number)
     , m_frequency(frequency)
+    , m_type(type)
 {
-    m_interrupt_interval = m_frequency / OPTIMAL_TICKS_PER_SECOND_RATE;
-
-    start_timer(m_interrupt_interval);
 }
 
-ErrorOr<NonnullLockRefPtr<ARMv8Timer>> ARMv8Timer::initialize(InterruptNumber interrupt_number, u32 frequency)
+ErrorOr<NonnullLockRefPtr<ARMv8Timer>> ARMv8Timer::initialize(InterruptNumber interrupt_number, u32 frequency, Type type)
 {
-    auto timer = TRY(adopt_nonnull_lock_ref_or_enomem(new (nothrow) ARMv8Timer(interrupt_number, frequency)));
+    auto timer = TRY(adopt_nonnull_lock_ref_or_enomem(new (nothrow) ARMv8Timer(interrupt_number, frequency, type)));
 
-    // Enable the physical timer.
-    auto ctl = Aarch64::CNTV_CTL_EL0::read();
-    ctl.IMASK = 0;
-    ctl.ENABLE = 1;
-    Aarch64::CNTV_CTL_EL0::write(ctl);
+    // Enable the timer.
+    if (type == Type::Virtual) {
+        auto ctl = Aarch64::CNTV_CTL_EL0::read();
+        ctl.IMASK = 0;
+        ctl.ENABLE = 1;
+        Aarch64::CNTV_CTL_EL0::write(ctl);
+    } else if (type == Type::Physical) {
+        auto ctl = Aarch64::CNTP_CTL_EL0::read();
+        ctl.IMASK = 0;
+        ctl.ENABLE = 1;
+        Aarch64::CNTP_CTL_EL0::write(ctl);
+    }
 
     timer->enable_irq();
 
@@ -52,15 +57,26 @@ ARMv8Timer& ARMv8Timer::the()
 
 u64 ARMv8Timer::current_ticks()
 {
-    return Aarch64::CNTVCT_EL0::read().VirtualCount;
+    if (m_type == Type::Virtual)
+        return Aarch64::CNTVCT_EL0::read().VirtualCount;
+
+    if (m_type == Type::Physical)
+        return Aarch64::CNTPCT_EL0::read().PhysicalCount;
+
+    VERIFY_NOT_REACHED();
 }
 
 bool ARMv8Timer::handle_irq()
 {
     HardwareTimer::handle_irq();
 
-    if (Aarch64::CNTV_CTL_EL0::read().ISTATUS == 0)
-        return false;
+    if (m_type == Type::Virtual) {
+        if (Aarch64::CNTV_CTL_EL0::read().ISTATUS == 0)
+            return false;
+    } else if (m_type == Type::Physical) {
+        if (Aarch64::CNTP_CTL_EL0::read().ISTATUS == 0)
+            return false;
+    }
 
     start_timer(m_interrupt_interval);
 
@@ -100,9 +116,15 @@ u64 ARMv8Timer::update_time(u64& seconds_since_boot, u32& ticks_this_second, boo
 
 void ARMv8Timer::start_timer(u32 delta)
 {
-    Aarch64::CNTV_TVAL_EL0::write(Aarch64::CNTV_TVAL_EL0 {
-        .TimerValue = delta,
-    });
+    if (m_type == Type::Virtual) {
+        Aarch64::CNTV_TVAL_EL0::write(Aarch64::CNTV_TVAL_EL0 {
+            .TimerValue = delta,
+        });
+    } else if (m_type == Type::Physical) {
+        Aarch64::CNTP_TVAL_EL0::write(Aarch64::CNTP_TVAL_EL0 {
+            .TimerValue = delta,
+        });
+    }
 }
 
 static constinit Array const compatibles_array = {
@@ -126,7 +148,8 @@ ErrorOr<void> ARMv8TimerDriver::probe(DeviceTree::Device const& device, StringVi
     };
 
     // Use the EL1 virtual timer, as that timer should should be accessible to us both on device and in a VM.
-    auto interrupt_number = TRY(device.get_interrupt_number(to_underlying(DeviceTreeTimerInterruptIndex::EL1Virtual)));
+    auto virtual_interrupt_number = TRY(device.get_interrupt_number(to_underlying(DeviceTreeTimerInterruptIndex::EL1Virtual)));
+    auto physical_interrupt_number = TRY(device.get_interrupt_number(to_underlying(DeviceTreeTimerInterruptIndex::EL1Physical)));
 
     u32 frequency = 0;
 
@@ -147,9 +170,11 @@ ErrorOr<void> ARMv8TimerDriver::probe(DeviceTree::Device const& device, StringVi
         return EINVAL;
     }
 
-    auto timer = TRY(ARMv8Timer::initialize(interrupt_number, frequency));
-
+    auto timer = TRY(ARMv8Timer::initialize(virtual_interrupt_number, frequency));
     MUST(TimeManagement::register_hardware_timer(timer));
+
+    auto physical_timer = TRY(ARMv8Timer::initialize(physical_interrupt_number, frequency, ARMv8Timer::Type::Physical));
+    MUST(TimeManagement::register_hardware_timer(physical_timer));
 
     return {};
 }

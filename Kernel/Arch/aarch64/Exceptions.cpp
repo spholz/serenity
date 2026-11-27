@@ -47,6 +47,11 @@ static void drop_el2_to_el1()
     hypervisor_configuration_register_el2.RW = 1; // EL1 to use 64-bit mode
     Aarch64::HCR_EL2::write(hypervisor_configuration_register_el2);
 
+    Aarch64::CNTHCTL_EL2 cnthctl_el2 = Aarch64::CNTHCTL_EL2::read();
+    cnthctl_el2.EL1PCTEN = 1;
+    cnthctl_el2.EL0VCTEN = 1;
+    Aarch64::CNTHCTL_EL2::write(cnthctl_el2);
+
     Aarch64::SPSR_EL2 saved_program_status_register_el2 = {};
 
     // Mask (disable) all interrupts
